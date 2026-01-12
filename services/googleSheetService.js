@@ -9,12 +9,14 @@ const auth = new google.auth.GoogleAuth({
 });
 
 // Spreadsheet ID
-const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID";
-const SHEET_NAME = "orders"; // Sheet where orders will be logged
+const SPREADSHEET_ID = "11s9MSAsEiAzsCNtNzEu6Z-mSi1pX1Sf5KMoxsveQ0qs";
+const SHEET_NAME = "Orders"; // Sheet where orders will be logged
 
 async function appendOrder(order) {
   const client = await auth.getClient();
   const sheets = google.sheets({ version: "v4", auth: client });
+
+  const now = new Date().toISOString();
 
   const row = [
     order.orderId,
@@ -23,38 +25,46 @@ async function appendOrder(order) {
     order.startDate,
     order.endDate,
     order.quantity,
-    order.pricingLabel,
-    order.totalPrice,
+    order.pricing.label,
+    order.pricing.perDay,
+    order.pricing.total,
     order.pickup,
     order.drop,
-    order.createdAt,
+    order.customer.title,
+    order.customer.firstName,
+    order.customer.lastName,
+    order.customer.countryCode,
+    order.customer.mobile,
+    order.customer.email,
+    order.customer.alternatePhone || "",
+    now,
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_NAME,
     valueInputOption: "USER_ENTERED",
-    resource: {
-      values: [row],
-    },
+    resource: { values: [row] },
   });
 
   return { success: true, orderId: order.orderId };
 }
 
+/**
+ * Create order with backend-calculated pricing
+ */
 async function createOrder({
   productType,
   locationName,
   startDate,
   endDate,
   quantity,
-  pricingLabel,
-  totalPrice,
   pickup = true,
   drop = true,
+  customer,
+  pricing, // { label, perDay, total } calculated in productService
 }) {
   const orderId = `ORD-${uuidv4().split("-")[0]}`; // simple internal orderId
-  const createdAt = new Date().toISOString();
 
   const order = {
     orderId,
@@ -63,11 +73,11 @@ async function createOrder({
     startDate,
     endDate,
     quantity,
-    pricingLabel,
-    totalPrice,
     pickup,
     drop,
-    createdAt,
+    customer,
+    pricing,
+    createdAt: new Date().toISOString(),
   };
 
   return appendOrder(order);

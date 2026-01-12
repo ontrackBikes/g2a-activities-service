@@ -104,6 +104,7 @@ const bikeRentals = {
       label: pm.label,
       perDay: pm.amount,
       total: pm.amount * rentalDays * quantity,
+      paymentType: pm.paymentType,
     }));
 
     return {
