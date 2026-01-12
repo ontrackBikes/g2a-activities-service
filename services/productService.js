@@ -19,7 +19,6 @@ const bikeRentals = {
       }));
   },
 
-  // Check availability
   checkAvailability({
     locationName,
     startDate,
@@ -38,7 +37,6 @@ const bikeRentals = {
       return { success: false, message: "Location not found" };
     }
 
-    // Pickup/drop constraints
     if (pickup && !location.pickup) {
       return {
         success: false,
@@ -53,7 +51,6 @@ const bikeRentals = {
     const start = moment(startDate, "YYYY-MM-DD");
     const end = moment(endDate, "YYYY-MM-DD");
 
-    // Advance booking buffer
     if (start.diff(now, "hours") < product.advanceBookingBufferHours) {
       return {
         success: false,
@@ -61,7 +58,6 @@ const bikeRentals = {
       };
     }
 
-    // Min rental days
     const rentalDays = end.diff(start, "days") + 1;
     if (rentalDays < product.minRentalDays) {
       return {
@@ -70,7 +66,6 @@ const bikeRentals = {
       };
     }
 
-    // Product-level blackout dates
     for (let bd of product.blackoutDates) {
       const bdDate = moment(bd, "YYYY-MM-DD");
       if (start.isSameOrBefore(bdDate) && end.isSameOrAfter(bdDate)) {
@@ -81,7 +76,6 @@ const bikeRentals = {
       }
     }
 
-    // Location-level blackout dates
     for (let bd of location.blackoutDates) {
       const bdDate = moment(bd, "YYYY-MM-DD");
       if (start.isSameOrBefore(bdDate) && end.isSameOrAfter(bdDate)) {
@@ -92,7 +86,6 @@ const bikeRentals = {
       }
     }
 
-    // Quantity checks
     if (quantity > location.maxQtyPerBooking) {
       return {
         success: false,
@@ -106,8 +99,12 @@ const bikeRentals = {
       };
     }
 
-    // Total price
-    const totalPrice = location.pricePerDay * rentalDays * quantity;
+    // Flattened pricing array
+    const pricing = location.paymentModes.map((pm) => ({
+      label: pm.label,
+      perDay: pm.amount,
+      total: pm.amount * rentalDays * quantity,
+    }));
 
     return {
       success: true,
@@ -115,13 +112,11 @@ const bikeRentals = {
         location: location.name,
         rentalDays,
         quantity,
-        totalPrice,
-        pricePerDay: location.pricePerDay,
+        pricing,
         pickup: location.pickup,
         drop: location.drop,
         hotelDelivery: location.hotelDelivery,
         timings: location.timings,
-        paymentModes: location.paymentModes,
       },
     };
   },

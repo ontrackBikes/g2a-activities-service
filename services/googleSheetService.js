@@ -1,102 +1,78 @@
 const { google } = require("googleapis");
-const { v4: uuid } = require("uuid");
+const { v4: uuidv4 } = require("uuid"); // To generate orderId
+const credentials = require("../data/google-service-account.json"); // your service account
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const auth = new google.auth.GoogleAuth({
+  credentials,
+  scopes: SCOPES,
+});
 
-const SHEETS = {
-  GENERATED: "generated_orders",
-  PAID: "paid_orders",
-};
+// Spreadsheet ID
+const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID";
+const SHEET_NAME = "orders"; // Sheet where orders will be logged
 
-let sheetsClient;
+async function appendOrder(order) {
+  const client = await auth.getClient();
+  const sheets = google.sheets({ version: "v4", auth: client });
 
-async function getClient() {
-  if (sheetsClient) return sheetsClient;
+  const row = [
+    order.orderId,
+    order.productType,
+    order.locationName,
+    order.startDate,
+    order.endDate,
+    order.quantity,
+    order.pricingLabel,
+    order.totalPrice,
+    order.pickup,
+    order.drop,
+    order.createdAt,
+  ];
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GS_CLIENT_EMAIL,
-      private_key: process.env.GS_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: SHEET_NAME,
+    valueInputOption: "USER_ENTERED",
+    resource: {
+      values: [row],
     },
-    scopes: SCOPES,
   });
 
-  sheetsClient = google.sheets({ version: "v4", auth });
-  return sheetsClient;
+  return { success: true, orderId: order.orderId };
 }
 
-async function createGeneratedOrder(productType, customer, meta) {
-  const sheets = await getClient();
-
-  const orderId = uuid();
+async function createOrder({
+  productType,
+  locationName,
+  startDate,
+  endDate,
+  quantity,
+  pricingLabel,
+  totalPrice,
+  pickup = true,
+  drop = true,
+}) {
+  const orderId = `ORD-${uuidv4().split("-")[0]}`; // simple internal orderId
   const createdAt = new Date().toISOString();
 
-  const values = [
-    [
-      orderId,
-      productType,
-      customer.name,
-      customer.phone,
-      JSON.stringify(meta),
-      createdAt,
-    ],
-  ];
+  const order = {
+    orderId,
+    productType,
+    locationName,
+    startDate,
+    endDate,
+    quantity,
+    pricingLabel,
+    totalPrice,
+    pickup,
+    drop,
+    createdAt,
+  };
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: `${SHEETS.GENERATED}!A:F`,
-    valueInputOption: "USER_ENTERED",
-    resource: { values },
-  });
-
-  return { orderId, createdAt };
-}
-
-async function createPaidOrder(orderId, payment) {
-  const sheets = await getClient();
-
-  const paidAt = new Date().toISOString();
-
-  const values = [
-    [orderId, payment.paymentId, payment.amount, payment.mode, paidAt],
-  ];
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: `${SHEETS.PAID}!A:E`,
-    valueInputOption: "USER_ENTERED",
-    resource: { values },
-  });
-
-  return { orderId, paidAt };
-}
-
-async function getGeneratedOrders() {
-  const sheets = await getClient();
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${SHEETS.GENERATED}!A2:F`,
-  });
-
-  return res.data.values || [];
-}
-
-async function getPaidOrders() {
-  const sheets = await getClient();
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${SHEETS.PAID}!A2:E`,
-  });
-
-  return res.data.values || [];
+  return appendOrder(order);
 }
 
 module.exports = {
-  createGeneratedOrder,
-  createPaidOrder,
-  getGeneratedOrders,
-  getPaidOrders,
+  createOrder,
 };
