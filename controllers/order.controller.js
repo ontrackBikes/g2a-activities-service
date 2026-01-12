@@ -90,6 +90,7 @@ const createBikeRentalOrder = async (req, res) => {
       totalPrice: pricing.total,
       currency: "INR",
       notes: {
+        orderId,
         location: locationName,
         startDate,
         endDate,

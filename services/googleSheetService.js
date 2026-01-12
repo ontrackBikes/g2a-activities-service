@@ -83,6 +83,45 @@ async function createOrder({
   return appendOrder(order);
 }
 
+const PAYMENT_SHEET_NAME = "Payments"; // Sheet where orders will be logged
+
+async function logPayment({
+  orderId,
+  razorpayOrderId,
+  paymentId,
+  amount,
+  currency,
+  status,
+  notes,
+  paidAt,
+}) {
+  const client = await auth.getClient();
+  const sheets = google.sheets({ version: "v4", auth: client });
+
+  const row = [
+    orderId,
+    razorpayOrderId,
+    paymentId,
+    amount,
+    currency,
+    status,
+    JSON.stringify(notes),
+    paidAt,
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: PAYMENT_SHEET_NAME,
+    valueInputOption: "USER_ENTERED",
+    resource: {
+      values: [row],
+    },
+  });
+
+  return { success: true };
+}
+
 module.exports = {
   createOrder,
+  logPayment,
 };
