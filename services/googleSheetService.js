@@ -9,7 +9,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 // Spreadsheet ID
-const SPREADSHEET_ID = "11s9MSAsEiAzsCNtNzEu6Z-mSi1pX1Sf5KMoxsveQ0qs";
+const SPREADSHEET_ID = process.env.SPREAD_SHEET_ID;
 const SHEET_NAME = "Orders"; // Sheet where orders will be logged
 
 async function appendOrder(order) {
