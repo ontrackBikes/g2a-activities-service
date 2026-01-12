@@ -29,3 +29,4 @@ yarn-error.log*
 *.pid
 *.seed
 *.pid.lock
+data/google-service-account.json
