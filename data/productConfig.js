@@ -25,7 +25,6 @@ module.exports = {
   bikeRentalLocations: [
     {
       name: "Airport",
-      pricePerDay: 500,
       pickup: true,
       drop: true,
       maxQtyPerBooking: 2,
@@ -43,7 +42,7 @@ module.exports = {
         enabled: true,
         onlineCharge: 0,
         infoText:
-          "Free within city limits. Extra charges (~₹100) apply if outside (verified by agent).",
+          "Free within city limits. Extra charges (~₹100) apply if outside.",
       },
       timings: {
         season: "08:00 AM - 06:00 PM",
