@@ -1,6 +1,6 @@
 const { google } = require("googleapis");
 const { v4: uuidv4 } = require("uuid"); // To generate orderId
-const credentials = require("../data/google-service-account.json"); // your service account
+const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const auth = new google.auth.GoogleAuth({
