@@ -1,9 +1,13 @@
 const productService = require("../services/productService");
 
-const getLocationsBikeRentals = (req, res) => {
+const getinfoBikeRentals = (req, res) => {
   try {
     const locations = productService.bikeRentals.getLocations();
-    res.json({ success: true, data: locations });
+    res.json({
+      success: true,
+      product: productService.bikeRentals.productInfo(),
+      locations: locations,
+    });
   } catch (error) {
     console.error("Error fetching bike rental locations:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -75,9 +79,27 @@ const checkAvailabilityBikeRentals = (req, res) => {
   }
 };
 
+const getPickupDropPointsByLocation = (req, res) => {
+  try {
+    const { locationName } = req.params; // GET /pickup-points/:locationName
+    const result =
+      productService.bikeRentals.getPickupDropPointsByLocation(locationName);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error("Error fetching pickup points:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
-  getLocationsBikeRentals,
+  getinfoBikeRentals,
   getPickupLocationsBikeRentals,
   getDropLocationsBikeRentals,
   checkAvailabilityBikeRentals,
+  getPickupDropPointsByLocation,
 };

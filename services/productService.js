@@ -2,6 +2,29 @@ const { products, bikeRentalLocations } = require("../data/productConfig");
 const moment = require("moment");
 
 const bikeRentals = {
+  productInfo() {
+    const product = products.find((p) => p.productType === "bike-rentals");
+
+    if (!product || !product.active) {
+      return {
+        success: false,
+        message: "Bike rentals product not available",
+      };
+    }
+
+    return {
+      productType: product.productType,
+      label: product.label,
+      description: product.description,
+      advanceBookingBufferHours: product.advanceBookingBufferHours,
+      minRentalDays: product.minRentalDays,
+      maxQuantity: product.maxQuantity,
+      blackoutDates: product.blackoutDates,
+      pickupDropMessages: product.pickupDropMessages || [],
+      productThumbnailUrl: product.productThumbnailUrl || null,
+      inclusions: product.inclusions || [],
+    };
+  },
   // Get all bike rental locations, with optional pickup/drop filters
   getLocations({ pickupOnly = false, dropOnly = false } = {}) {
     return bikeRentalLocations
@@ -16,7 +39,36 @@ const bikeRentals = {
         drop: loc.drop,
         maxQtyPerBooking: loc.maxQtyPerBooking,
         totalStock: loc.totalStock,
+        pricing: loc.paymentModes.find((pm) => pm.paymentType === "full"),
+        timings: loc.timings,
+        paymentModes: loc.paymentModes,
       }));
+  },
+
+  getPickupDropPointsByLocation(locationName) {
+    if (!locationName) {
+      return { success: false, message: "Location name is required" };
+    }
+
+    const location = bikeRentalLocations.find(
+      (loc) => loc.name.toLowerCase() === locationName.toLowerCase()
+    );
+
+    if (!location) {
+      return { success: false, message: "Location not found" };
+    }
+
+    if (!location.pickupDropPoints || location.pickupDropPoints.length === 0) {
+      return { success: true, data: [] }; // no points defined
+    }
+
+    return {
+      success: true,
+      data: location.pickupDropPoints.map((point) => ({
+        name: point.name,
+        address: point.address,
+      })),
+    };
   },
 
   checkAvailability({
