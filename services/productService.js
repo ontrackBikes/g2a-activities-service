@@ -12,7 +12,18 @@ const bikeRentals = {
       return { success: false, message: "Bike rentals not available" };
     }
 
-    return { success: true, data: product };
+    return {
+      productType: product.productType,
+      label: product.label,
+      description: product.description,
+      advanceBookingBufferHours: product.advanceBookingBufferHours,
+      minRentalDays: product.minRentalDays,
+      maxQuantity: product.maxQuantity,
+      blackoutDates: product.blackoutDates,
+      pickupDropMessages: product.pickupDropMessages || [],
+      productThumbnailUrl: product.productThumbnailUrl || null,
+      inclusions: product.inclusions || [],
+    };
   },
 
   /* -------------------- LOCATION HELPERS -------------------- */
@@ -37,6 +48,7 @@ const bikeRentals = {
         drop: loc.drop,
         maxQtyPerBooking: loc.maxQtyPerBooking,
         totalStock: loc.totalStock,
+        pricing: loc.paymentModes.find((pm) => pm.paymentType === "full"),
         paymentModes: loc.paymentModes,
         timings: loc.timings,
       }));

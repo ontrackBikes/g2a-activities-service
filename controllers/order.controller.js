@@ -22,10 +22,12 @@ const createBikeRentalOrder = async (req, res) => {
       dropHotelName,
 
       customer,
+
+      usePaymentLink = false,
     } = req.body;
 
+    // Validate input using your schema helper
     const errors = validate(req.body);
-
     if (errors.length) {
       return res.status(400).json({
         success: false,
@@ -90,33 +92,70 @@ const createBikeRentalOrder = async (req, res) => {
 
     const orderId = sheetResult.orderId;
 
-    /* -------------------- RAZORPAY ORDER -------------------- */
-    const rzpResult = await razorpayService.createRazorpayOrder({
-      orderId,
-      totalPrice: pricing.total * 100, // in paise
-      currency: "INR",
-      notes: {
-        orderId,
-        location: locationName,
-        startDate,
-        endDate,
-        quantity,
-        pickupType,
-        dropType,
-        pickup,
-        drop,
-        pickupHotelName,
-        dropHotelName,
-        customerName: `${customer.firstName} ${customer.lastName}`,
-        paymentType: pricing.label,
-      },
-    });
+    let paymentResult;
 
-    if (!rzpResult.success) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to create Razorpay order",
+    if (usePaymentLink) {
+      /* -------------------- RAZORPAY PAYMENT LINK -------------------- */
+      paymentResult = await razorpayService.createPaymentLink({
+        amount: pricing.total,
+        currency: "INR",
+        customer: {
+          name: `${customer.firstName} ${customer.lastName}`,
+          email: customer.email,
+          mobile: customer.mobile,
+        },
+        description: `Bike Rental Payment - ${orderId}`,
+        notes: {
+          orderId,
+          location: locationName,
+          startDate,
+          endDate,
+          quantity,
+          pickupType,
+          dropType,
+          pickup,
+          drop,
+          pickupHotelName,
+          dropHotelName,
+          paymentType: pricing.label,
+        },
       });
+
+      if (!paymentResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create Razorpay payment link",
+        });
+      }
+    } else {
+      /* -------------------- RAZORPAY ORDER -------------------- */
+      paymentResult = await razorpayService.createRazorpayOrder({
+        orderId,
+        totalPrice: pricing.total,
+        currency: "INR",
+        notes: {
+          orderId,
+          location: locationName,
+          startDate,
+          endDate,
+          quantity,
+          pickupType,
+          dropType,
+          pickup,
+          drop,
+          pickupHotelName,
+          dropHotelName,
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          paymentType: pricing.label,
+        },
+      });
+
+      if (!paymentResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create Razorpay order",
+        });
+      }
     }
 
     /* -------------------- SUCCESS -------------------- */
@@ -124,7 +163,8 @@ const createBikeRentalOrder = async (req, res) => {
       success: true,
       orderId,
       pricing,
-      razorpayOrder: rzpResult.data,
+      payment: paymentResult.data,
+      paymentTypeUsed: usePaymentLink ? "link" : "order",
     });
   } catch (error) {
     console.error("Error creating bike rental order:", error);

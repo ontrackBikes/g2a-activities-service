@@ -82,8 +82,7 @@ const checkAvailabilityBikeRentals = (req, res) => {
 const getPickupDropPointsByLocation = (req, res) => {
   try {
     const { locationName } = req.params; // GET /pickup-points/:locationName
-    const result =
-      productService.bikeRentals.getPickupDropPointsByLocation(locationName);
+    const result = productService.bikeRentals.getPickupDropPoints(locationName);
 
     if (result.success) {
       res.json(result);

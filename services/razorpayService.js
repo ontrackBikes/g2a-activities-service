@@ -28,6 +28,40 @@ async function createRazorpayOrder(order) {
   }
 }
 
+/**
+ * Create a Razorpay Payment Link
+ * @param {Object} linkData - { amount, currency, customer, description, notes }
+ * amount in INR rupees
+ */
+async function createPaymentLink(linkData) {
+  try {
+    const payload = {
+      amount: linkData.amount * 100, // paise
+      currency: linkData.currency || "INR",
+      accept_partial: false,
+      description: linkData.description || "Payment",
+      customer: {
+        name: linkData.customer?.name || "",
+        email: linkData.customer?.email || "",
+        contact: linkData.customer?.mobile || "",
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      reminder_enable: true,
+      notes: linkData.notes || {},
+    };
+
+    const paymentLink = await razorpay.paymentLink.create(payload);
+    return { success: true, data: paymentLink };
+  } catch (error) {
+    console.error("Razorpay payment link creation failed:", error);
+    return { success: false, error };
+  }
+}
+
 module.exports = {
   createRazorpayOrder,
+  createPaymentLink,
 };

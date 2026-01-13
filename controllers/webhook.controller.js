@@ -5,19 +5,19 @@ const razorpayWebhook = async (req, res) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-    // // Razorpay sends signature in header
-    // const signature = req.headers["x-razorpay-signature"];
-    // const body = JSON.stringify(req.body);
+    // Razorpay sends signature in header
+    const signature = req.headers["x-razorpay-signature"];
+    const body = JSON.stringify(req.body);
 
-    // // Verify webhook
-    // const expectedSignature = crypto
-    //   .createHmac("sha256", webhookSecret)
-    //   .update(body)
-    //   .digest("hex");
+    // Verify webhook
+    const expectedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(body)
+      .digest("hex");
 
-    // if (signature !== expectedSignature) {
-    //   return res.status(400).send("Invalid signature");
-    // }
+    if (signature !== expectedSignature) {
+      return res.status(400).send("Invalid signature");
+    }
 
     const event = req.body.event;
     const payload = req.body.payload;
