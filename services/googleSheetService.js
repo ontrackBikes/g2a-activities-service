@@ -1,6 +1,7 @@
 const { google } = require("googleapis");
 const { v4: uuidv4 } = require("uuid"); // To generate orderId
 const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+const moment = require("moment");
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const auth = new google.auth.GoogleAuth({
@@ -25,8 +26,9 @@ async function appendOrder(order) {
     order.startDate,
     order.endDate,
     order.quantity,
-    order.pricing.label,
-    order.pricing.perDay,
+    moment(order.endDate).diff(moment(order.startDate), "days"),
+    order.pricing.paymentType,
+    order.pricing.amountPerDay,
     order.pricing.total,
     order.pickup,
     order.drop,
@@ -62,7 +64,7 @@ async function createOrder({
   pickup = true,
   drop = true,
   customer,
-  pricing, // { label, perDay, total } calculated in productService
+  pricing,
 }) {
   const orderId = `ORD-${uuidv4().split("-")[0]}`; // simple internal orderId
 

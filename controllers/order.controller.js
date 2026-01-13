@@ -1,3 +1,4 @@
+const { validate } = require("../schemas/bikeRentalsOrder.schema");
 const googleSheetService = require("../services/googleSheetService");
 const productService = require("../services/productService");
 const razorpayService = require("../services/razorpayService");
@@ -9,38 +10,38 @@ const createBikeRentalOrder = async (req, res) => {
       startDate,
       endDate,
       quantity,
-      pickup = true,
-      drop = true,
+      paymentType,
+
+      pickupType,
+      dropType,
+
+      pickup,
+      drop,
+
+      pickupHotelName,
+      dropHotelName,
+
       customer,
-      paymentType, // "full" or "partial"
     } = req.body;
 
-    // Validate required fields
-    if (
-      !locationName ||
-      !startDate ||
-      !endDate ||
-      !quantity ||
-      !customer?.firstName ||
-      !customer?.lastName ||
-      !customer?.countryCode ||
-      !customer?.mobile ||
-      !customer?.email ||
-      !paymentType
-    ) {
+    const errors = validate(req.body);
+
+    if (errors.length) {
       return res.status(400).json({
         success: false,
-        message:
-          "Missing required fields: locationName, startDate, endDate, quantity, customer details, paymentType",
+        message: "Invalid input",
+        errors,
       });
     }
 
-    // ✅ 1. Get availability and pricing
+    /* -------------------- AVAILABILITY -------------------- */
     const availability = productService.bikeRentals.checkAvailability({
       locationName,
       startDate,
       endDate,
       quantity,
+      pickupType,
+      dropType,
       pickup,
       drop,
     });
@@ -49,7 +50,7 @@ const createBikeRentalOrder = async (req, res) => {
       return res.status(400).json(availability);
     }
 
-    // Find preferred pricing
+    /* -------------------- PRICING -------------------- */
     const pricing = availability.data.pricing.find(
       (p) => p.paymentType.toLowerCase() === paymentType.toLowerCase()
     );
@@ -63,31 +64,36 @@ const createBikeRentalOrder = async (req, res) => {
       });
     }
 
-    // ✅ 2. Create order in Google Sheet
+    /* -------------------- GOOGLE SHEET ORDER -------------------- */
     const sheetResult = await googleSheetService.createOrder({
       productType: "bike-rentals",
       locationName,
       startDate,
       endDate,
       quantity,
+      pickupType,
+      dropType,
       pickup,
       drop,
+      pickupHotelName,
+      dropHotelName,
       pricing,
       customer,
     });
 
     if (!sheetResult.success) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to create order in sheet" });
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create order in sheet",
+      });
     }
 
     const orderId = sheetResult.orderId;
 
-    // ✅ 3. Create Razorpay order
+    /* -------------------- RAZORPAY ORDER -------------------- */
     const rzpResult = await razorpayService.createRazorpayOrder({
       orderId,
-      totalPrice: pricing.total,
+      totalPrice: pricing.total * 100, // in paise
       currency: "INR",
       notes: {
         orderId,
@@ -95,27 +101,33 @@ const createBikeRentalOrder = async (req, res) => {
         startDate,
         endDate,
         quantity,
+        pickupType,
+        dropType,
         pickup,
         drop,
+        pickupHotelName,
+        dropHotelName,
         customerName: `${customer.firstName} ${customer.lastName}`,
         paymentType: pricing.label,
       },
     });
 
     if (!rzpResult.success) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to create Razorpay order" });
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create Razorpay order",
+      });
     }
 
+    /* -------------------- SUCCESS -------------------- */
     res.json({
       success: true,
       orderId,
-      sheetResult,
+      pricing,
       razorpayOrder: rzpResult.data,
     });
   } catch (error) {
-    console.error("Error creating order:", error);
+    console.error("Error creating bike rental order:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
