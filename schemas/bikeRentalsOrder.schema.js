@@ -1,4 +1,4 @@
-const { bikeRentalLocations } = require("../data/productConfig");
+const { bikeRentalLocations, products } = require("../data/productConfig");
 
 const schema = {
   locationName: { required: true, type: "string" },
@@ -155,7 +155,19 @@ const validateConstraints = (payload) => {
     return errors;
   }
 
-  if (payload.quantity > location.maxQtyPerBooking) {
+  const product = products.find(
+    (p) => p.productType === "bike-rentals" && p.active
+  );
+
+  if (!product) {
+    errors.push(error("product", "Product does not exist"));
+    return errors;
+  }
+
+  if (
+    payload.quantity > location.maxQtyPerBooking ||
+    payload.quantity > product.maxQuantity
+  ) {
     errors.push(
       error("quantity", `Max quantity allowed is ${location.maxQtyPerBooking}`)
     );

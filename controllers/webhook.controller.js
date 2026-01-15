@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const googleSheetService = require("../services/googleSheetService");
+const { fetchPaymentByOrderId } = require("../services/razorpayService");
 
 const razorpayWebhook = async (req, res) => {
   try {
@@ -51,6 +52,51 @@ const razorpayWebhook = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/payments/order-info
+ * Query: order_id (razorpay order id)
+ */
+const getOrderInfo = async (req, res) => {
+  try {
+    const { order_id } = req.query;
+
+    if (!order_id) {
+      return res.status(400).json({
+        status: "failed",
+        reason: "order_id is required",
+      });
+    }
+
+    const result = await fetchPaymentByOrderId(order_id);
+
+    if (!result.success) {
+      return res.status(500).json({
+        status: "failed",
+        reason: "Unable to fetch payment",
+      });
+    }
+
+    if (result.status === "pending") {
+      return res.json({
+        status: "pending",
+        order_id,
+      });
+    }
+
+    return res.json({
+      status: result.status,
+      ...result.data,
+    });
+  } catch (error) {
+    console.error("Order info API error:", error);
+    res.status(500).json({
+      status: "failed",
+      reason: "Server error",
+    });
+  }
+};
+
 module.exports = {
   razorpayWebhook,
+  getOrderInfo,
 };

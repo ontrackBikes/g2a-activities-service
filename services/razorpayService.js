@@ -61,7 +61,52 @@ async function createPaymentLink(linkData) {
   }
 }
 
+async function fetchPaymentByOrderId(orderId) {
+  try {
+    const response = await razorpay.orders.fetchPayments(orderId);
+    const payments = response.items || [];
+
+    if (!payments.length) {
+      return {
+        success: true,
+        status: "pending",
+        data: null,
+      };
+    }
+
+    // Take latest payment
+    const payment = payments[payments.length - 1];
+
+    let status = "pending";
+    if (payment.status === "captured") status = "success";
+    if (payment.status === "failed") status = "failed";
+
+    return {
+      success: true,
+      status,
+      data: {
+        order_id: orderId,
+        payment_id: payment.id,
+        amount: payment.amount / 100,
+        currency: payment.currency,
+        method: payment.method,
+        notes: payment.notes,
+        reason: payment.error_description || null,
+        created_at: new Date(payment.created_at * 1000).toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Fetch payment by order id failed:", error);
+    return {
+      success: false,
+      status: "failed",
+      error,
+    };
+  }
+}
+
 module.exports = {
   createRazorpayOrder,
   createPaymentLink,
+  fetchPaymentByOrderId,
 };

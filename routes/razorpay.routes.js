@@ -9,4 +9,6 @@ router.post(
   webhookController.razorpayWebhook
 );
 
+router.get("/razorpay/order-info", webhookController.getOrderInfo);
+
 module.exports = router;
