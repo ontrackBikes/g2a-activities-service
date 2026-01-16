@@ -36,22 +36,31 @@ const bikeRentals = {
   },
 
   getLocations({ pickupOnly = false, dropOnly = false } = {}) {
+    const currentMonth = new Date().getMonth();
+
     return bikeRentalLocations
       .filter((loc) => {
         if (pickupOnly && !loc.pickup) return false;
         if (dropOnly && !loc.drop) return false;
         return true;
       })
-      .map((loc) => ({
-        name: loc.name,
-        pickup: loc.pickup,
-        drop: loc.drop,
-        maxQtyPerBooking: loc.maxQtyPerBooking,
-        totalStock: loc.totalStock,
-        pricing: loc.paymentModes.find((pm) => pm.paymentType === "full"),
-        paymentModes: loc.paymentModes,
-        timings: loc.timings,
-      }));
+      .map((loc) => {
+        const peakMonths = Array.isArray(loc.peakMonths) ? loc.peakMonths : [];
+
+        return {
+          name: loc.name,
+          pickup: loc.pickup,
+          drop: loc.drop,
+          maxQtyPerBooking: loc.maxQtyPerBooking,
+          totalStock: loc.totalStock,
+          paymentModes: loc.paymentModes,
+          timings: loc.timings,
+          deliveryOptions: loc.deliveryOptions.filter((o) => o.enabled),
+          dropOptions: loc.dropOptions.filter((o) => o.enabled),
+          peakMonths,
+          isPeakMonth: peakMonths.includes(currentMonth),
+        };
+      });
   },
 
   /* -------------------- PICKUP / DROP POINTS -------------------- */
@@ -72,7 +81,18 @@ const bikeRentals = {
   validatePickupDrop({ location, pickupType, dropType, pickup, drop }) {
     const pickupPoints = location.pickupDropPoints || [];
 
-    /* ---------- PICKUP ---------- */
+    /* ---------- PICKUP OPTION ---------- */
+    const pickupOption = location.deliveryOptions.find(
+      (o) => o.type === pickupType && o.enabled
+    );
+
+    if (!pickupOption) {
+      return {
+        success: false,
+        message: `${pickupType} pickup not available at this location`,
+      };
+    }
+
     if (pickupType === "self-pickup") {
       if (!pickup) {
         return {
@@ -82,7 +102,7 @@ const bikeRentals = {
       }
 
       const pickupExists = pickupPoints.some(
-        (p) => p.name.toLowerCase() === pickup.toLowerCase()
+        (p) => p.name.toLowerCase() === pickup.toLowerCase() && p.pickup
       );
 
       if (!pickupExists) {
@@ -93,16 +113,18 @@ const bikeRentals = {
       }
     }
 
-    if (pickupType === "hotel-delivery") {
-      if (!location.hotelDelivery?.enabled) {
-        return {
-          success: false,
-          message: "Hotel delivery not available at this location",
-        };
-      }
+    /* ---------- DROP OPTION ---------- */
+    const dropOption = location.dropOptions.find(
+      (o) => o.type === dropType && o.enabled
+    );
+
+    if (!dropOption) {
+      return {
+        success: false,
+        message: `${dropType} drop not available at this location`,
+      };
     }
 
-    /* ---------- DROP ---------- */
     if (dropType === "self-drop") {
       if (!drop) {
         return {
@@ -112,7 +134,7 @@ const bikeRentals = {
       }
 
       const dropExists = pickupPoints.some(
-        (p) => p.name.toLowerCase() === drop.toLowerCase()
+        (p) => p.name.toLowerCase() === drop.toLowerCase() && p.drop
       );
 
       if (!dropExists) {
@@ -123,16 +145,11 @@ const bikeRentals = {
       }
     }
 
-    if (dropType === "hotel-pickup") {
-      if (!location.hotelPickup?.enabled) {
-        return {
-          success: false,
-          message: "Hotel pickup not available at this location",
-        };
-      }
-    }
-
-    return { success: true };
+    return {
+      success: true,
+      pickupOption,
+      dropOption,
+    };
   },
 
   /* -------------------- AVAILABILITY CHECK -------------------- */
@@ -149,6 +166,7 @@ const bikeRentals = {
     const product = products.find(
       (p) => p.productType === "bike-rentals" && p.active
     );
+
     if (!product) {
       return { success: false, message: "Product not available" };
     }
@@ -158,7 +176,7 @@ const bikeRentals = {
       return { success: false, message: "Location not found" };
     }
 
-    /* ✅ Pickup / Drop Validation */
+    /* ---------- PICKUP / DROP VALIDATION ---------- */
     const pickupDropValidation = this.validatePickupDrop({
       location,
       pickupType,
@@ -171,16 +189,25 @@ const bikeRentals = {
       return pickupDropValidation;
     }
 
-    /* ---- Date, quantity, blackout logic stays SAME ---- */
+    const { pickupOption, dropOption } = pickupDropValidation;
 
+    /* ---------- DATE LOGIC ---------- */
     const rentalDays = moment(endDate).diff(moment(startDate), "days") || 1;
 
-    const pricing = location.paymentModes.map((pm) => ({
-      paymentType: pm.paymentType,
-      label: pm.label,
-      amountPerDay: pm.amount,
-      total: pm.amount * rentalDays * quantity,
-    }));
+    /* ---------- BASE PRICING ---------- */
+    const pricing = location.paymentModes
+      .filter((pm) => pm.enabled)
+      .map((pm) => ({
+        paymentType: pm.paymentType,
+        label: pm.label,
+        amountPerDay: pm.amount,
+        rentalAmount: pm.amount * rentalDays * quantity,
+      }));
+
+    /* ---------- PICKUP / DROP CHARGES ---------- */
+    const pickupCharge = pickupOption.onlineCharge || 0;
+    const dropCharge = dropOption.onlineCharge || 0;
+    const addonCharges = pickupCharge + dropCharge;
 
     return {
       success: true,
@@ -188,13 +215,18 @@ const bikeRentals = {
         location: location.name,
         rentalDays,
         quantity,
-        pricing,
         pickupType,
         dropType,
         pickup,
         drop,
-        hotelDelivery: location.hotelDelivery,
-        hotelPickup: location.hotelPickup,
+        pricing: pricing.map((p) => ({
+          ...p,
+          pickupCharge,
+          dropCharge,
+          total: p.rentalAmount + addonCharges,
+        })),
+        deliveryOptions: location.deliveryOptions,
+        dropOptions: location.dropOptions,
         pickupDropPoints: location.pickupDropPoints,
         timings: location.timings,
       },

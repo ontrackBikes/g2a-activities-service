@@ -30,7 +30,6 @@ module.exports = {
       blackoutDates: ["2026-01-16"],
     },
   ],
-
   bikeRentalLocations: [
     {
       name: "Port Blair",
@@ -39,26 +38,63 @@ module.exports = {
       maxQtyPerBooking: 2,
       totalStock: 10,
       blackoutDates: ["2026-01-15", "2026-01-20"],
+      peakMonths: [0, 1, 2, 3, 11, 12],
       paymentModes: [
-        { paymentType: "full", amount: 500, label: "Pay Full" },
+        {
+          paymentType: "full",
+          amount: 500,
+          label: "Pay Full - Not Available",
+          enabled: false,
+          description:
+            "Full payment is not available for this booking, please pay partially.",
+        },
         {
           paymentType: "partial",
           amount: 200,
           label: "Pay after confirmation",
+          enabled: true,
+          description: "",
         },
       ],
-      hotelDelivery: {
-        enabled: true,
-        onlineCharge: 0,
-        infoText:
-          "Free within city limits. Extra charges (~₹100) apply if outside.",
-      },
-      hotelPickup: {
-        enabled: true,
-        onlineCharge: 0,
-        infoText:
-          "Free within city limits. Extra charges (~₹100) apply if outside.",
-      },
+      deliveryOptions: [
+        {
+          title: "Self Pickup",
+          type: "self-pickup",
+          enabled: true,
+          onlineCharge: 0,
+          label: "We will drop the vehicle at your hotel",
+          infoText:
+            "We give free delivery upto city limits, in case the hotel is outside the city additional charge  (~₹100) may apply.",
+        },
+        {
+          title: "Hotel Pickup",
+          type: "hotel",
+          enabled: true,
+          onlineCharge: 100,
+          label: "We will drop the vehicle at your hotel",
+          infoText:
+            "Free within city limits. Extra charges (~₹100) apply if outside.",
+        },
+      ],
+      dropOptions: [
+        {
+          title: "Self Drop",
+          type: "self-drop",
+          enabled: true,
+          onlineCharge: 0,
+          label: "We will drop the vehicle at your hotel",
+          infoText: null,
+        },
+        {
+          title: "Hotel Drop",
+          type: "hotel",
+          enabled: true,
+          onlineCharge: 0,
+          label: "We will drop the vehicle at your hotel",
+          infoText:
+            "Free within city limits. Extra charges (~₹100) apply if outside.",
+        },
+      ],
       timings: {
         season: "08:00 AM - 06:00 PM",
         offSeason: "08:00 AM - 06:00 PM",
@@ -68,87 +104,15 @@ module.exports = {
           name: "Airport",
           address:
             "Port Blair Airport, Port Blair, Andaman and Nicobar Islands",
+          pickup: true,
+          drop: true,
         },
         {
           name: "Ferry Terminal",
           address:
             "Phoenix Bay Jetty, Aberdeen Bazaar, Port Blair, Andaman and Nicobar Islands",
-        },
-      ],
-    },
-    {
-      name: "Hevelock Island",
-      pickup: true,
-      drop: true,
-      maxQtyPerBooking: 2,
-      totalStock: 10,
-      blackoutDates: ["2026-01-15", "2026-01-20"],
-      paymentModes: [
-        { paymentType: "full", amount: 600, label: "Pay Full" },
-        {
-          paymentType: "partial",
-          amount: 200,
-          label: "Pay after confirmation",
-        },
-      ],
-      hotelDelivery: {
-        enabled: true,
-        onlineCharge: 0,
-        infoText:
-          "Free within city limits. Extra charges (~₹100) apply if outside.",
-      },
-      timings: {
-        season: "09:00 AM - 06:00 PM",
-        offSeason: "08:00 AM - 06:00 PM",
-      },
-      pickupDropPoints: [
-        {
-          name: "Airport",
-          address:
-            "Port Blair Airport, Port Blair, Andaman and Nicobar Islands",
-        },
-        {
-          name: "Ferry Terminal",
-          address:
-            "Phoenix Bay Jetty, Aberdeen Bazaar, Port Blair, Andaman and Nicobar Islands",
-        },
-      ],
-    },
-    {
-      name: "Neil Island",
-      pickup: true,
-      drop: true,
-      maxQtyPerBooking: 2,
-      totalStock: 10,
-      blackoutDates: ["2026-01-15", "2026-01-20"],
-      paymentModes: [
-        { paymentType: "full", amount: 800, label: "Pay Full" },
-        {
-          paymentType: "partial",
-          amount: 200,
-          label: "Pay after confirmation",
-        },
-      ],
-      hotelDelivery: {
-        enabled: true,
-        onlineCharge: 0,
-        infoText:
-          "Free within city limits. Extra charges (~₹100) apply if outside.",
-      },
-      timings: {
-        season: "10:00 AM - 06:00 PM",
-        offSeason: "10:00 AM - 06:00 PM",
-      },
-      pickupDropPoints: [
-        {
-          name: "Airport",
-          address:
-            "Port Blair Airport, Port Blair, Andaman and Nicobar Islands",
-        },
-        {
-          name: "Ferry Terminal",
-          address:
-            "Phoenix Bay Jetty, Aberdeen Bazaar, Port Blair, Andaman and Nicobar Islands",
+          pickup: true,
+          drop: true,
         },
       ],
     },

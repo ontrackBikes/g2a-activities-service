@@ -1,5 +1,7 @@
 const { bikeRentalLocations, products } = require("../data/productConfig");
 
+/* ------------------ BASE SCHEMA ------------------ */
+
 const schema = {
   locationName: { required: true, type: "string" },
 
@@ -41,6 +43,9 @@ const schema = {
     enum: ["self-drop", "hotel"],
   },
 
+  pickup: { type: "string" },
+  drop: { type: "string" },
+
   pickupHotelName: {
     type: "string",
     validate: (v, payload) =>
@@ -75,10 +80,14 @@ const schema = {
   },
 };
 
+/* ------------------ HELPERS ------------------ */
+
 const getValue = (obj, path) =>
   path.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
 
 const error = (field, message) => ({ field, message });
+
+/* ------------------ VALIDATORS ------------------ */
 
 const validateRequired = (payload) => {
   const errors = [];
@@ -143,8 +152,12 @@ const validateCustom = (payload) => {
   return errors;
 };
 
+/* ------------------ BUSINESS CONSTRAINTS ------------------ */
+
 const validateConstraints = (payload) => {
   const errors = [];
+
+  /* ---------- LOCATION ---------- */
 
   const location = bikeRentalLocations.find(
     (l) => l.name.toLowerCase() === payload.locationName?.toLowerCase()
@@ -155,6 +168,8 @@ const validateConstraints = (payload) => {
     return errors;
   }
 
+  /* ---------- PRODUCT ---------- */
+
   const product = products.find(
     (p) => p.productType === "bike-rentals" && p.active
   );
@@ -164,41 +179,79 @@ const validateConstraints = (payload) => {
     return errors;
   }
 
+  /* ---------- QUANTITY ---------- */
+
   if (
     payload.quantity > location.maxQtyPerBooking ||
     payload.quantity > product.maxQuantity
   ) {
     errors.push(
-      error("quantity", `Max quantity allowed is ${location.maxQtyPerBooking}`)
+      error(
+        "quantity",
+        `Max quantity allowed is ${Math.min(
+          location.maxQtyPerBooking,
+          product.maxQuantity
+        )}`
+      )
     );
   }
 
+  /* ---------- PAYMENT MODE ---------- */
+
+  const paymentMode = location.paymentModes.find(
+    (p) => p.paymentType === payload.paymentType
+  );
+
+  if (!paymentMode) {
+    errors.push(error("paymentType", "Selected payment type is not available"));
+  }
+
+  /* ---------- PICKUP OPTION ---------- */
+
+  const pickupOption = location.deliveryOptions.find(
+    (o) => o.type === payload.pickupType && o.enabled
+  );
+
+  if (!pickupOption) {
+    errors.push(
+      error("pickupType", `${payload.pickupType} pickup not available`)
+    );
+  }
+
+  /* ---------- DROP OPTION ---------- */
+
+  const dropOption = location.dropOptions.find(
+    (o) => o.type === payload.dropType && o.enabled
+  );
+
+  if (!dropOption) {
+    errors.push(error("dropType", `${payload.dropType} drop not available`));
+  }
+
+  /* ---------- PICKUP POINT ---------- */
+
   if (
     payload.pickupType === "self-pickup" &&
-    !location.pickupDropPoints.some((p) => p.name === payload.pickup)
+    !location.pickupDropPoints.some(
+      (p) => p.name === payload.pickup && p.pickup
+    )
   ) {
     errors.push(error("pickup", "Invalid pickup point"));
   }
 
+  /* ---------- DROP POINT ---------- */
+
   if (
     payload.dropType === "self-drop" &&
-    !location.pickupDropPoints.some((p) => p.name === payload.drop)
+    !location.pickupDropPoints.some((p) => p.name === payload.drop && p.drop)
   ) {
     errors.push(error("drop", "Invalid drop point"));
   }
 
-  if (payload.pickupType === "hotel" && !location.hotelDelivery?.enabled) {
-    errors.push(
-      error("pickupType", "Hotel pickup not available at this location")
-    );
-  }
-
-  if (payload.dropType === "hotel" && !location.hotelPickup?.enabled) {
-    errors.push(error("dropType", "Hotel drop not available at this location"));
-  }
-
   return errors;
 };
+
+/* ------------------ MAIN EXPORT ------------------ */
 
 const validate = (payload) => [
   ...validateRequired(payload),

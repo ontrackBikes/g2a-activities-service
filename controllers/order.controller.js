@@ -3,6 +3,26 @@ const googleSheetService = require("../services/googleSheetService");
 const productService = require("../services/productService");
 const razorpayService = require("../services/razorpayService");
 
+const normalizePickupDropPayload = (payload) => {
+  const clean = { ...payload };
+
+  /* ---------- PICKUP ---------- */
+  if (clean.pickupType === "hotel") {
+    delete clean.pickup;
+  } else {
+    delete clean.pickupHotelName;
+  }
+
+  /* ---------- DROP ---------- */
+  if (clean.dropType === "hotel") {
+    delete clean.drop;
+  } else {
+    delete clean.dropHotelName;
+  }
+
+  return clean;
+};
+
 const createBikeRentalOrder = async (req, res) => {
   try {
     const {
@@ -14,7 +34,6 @@ const createBikeRentalOrder = async (req, res) => {
 
       pickupType,
       dropType,
-
       pickup,
       drop,
 
@@ -22,12 +41,13 @@ const createBikeRentalOrder = async (req, res) => {
       dropHotelName,
 
       customer,
-
       usePaymentLink = false,
     } = req.body;
 
-    // Validate input using your schema helper
-    const errors = validate(req.body);
+    const payload = normalizePickupDropPayload(req.body);
+
+    /* -------------------- VALIDATION -------------------- */
+    const errors = validate(payload);
     if (errors.length) {
       return res.status(400).json({
         success: false,
@@ -52,19 +72,27 @@ const createBikeRentalOrder = async (req, res) => {
       return res.status(400).json(availability);
     }
 
-    /* -------------------- PRICING -------------------- */
+    /* -------------------- SELECT PRICING -------------------- */
     const pricing = availability.data.pricing.find(
-      (p) => p.paymentType.toLowerCase() === paymentType.toLowerCase()
+      (p) => p.paymentType === paymentType
     );
 
     if (!pricing) {
       return res.status(400).json({
         success: false,
-        message: `Invalid paymentType. Available options: ${availability.data.pricing
+        message: `Invalid Payment Mode Selected. Available options: ${availability.data.pricing
           .map((p) => p.label)
           .join(", ")}`,
       });
     }
+
+    /*
+      pricing already contains:
+      - rentalAmount
+      - pickupCharge
+      - dropCharge
+      - total
+    */
 
     /* -------------------- GOOGLE SHEET ORDER -------------------- */
     const sheetResult = await googleSheetService.createOrder({
@@ -73,13 +101,25 @@ const createBikeRentalOrder = async (req, res) => {
       startDate,
       endDate,
       quantity,
+      rentalDays: availability.data.rentalDays,
+
       pickupType,
       dropType,
       pickup,
       drop,
       pickupHotelName,
       dropHotelName,
-      pricing,
+
+      pricing: {
+        paymentType: pricing.paymentType,
+        label: pricing.label,
+        amountPerDay: pricing.amountPerDay,
+        rentalAmount: pricing.rentalAmount,
+        pickupCharge: pricing.pickupCharge,
+        dropCharge: pricing.dropCharge,
+        total: pricing.total,
+      },
+
       customer,
     });
 
@@ -91,33 +131,38 @@ const createBikeRentalOrder = async (req, res) => {
     }
 
     const orderId = sheetResult.orderId;
-
     let paymentResult;
 
+    /* -------------------- PAYMENT -------------------- */
+    const paymentPayload = {
+      amount: pricing.total, // ✅ single source of truth
+      currency: "INR",
+      description: `Bike Rental Payment - ${orderId}`,
+      notes: {
+        orderId,
+        productType: "bike-rentals",
+        location: locationName,
+        startDate,
+        endDate,
+        quantity,
+        pickupType,
+        dropType,
+        pickup,
+        drop,
+        pickupHotelName,
+        dropHotelName,
+        paymentType: pricing.label,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+      },
+    };
+
     if (usePaymentLink) {
-      /* -------------------- RAZORPAY PAYMENT LINK -------------------- */
       paymentResult = await razorpayService.createPaymentLink({
-        amount: pricing.total,
-        currency: "INR",
+        ...paymentPayload,
         customer: {
           name: `${customer.firstName} ${customer.lastName}`,
           email: customer.email,
           mobile: customer.mobile,
-        },
-        description: `Bike Rental Payment - ${orderId}`,
-        notes: {
-          orderId,
-          location: locationName,
-          startDate,
-          endDate,
-          quantity,
-          pickupType,
-          dropType,
-          pickup,
-          drop,
-          pickupHotelName,
-          dropHotelName,
-          paymentType: pricing.label,
         },
       });
 
@@ -128,26 +173,11 @@ const createBikeRentalOrder = async (req, res) => {
         });
       }
     } else {
-      /* -------------------- RAZORPAY ORDER -------------------- */
       paymentResult = await razorpayService.createRazorpayOrder({
         orderId,
         totalPrice: pricing.total,
         currency: "INR",
-        notes: {
-          orderId,
-          location: locationName,
-          startDate,
-          endDate,
-          quantity,
-          pickupType,
-          dropType,
-          pickup,
-          drop,
-          pickupHotelName,
-          dropHotelName,
-          customerName: `${customer.firstName} ${customer.lastName}`,
-          paymentType: pricing.label,
-        },
+        notes: paymentPayload.notes,
       });
 
       if (!paymentResult.success) {
@@ -159,7 +189,7 @@ const createBikeRentalOrder = async (req, res) => {
     }
 
     /* -------------------- SUCCESS -------------------- */
-    res.json({
+    return res.json({
       success: true,
       orderId,
       pricing,
@@ -168,7 +198,7 @@ const createBikeRentalOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating bike rental order:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
