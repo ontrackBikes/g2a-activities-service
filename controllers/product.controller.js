@@ -1,3 +1,4 @@
+const { products } = require("../data/productConfig");
 const productService = require("../services/productService");
 
 const getinfoBikeRentals = (req, res) => {
@@ -45,8 +46,10 @@ const checkAvailabilityBikeRentals = (req, res) => {
       startDate,
       endDate,
       quantity,
-      pickup = true,
-      drop = true,
+      pickupType = "self-pickup",
+      dropType = "self-drop",
+      pickup,
+      drop,
     } = req.body;
 
     // Validate required fields
@@ -59,13 +62,11 @@ const checkAvailabilityBikeRentals = (req, res) => {
     }
 
     // Call service
-    const result = productService.bikeRentals.checkAvailability({
+    const result = productService.bikeRentals.checkAvailabilityPreflight({
       locationName,
       startDate,
       endDate,
       quantity,
-      pickup,
-      drop,
     });
 
     if (result.success) {
@@ -95,10 +96,48 @@ const getPickupDropPointsByLocation = (req, res) => {
   }
 };
 
+const getBikeRentalLocationByName = (req, res) => {
+  try {
+    const { locationName } = req.params;
+
+    const product = products.find(
+      (p) => p.productType === "bike-rentals" && p.active
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Bike rentals product not available",
+      });
+    }
+
+    const location = productService.bikeRentals.getLocationByName(locationName);
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: location,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+    });
+  }
+};
+
 module.exports = {
   getinfoBikeRentals,
   getPickupLocationsBikeRentals,
   getDropLocationsBikeRentals,
   checkAvailabilityBikeRentals,
   getPickupDropPointsByLocation,
+  getBikeRentalLocationByName,
 };

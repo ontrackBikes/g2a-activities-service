@@ -232,6 +232,54 @@ const bikeRentals = {
       },
     };
   },
+
+  checkAvailabilityPreflight({ locationName, startDate, endDate, quantity }) {
+    /* ---------- PRODUCT CHECK ---------- */
+    const product = products.find(
+      (p) => p.productType === "bike-rentals" && p.active
+    );
+
+    if (!product) {
+      return { success: false, message: "Product not available" };
+    }
+
+    /* ---------- LOCATION CHECK ---------- */
+    const location = this.getLocationByName(locationName);
+    if (!location) {
+      return { success: false, message: "Location not found" };
+    }
+
+    /* ---------- DATE VALIDATION ---------- */
+    if (!startDate || !endDate) {
+      return { success: false, message: "Start and end date are required" };
+    }
+
+    const rentalDays = moment(endDate).diff(moment(startDate), "days");
+
+    if (rentalDays <= 0) {
+      return { success: false, message: "Invalid date range" };
+    }
+
+    /* ---------- QUANTITY CHECK ---------- */
+    if (!quantity || quantity <= 0) {
+      return { success: false, message: "Invalid quantity" };
+    }
+
+    /* ---------- SUCCESS ---------- */
+    return {
+      success: true,
+      data: {
+        location: location.name,
+        startDate,
+        endDate,
+        rentalDays,
+        quantity,
+        available: true,
+        timings: location.timings,
+        pickupDropPoints: location.pickupDropPoints,
+      },
+    };
+  },
 };
 
 module.exports = { bikeRentals };
