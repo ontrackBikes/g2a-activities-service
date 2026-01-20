@@ -5,7 +5,7 @@ const bikeRentals = {
   /* -------------------- PRODUCT INFO -------------------- */
   productInfo() {
     const product = products.find(
-      (p) => p.productType === "bike-rentals" && p.active
+      (p) => p.productType === "bike-rentals" && p.active,
     );
 
     if (!product) {
@@ -31,7 +31,7 @@ const bikeRentals = {
     if (!locationName) return null;
 
     return bikeRentalLocations.find(
-      (loc) => loc.name.toLowerCase() === locationName.toLowerCase()
+      (loc) => loc.name.toLowerCase() === locationName.toLowerCase(),
     );
   },
 
@@ -83,7 +83,7 @@ const bikeRentals = {
 
     /* ---------- PICKUP OPTION ---------- */
     const pickupOption = location.deliveryOptions.find(
-      (o) => o.type === pickupType && o.enabled
+      (o) => o.type === pickupType && o.enabled,
     );
 
     if (!pickupOption) {
@@ -102,7 +102,7 @@ const bikeRentals = {
       }
 
       const pickupExists = pickupPoints.some(
-        (p) => p.name.toLowerCase() === pickup.toLowerCase() && p.pickup
+        (p) => p.name.toLowerCase() === pickup.toLowerCase() && p.pickup,
       );
 
       if (!pickupExists) {
@@ -115,7 +115,7 @@ const bikeRentals = {
 
     /* ---------- DROP OPTION ---------- */
     const dropOption = location.dropOptions.find(
-      (o) => o.type === dropType && o.enabled
+      (o) => o.type === dropType && o.enabled,
     );
 
     if (!dropOption) {
@@ -134,7 +134,7 @@ const bikeRentals = {
       }
 
       const dropExists = pickupPoints.some(
-        (p) => p.name.toLowerCase() === drop.toLowerCase() && p.drop
+        (p) => p.name.toLowerCase() === drop.toLowerCase() && p.drop,
       );
 
       if (!dropExists) {
@@ -164,7 +164,7 @@ const bikeRentals = {
     drop,
   }) {
     const product = products.find(
-      (p) => p.productType === "bike-rentals" && p.active
+      (p) => p.productType === "bike-rentals" && p.active,
     );
 
     if (!product) {
@@ -236,7 +236,7 @@ const bikeRentals = {
   checkAvailabilityPreflight({ locationName, startDate, endDate, quantity }) {
     /* ---------- PRODUCT CHECK ---------- */
     const product = products.find(
-      (p) => p.productType === "bike-rentals" && p.active
+      (p) => p.productType === "bike-rentals" && p.active,
     );
 
     if (!product) {
@@ -245,6 +245,7 @@ const bikeRentals = {
 
     /* ---------- LOCATION CHECK ---------- */
     const location = this.getLocationByName(locationName);
+
     if (!location) {
       return { success: false, message: "Location not found" };
     }
@@ -254,10 +255,54 @@ const bikeRentals = {
       return { success: false, message: "Start and end date are required" };
     }
 
-    const rentalDays = moment(endDate).diff(moment(startDate), "days");
+    const start = moment(startDate, "YYYY-MM-DD").startOf("day");
+    const end = moment(endDate, "YYYY-MM-DD").startOf("day");
+
+    if (!start.isValid() || !end.isValid()) {
+      return { success: false, message: "Invalid date format" };
+    }
+
+    const rentalDays = end.diff(start, "days");
 
     if (rentalDays <= 0) {
       return { success: false, message: "Invalid date range" };
+    }
+
+    /* ---------- ADVANCE BOOKING BUFFER (HOURS) ---------- */
+    if (product.advanceBookingBufferHours) {
+      const bufferDays = Math.ceil(product.advanceBookingBufferHours / 24);
+
+      const minStartDate = moment().startOf("day").add(bufferDays, "days");
+
+      if (start.isBefore(minStartDate)) {
+        return {
+          success: false,
+          message: `Start date must be at least ${bufferDays} days from today (${minStartDate.format(
+            "YYYY-MM-DD",
+          )})`,
+        };
+      }
+    }
+
+    /* ---------- BLACKOUT DATE CHECK ---------- */
+    if (
+      Array.isArray(location.blackoutDates) &&
+      location.blackoutDates.length
+    ) {
+      let current = start.clone();
+
+      while (current.isBefore(end)) {
+        const currentDate = current.format("YYYY-MM-DD");
+
+        if (location.blackoutDates.includes(currentDate)) {
+          return {
+            success: false,
+            message: `Date ${currentDate} is not available`,
+          };
+        }
+
+        current.add(1, "day");
+      }
     }
 
     /* ---------- QUANTITY CHECK ---------- */
