@@ -163,6 +163,7 @@ const bikeRentals = {
     pickup,
     drop,
   }) {
+    /* ---------- PRODUCT CHECK ---------- */
     const product = products.find(
       (p) => p.productType === "bike-rentals" && p.active,
     );
@@ -171,9 +172,67 @@ const bikeRentals = {
       return { success: false, message: "Product not available" };
     }
 
+    /* ---------- LOCATION CHECK ---------- */
     const location = this.getLocationByName(locationName);
     if (!location) {
       return { success: false, message: "Location not found" };
+    }
+
+    /* ---------- DATE VALIDATION ---------- */
+    if (!startDate || !endDate) {
+      return { success: false, message: "Start and end date are required" };
+    }
+
+    const start = moment(startDate, "YYYY-MM-DD").startOf("day");
+    const end = moment(endDate, "YYYY-MM-DD").startOf("day");
+
+    if (!start.isValid() || !end.isValid()) {
+      return { success: false, message: "Invalid date format" };
+    }
+
+    const rentalDays = end.diff(start, "days");
+
+    if (rentalDays <= 0) {
+      return { success: false, message: "Invalid date range" };
+    }
+
+    /* ---------- ADVANCE BOOKING BUFFER (DATE-ONLY) ---------- */
+    if (product.advanceBookingBufferHours) {
+      const bufferDays = Math.ceil(product.advanceBookingBufferHours / 24);
+      const minStartDate = moment().startOf("day").add(bufferDays, "days");
+
+      if (start.isBefore(minStartDate)) {
+        return {
+          success: false,
+          message: `Start date must be at least ${bufferDays} days from today`,
+        };
+      }
+    }
+
+    /* ---------- BLACKOUT DATE CHECK ---------- */
+    if (
+      Array.isArray(location.blackoutDates) &&
+      location.blackoutDates.length
+    ) {
+      let current = start.clone();
+
+      while (current.isBefore(end)) {
+        const currentDate = current.format("YYYY-MM-DD");
+
+        if (location.blackoutDates.includes(currentDate)) {
+          return {
+            success: false,
+            message: `Date ${currentDate} is not available`,
+          };
+        }
+
+        current.add(1, "day");
+      }
+    }
+
+    /* ---------- QUANTITY CHECK ---------- */
+    if (!quantity || quantity <= 0) {
+      return { success: false, message: "Invalid quantity" };
     }
 
     /* ---------- PICKUP / DROP VALIDATION ---------- */
@@ -191,9 +250,6 @@ const bikeRentals = {
 
     const { pickupOption, dropOption } = pickupDropValidation;
 
-    /* ---------- DATE LOGIC ---------- */
-    const rentalDays = moment(endDate).diff(moment(startDate), "days") || 1;
-
     /* ---------- BASE PRICING ---------- */
     const pricing = location.paymentModes
       .filter((pm) => pm.enabled)
@@ -205,14 +261,17 @@ const bikeRentals = {
       }));
 
     /* ---------- PICKUP / DROP CHARGES ---------- */
-    const pickupCharge = pickupOption.onlineCharge || 0;
-    const dropCharge = dropOption.onlineCharge || 0;
+    const pickupCharge = pickupOption?.onlineCharge || 0;
+    const dropCharge = dropOption?.onlineCharge || 0;
     const addonCharges = pickupCharge + dropCharge;
 
+    /* ---------- SUCCESS ---------- */
     return {
       success: true,
       data: {
         location: location.name,
+        startDate,
+        endDate,
         rentalDays,
         quantity,
         pickupType,
