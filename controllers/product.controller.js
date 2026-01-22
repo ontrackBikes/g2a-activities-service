@@ -15,30 +15,6 @@ const getinfoBikeRentals = (req, res) => {
   }
 };
 
-const getPickupLocationsBikeRentals = (req, res) => {
-  try {
-    const locations = productService.bikeRentals.getLocations({
-      pickupOnly: true,
-    });
-    res.json({ success: true, data: locations });
-  } catch (error) {
-    console.error("Error fetching bike rental pickup locations:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-const getDropLocationsBikeRentals = (req, res) => {
-  try {
-    const locations = productService.bikeRentals.getLocations({
-      dropOnly: true,
-    });
-    res.json({ success: true, data: locations });
-  } catch (error) {
-    console.error("Error fetching bike rental drop locations:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
 const checkAvailabilityBikeRentals = (req, res) => {
   try {
     const {
@@ -101,7 +77,7 @@ const getBikeRentalLocationByName = (req, res) => {
     const { locationName } = req.params;
 
     const product = products.find(
-      (p) => p.productType === "bike-rentals" && p.active
+      (p) => p.productType === "bike-rentals" && p.active,
     );
 
     if (!product) {
@@ -135,8 +111,6 @@ const getBikeRentalLocationByName = (req, res) => {
 
 module.exports = {
   getinfoBikeRentals,
-  getPickupLocationsBikeRentals,
-  getDropLocationsBikeRentals,
   checkAvailabilityBikeRentals,
   getPickupDropPointsByLocation,
   getBikeRentalLocationByName,

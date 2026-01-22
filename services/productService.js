@@ -20,7 +20,6 @@ const bikeRentals = {
       minRentalDays: product.minRentalDays,
       maxQuantity: product.maxQuantity,
       blackoutDates: product.blackoutDates,
-      pickupDropMessages: product.pickupDropMessages || [],
       productThumbnailUrl: product.productThumbnailUrl || null,
       inclusions: product.inclusions || [],
     };
@@ -35,32 +34,24 @@ const bikeRentals = {
     );
   },
 
-  getLocations({ pickupOnly = false, dropOnly = false } = {}) {
+  getLocations() {
     const currentMonth = new Date().getMonth();
 
-    return bikeRentalLocations
-      .filter((loc) => {
-        if (pickupOnly && !loc.pickup) return false;
-        if (dropOnly && !loc.drop) return false;
-        return true;
-      })
-      .map((loc) => {
-        const peakMonths = Array.isArray(loc.peakMonths) ? loc.peakMonths : [];
+    return bikeRentalLocations.map((loc) => {
+      const peakMonths = Array.isArray(loc.peakMonths) ? loc.peakMonths : [];
 
-        return {
-          name: loc.name,
-          pickup: loc.pickup,
-          drop: loc.drop,
-          maxQtyPerBooking: loc.maxQtyPerBooking,
-          totalStock: loc.totalStock,
-          paymentModes: loc.paymentModes,
-          timings: loc.timings,
-          deliveryOptions: loc.deliveryOptions.filter((o) => o.enabled),
-          dropOptions: loc.dropOptions.filter((o) => o.enabled),
-          peakMonths,
-          isPeakMonth: peakMonths.includes(currentMonth),
-        };
-      });
+      return {
+        name: loc.name,
+        maxQtyPerBooking: loc.maxQtyPerBooking,
+        totalStock: loc.totalStock,
+        paymentModes: loc.paymentModes,
+        timings: loc.timings,
+        deliveryOptions: loc.deliveryOptions.filter((o) => o.enabled),
+        dropOptions: loc.dropOptions.filter((o) => o.enabled),
+        peakMonths,
+        isPeakMonth: peakMonths.includes(currentMonth),
+      };
+    });
   },
 
   /* -------------------- PICKUP / DROP POINTS -------------------- */
