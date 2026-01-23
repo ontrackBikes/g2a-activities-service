@@ -1,4 +1,5 @@
 const { bikeRentalLocations, products } = require("../data/productConfig");
+const { parsePhoneNumberFromString } = require("libphonenumber-js");
 
 /* ------------------ BASE SCHEMA ------------------ */
 
@@ -69,7 +70,20 @@ const schema = {
   "customer.mobile": {
     required: true,
     type: "string",
-    validate: (v) => /^\d{10}$/.test(v) || "mobile must be 10 digits",
+    validate: (v, payload) => {
+      if (!v) return "mobile is required";
+      if (!/^\d+$/.test(v)) return "mobile must contain only digits";
+
+      const countryAbbr =
+        payload?.customer?.countryCode?.match(/\((.*?)\)/)?.[1];
+
+      if (!countryAbbr) {
+        return "country code is required for mobile validation";
+      }
+
+      const phone = parsePhoneNumberFromString(v, countryAbbr);
+      return phone?.isValid() || "invalid mobile number";
+    },
   },
 
   "customer.email": {
@@ -128,7 +142,7 @@ const validateEnums = (payload) => {
 
     if (rule.enum && value && !rule.enum.includes(value)) {
       errors.push(
-        error(field, `${field} must be one of ${rule.enum.join(", ")}`)
+        error(field, `${field} must be one of ${rule.enum.join(", ")}`),
       );
     }
   }
@@ -160,7 +174,7 @@ const validateConstraints = (payload) => {
   /* ---------- LOCATION ---------- */
 
   const location = bikeRentalLocations.find(
-    (l) => l.name.toLowerCase() === payload.locationName?.toLowerCase()
+    (l) => l.name.toLowerCase() === payload.locationName?.toLowerCase(),
   );
 
   if (!location) {
@@ -171,7 +185,7 @@ const validateConstraints = (payload) => {
   /* ---------- PRODUCT ---------- */
 
   const product = products.find(
-    (p) => p.productType === "bike-rentals" && p.active
+    (p) => p.productType === "bike-rentals" && p.active,
   );
 
   if (!product) {
@@ -190,16 +204,16 @@ const validateConstraints = (payload) => {
         "quantity",
         `Max quantity allowed is ${Math.min(
           location.maxQtyPerBooking,
-          product.maxQuantity
-        )}`
-      )
+          product.maxQuantity,
+        )}`,
+      ),
     );
   }
 
   /* ---------- PAYMENT MODE ---------- */
 
   const paymentMode = location.paymentModes.find(
-    (p) => p.paymentType === payload.paymentType
+    (p) => p.paymentType === payload.paymentType,
   );
 
   if (!paymentMode) {
@@ -209,19 +223,19 @@ const validateConstraints = (payload) => {
   /* ---------- PICKUP OPTION ---------- */
 
   const pickupOption = location.deliveryOptions.find(
-    (o) => o.type === payload.pickupType && o.enabled
+    (o) => o.type === payload.pickupType && o.enabled,
   );
 
   if (!pickupOption) {
     errors.push(
-      error("pickupType", `${payload.pickupType} pickup not available`)
+      error("pickupType", `${payload.pickupType} pickup not available`),
     );
   }
 
   /* ---------- DROP OPTION ---------- */
 
   const dropOption = location.dropOptions.find(
-    (o) => o.type === payload.dropType && o.enabled
+    (o) => o.type === payload.dropType && o.enabled,
   );
 
   if (!dropOption) {
@@ -233,7 +247,7 @@ const validateConstraints = (payload) => {
   if (
     payload.pickupType === "self-pickup" &&
     !location.pickupDropPoints.some(
-      (p) => p.name === payload.pickup && p.pickup
+      (p) => p.name === payload.pickup && p.pickup,
     )
   ) {
     errors.push(error("pickup", "Invalid pickup point"));
