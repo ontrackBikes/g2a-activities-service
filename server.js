@@ -11,7 +11,7 @@ app.use(
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-  })
+  }),
 );
 
 // JSON parser (for normal APIs)
@@ -23,7 +23,7 @@ app.use("/api/order", require("./routes/order.routes"));
 app.use(
   "/api",
   express.raw({ type: "*/*" }),
-  require("./routes/razorpay.routes")
+  require("./routes/razorpay.routes"),
 );
 
 // Health check
