@@ -1,5 +1,6 @@
 const { products, bikeRentalLocations } = require("../data/productConfig");
-const moment = require("moment");
+const moment = require("moment-timezone");
+moment.tz.setDefault("Asia/Kolkata");
 
 const bikeRentals = {
   /* -------------------- PRODUCT INFO -------------------- */
