@@ -3,59 +3,90 @@ const googleSheetService = require("../services/googleSheetService");
 const { fetchPaymentByOrderId } = require("../services/razorpayService");
 
 const razorpayWebhook = async (req, res) => {
+  console.log("🔔 Webhook received");
+  console.log("🔔 Headers:", JSON.stringify(req.headers, null, 2));
+  console.log("🔔 Body:", JSON.stringify(req.body, null, 2));
+
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-    // Razorpay sends signature in header
-    const signature = req.headers["x-razorpay-signature"];
-    const body = JSON.stringify(req.body);
+    if (!webhookSecret) {
+      console.error("❌ RAZORPAY_WEBHOOK_SECRET is not set in .env");
+      return res.status(500).send("Webhook secret not configured");
+    }
 
-    // Verify webhook
+    const signature = req.headers["x-razorpay-signature"];
+
+    if (!signature) {
+      console.error("❌ No x-razorpay-signature header found");
+      return res.status(400).send("Missing signature");
+    }
+
+    const body = JSON.stringify(req.body);
+    console.log("🔔 Raw body string used for HMAC:", body.substring(0, 200));
+
     const expectedSignature = crypto
       .createHmac("sha256", webhookSecret)
       .update(body)
       .digest("hex");
 
+    console.log("🔔 Received signature: ", signature);
+    console.log("🔔 Expected signature: ", expectedSignature);
+    console.log("🔔 Signature match:", signature === expectedSignature);
+
     if (signature !== expectedSignature) {
+      console.error("❌ Webhook signature mismatch — rejecting");
       return res.status(400).send("Invalid signature");
     }
 
     const event = req.body.event;
+    console.log("✅ Signature verified. Event:", event);
+
     const payload = req.body.payload;
 
     if (event === "payment.captured") {
+      console.log("💰 payment.captured event received");
       const payment = payload.payment.entity;
+      console.log("💰 Payment entity:", JSON.stringify(payment, null, 2));
 
       const notes = payment.notes || {};
-      // Extract order_id and notes
-      const razorpayOrderId = payment.order_id; // Razorpay order ID
-      const orderId = notes.orderId; // Our internal order ID
-      // Add payment info in Google Sheet
+      const razorpayOrderId = payment.order_id;
+      const orderId = notes.orderId;
+
+      console.log("💰 Internal orderId from notes:", orderId);
+      console.log("💰 Razorpay orderId:", razorpayOrderId);
+
+      if (!orderId) {
+        console.error(
+          "❌ orderId missing from payment notes — cannot log to sheet",
+        );
+      }
+
+      console.log("📝 Attempting to log payment to Google Sheet...");
       const sheetResult = await googleSheetService.logPayment({
         orderId,
-        razorpayOrderId: razorpayOrderId,
+        razorpayOrderId,
         paymentId: payment.id,
-        amount: payment.amount / 100, // convert paise → INR
+        amount: payment.amount / 100,
         currency: payment.currency,
         status: payment.status,
         notes,
         paidAt: new Date(payment.created_at * 1000).toISOString(),
       });
 
-      console.log("Payment logged in sheet:", sheetResult);
+      console.log("📝 Sheet log result:", JSON.stringify(sheetResult, null, 2));
+    } else {
+      console.log("ℹ️ Event not handled:", event);
     }
 
     res.json({ status: "ok" });
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("❌ Webhook error:", error.message);
+    console.error("❌ Stack:", error.stack);
     res.status(500).send("Server error");
   }
 };
 
-/**
- * GET /api/payments/order-info
- * Query: order_id (razorpay order id)
- */
 const getOrderInfo = async (req, res) => {
   try {
     const { order_id } = req.query;
@@ -100,3 +131,4 @@ module.exports = {
   razorpayWebhook,
   getOrderInfo,
 };
+

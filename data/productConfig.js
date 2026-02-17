@@ -96,7 +96,7 @@ module.exports = {
       // 2️⃣ Product-level blackoutDates (global)
       // If date exists here, booking is blocked even if product allows it.
 
-      peakMonths: [0, 1, 2, 3, 11, 12],
+      peakMonths: [0, 1, 2, 3, 11],
       // Months considered peak season for this location.
       // Month index follows JS Date convention:
       // 0 = Jan, 1 = Feb, ... 11 = Dec
@@ -263,6 +263,7 @@ module.exports = {
           title: "Self Pickup",
           type: "self-pickup",
           enabled: true,
+          onlineChargeApplicable: true, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -272,6 +273,7 @@ module.exports = {
           title: "Hotel Pickup",
           type: "hotel",
           enabled: true,
+          onlineChargeApplicable: true, // ✅ add
           onlineCharge: 100,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -283,6 +285,7 @@ module.exports = {
           title: "Self Drop",
           type: "self-drop",
           enabled: true,
+          onlineChargeApplicable: true, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText: null,
@@ -291,6 +294,7 @@ module.exports = {
           title: "Hotel Drop",
           type: "hotel",
           enabled: true,
+          onlineChargeApplicable: true, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -320,3 +324,4 @@ module.exports = {
     },
   ],
 };
+

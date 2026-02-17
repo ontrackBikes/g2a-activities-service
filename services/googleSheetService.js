@@ -19,6 +19,17 @@ async function appendOrder(order) {
 
   const now = new Date().toISOString();
 
+  // ✅ Write the correct pickup/drop value based on type
+  const pickupDisplay =
+    order.pickupType === "hotel"
+      ? `Hotel: ${order.pickupHotelName || ""}`
+      : `Self Pickup: ${order.pickup || ""}`;
+
+  const dropDisplay =
+    order.dropType === "hotel"
+      ? `Hotel: ${order.dropHotelName || ""}`
+      : `Self Drop: ${order.drop || ""}`;
+
   const row = [
     order.orderId,
     order.productType,
@@ -30,8 +41,8 @@ async function appendOrder(order) {
     order.pricing.paymentType,
     order.pricing.amountPerDay,
     order.pricing.total,
-    order.pickup,
-    order.drop,
+    pickupDisplay, // ✅ was: order.pickup
+    dropDisplay, // ✅ was: order.drop
     order.customer.title,
     order.customer.firstName,
     order.customer.lastName,
@@ -61,12 +72,16 @@ async function createOrder({
   startDate,
   endDate,
   quantity,
-  pickup = true,
-  drop = true,
+  pickupType, // ✅ added
+  dropType, // ✅ added
+  pickup, // ✅ was defaulting to true — wrong
+  drop, // ✅ was defaulting to true — wrong
+  pickupHotelName, // ✅ added
+  dropHotelName, // ✅ added
   customer,
   pricing,
 }) {
-  const orderId = `ORD-${uuidv4().split("-")[0]}`; // simple internal orderId
+  const orderId = `ORD-${uuidv4().split("-")[0]}`;
 
   const order = {
     orderId,
@@ -75,8 +90,12 @@ async function createOrder({
     startDate,
     endDate,
     quantity,
-    pickup,
-    drop,
+    pickupType, // ✅ added
+    dropType, // ✅ added
+    pickup, // ✅ now correctly undefined when hotel
+    drop, // ✅ now correctly undefined when hotel
+    pickupHotelName, // ✅ added
+    dropHotelName, // ✅ added
     customer,
     pricing,
     createdAt: new Date().toISOString(),
@@ -127,3 +146,4 @@ module.exports = {
   createOrder,
   logPayment,
 };
+

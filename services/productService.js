@@ -188,6 +188,13 @@ const bikeRentals = {
       return { success: false, message: "Invalid date range" };
     }
 
+    if (rentalDays < product.minRentalDays) {
+      return {
+        success: false,
+        message: `Minimum rental period is ${product.minRentalDays} day${product.minRentalDays > 1 ? "s" : ""}`,
+      };
+    }
+
     /* ---------- ADVANCE BOOKING BUFFER (DATE-ONLY) ---------- */
     if (product.advanceBookingBufferHours) {
       const bufferDays = Math.ceil(product.advanceBookingBufferHours / 24);
@@ -218,6 +225,21 @@ const bikeRentals = {
           };
         }
 
+        current.add(1, "day");
+      }
+    }
+
+    /* ---------- PRODUCT-LEVEL BLACKOUT DATE CHECK ---------- */ // ✅ ADD THIS BLOCK
+    if (Array.isArray(product.blackoutDates) && product.blackoutDates.length) {
+      let current = start.clone();
+      while (current.isBefore(end)) {
+        const currentDate = current.format("YYYY-MM-DD");
+        if (product.blackoutDates.includes(currentDate)) {
+          return {
+            success: false,
+            message: `Date ${currentDate} is not available`,
+          };
+        }
         current.add(1, "day");
       }
     }
@@ -319,6 +341,13 @@ const bikeRentals = {
       return { success: false, message: "Invalid date range" };
     }
 
+    if (rentalDays < product.minRentalDays) {
+      return {
+        success: false,
+        message: `Minimum rental period is ${product.minRentalDays} day${product.minRentalDays > 1 ? "s" : ""}`,
+      };
+    }
+
     /* ---------- ADVANCE BOOKING BUFFER (HOURS) ---------- */
     if (product.advanceBookingBufferHours) {
       const bufferDays = Math.ceil(product.advanceBookingBufferHours / 24);
@@ -356,6 +385,21 @@ const bikeRentals = {
       }
     }
 
+    /* ---------- PRODUCT-LEVEL BLACKOUT DATE CHECK ---------- */ // ✅ ADD THIS BLOCK
+    if (Array.isArray(product.blackoutDates) && product.blackoutDates.length) {
+      let current = start.clone();
+      while (current.isBefore(end)) {
+        const currentDate = current.format("YYYY-MM-DD");
+        if (product.blackoutDates.includes(currentDate)) {
+          return {
+            success: false,
+            message: `Date ${currentDate} is not available`,
+          };
+        }
+        current.add(1, "day");
+      }
+    }
+
     /* ---------- QUANTITY CHECK ---------- */
     if (!quantity || quantity <= 0) {
       return { success: false, message: "Invalid quantity" };
@@ -379,3 +423,4 @@ const bikeRentals = {
 };
 
 module.exports = { bikeRentals };
+

@@ -20,11 +20,7 @@ app.use(express.json());
 // Routes
 app.use("/api", require("./routes/product.routes"));
 app.use("/api/order", require("./routes/order.routes"));
-app.use(
-  "/api",
-  express.raw({ type: "*/*" }),
-  require("./routes/razorpay.routes"),
-);
+app.use("/api", require("./routes/razorpay.routes"));
 
 // Health check
 app.get("/health", (_, res) => {
@@ -34,3 +30,4 @@ app.get("/health", (_, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
