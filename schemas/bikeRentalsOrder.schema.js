@@ -62,7 +62,11 @@ const schema = {
         ? "dropHotelName is required when dropType is hotel"
         : true,
   },
-
+  "customer.title": {
+    required: true,
+    type: "string",
+    enum: ["Mr", "Mrs", "Ms", "Dr"],
+  },
   "customer.firstName": { required: true, type: "string" },
   "customer.lastName": { required: true, type: "string" },
   "customer.countryCode": { required: true, type: "string" },
@@ -216,8 +220,13 @@ const validateConstraints = (payload) => {
     (p) => p.paymentType === payload.paymentType,
   );
 
-  if (!paymentMode) {
-    errors.push(error("paymentType", "Selected payment type is not available"));
+  if (!paymentMode || !paymentMode.enabled) {
+    errors.push(
+      error(
+        "paymentType",
+        "Selected payment type is not available or not enabled",
+      ),
+    );
   }
 
   /* ---------- PICKUP OPTION ---------- */
