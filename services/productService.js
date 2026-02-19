@@ -23,6 +23,7 @@ const bikeRentals = {
       blackoutDates: product.blackoutDates,
       productThumbnailUrl: product.productThumbnailUrl || null,
       inclusions: product.inclusions || [],
+      policies: product.policies || null,
     };
   },
 
@@ -423,4 +424,3 @@ const bikeRentals = {
 };
 
 module.exports = { bikeRentals };
-

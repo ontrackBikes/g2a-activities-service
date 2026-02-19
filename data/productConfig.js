@@ -63,6 +63,28 @@ module.exports = {
       ],
       // List of features or benefits included with the rental.
       // Displayed on product detail pages and booking summaries.
+
+      policies: {
+        securityDeposit: {
+          amount: 2000,
+          currency: "INR",
+          description:
+            "A refundable security deposit is required at the time of vehicle pickup.",
+          refundConditions:
+            "The deposit will be refunded within 48 hours after vehicle return, provided there are no damages or violations.",
+        },
+        damagePolicy:
+          "Any damages to the vehicle, missing items, or traffic violations will be assessed and deducted from your security deposit. You will be notified of any deductions with supporting evidence.",
+        cancellationPolicy: {
+          title: "Cancellation & Refund Policy",
+          terms: [
+            "Free cancellation up to 24 hours before scheduled pickup time",
+            "50% refund if cancelled between 12-24 hours before pickup",
+            "No refund for cancellations within 12 hours of pickup time",
+            "Refunds will be processed within 5-7 business days",
+          ],
+        },
+      },
     },
   ],
 
@@ -141,7 +163,7 @@ module.exports = {
           type: "self-pickup",
           enabled: true,
 
-          onlineChargeApplicable: true,
+          onlineChargeApplicable: false,
           // If true → onlineCharge is collected during booking.
           // If false → final charge is decided by agent offline.
 
@@ -158,7 +180,7 @@ module.exports = {
           title: "Hotel Pickup",
           type: "hotel",
           enabled: true,
-          onlineChargeApplicable: true,
+          onlineChargeApplicable: false,
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -175,7 +197,7 @@ module.exports = {
           title: "Self Drop",
           type: "self-drop",
           enabled: true,
-          onlineChargeApplicable: true,
+          onlineChargeApplicable: false,
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText: null,
@@ -263,7 +285,7 @@ module.exports = {
           title: "Self Pickup",
           type: "self-pickup",
           enabled: true,
-          onlineChargeApplicable: true, // ✅ add
+          onlineChargeApplicable: false, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -273,8 +295,8 @@ module.exports = {
           title: "Hotel Pickup",
           type: "hotel",
           enabled: true,
-          onlineChargeApplicable: true, // ✅ add
-          onlineCharge: 100,
+          onlineChargeApplicable: false, // ✅ add
+          onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
             "Free within city limits. Extra charges (~₹100) apply if outside.",
@@ -285,7 +307,7 @@ module.exports = {
           title: "Self Drop",
           type: "self-drop",
           enabled: true,
-          onlineChargeApplicable: true, // ✅ add
+          onlineChargeApplicable: false, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText: null,
@@ -294,7 +316,7 @@ module.exports = {
           title: "Hotel Drop",
           type: "hotel",
           enabled: true,
-          onlineChargeApplicable: true, // ✅ add
+          onlineChargeApplicable: false, // ✅ add
           onlineCharge: 0,
           label: "We will drop the vehicle at your hotel",
           infoText:
@@ -324,4 +346,3 @@ module.exports = {
     },
   ],
 };
-
