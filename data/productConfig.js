@@ -9,7 +9,7 @@ module.exports = {
       // Unique identifier for the product.
       // Used internally for booking logic, filtering, and pricing rules.
 
-      label: "Vehicle Rentals",
+      label: "Bike Rentals",
       // Human-readable name shown in UI (cards, dropdowns, headers).
 
       description: "Self-drive bike rentals",
