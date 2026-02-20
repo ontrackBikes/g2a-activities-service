@@ -201,13 +201,7 @@ const validateConstraints = (payload) => {
 
   if (payload.quantity > location.maxQtyPerBooking) {
     errors.push(
-      error(
-        "quantity",
-        `Max quantity allowed is ${Math.min(
-          location.maxQtyPerBooking,
-          product.maxQuantity,
-        )}`,
-      ),
+      error("quantity", `Max quantity allowed is ${location.maxQtyPerBooking}`),
     );
   }
 
