@@ -45,7 +45,6 @@ const bikeRentals = {
       return {
         name: loc.name,
         maxQtyPerBooking: loc.maxQtyPerBooking,
-        totalStock: loc.totalStock,
         paymentModes: loc.paymentModes,
         timings: loc.timings,
         deliveryOptions: loc.deliveryOptions.filter((o) => o.enabled),

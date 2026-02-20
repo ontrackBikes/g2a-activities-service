@@ -8,14 +8,13 @@ module.exports = {
 
       advanceBookingBufferHours: 48,
       minRentalDays: 1,
-      maxQuantity: 5,
 
       // 🧪 PRODUCT-LEVEL blackout — affects ALL locations
       // Test: try picking Feb 24 or Feb 28 as pickup or within a range
       blackoutDates: ["2026-02-24", "2026-02-28"],
 
       productThumbnailUrl:
-        "https://fastly.picsum.photos/id/915/200/200.jpg?hmac=zZ-_EQ1TWG_LFblhB2BrD2CJYUhLEnobSCCthppN0ZE",
+        "https://www.go2andaman.com/wp-content/uploads/2021/05/two-wheeler-rental-port-blair-andaman1-1.jpg",
 
       inclusions: [
         "Helmets provided",
@@ -51,8 +50,7 @@ module.exports = {
   bikeRentalLocations: [
     {
       name: "Port Blair",
-      maxQtyPerBooking: 2,
-      totalStock: 10,
+      maxQtyPerBooking: 6,
 
       // 🧪 PORT BLAIR-ONLY blackout — only affects Port Blair widget
       // Test: try picking Feb 26 on the Port Blair page
@@ -66,15 +64,14 @@ module.exports = {
           paymentType: "full",
           amount: 500,
           label: "Pay Full",
-          enabled: false,
-          description:
-            "Full payment is not available for this booking, please pay partially.",
+          enabled: true,
+          description: "",
         },
         {
           paymentType: "partial",
           amount: 200,
           label: "Pay after confirmation",
-          enabled: true,
+          enabled: false,
           description: "",
         },
       ],
@@ -97,7 +94,7 @@ module.exports = {
           onlineCharge: 0,
           label: "We will deliver the vehicle to your hotel",
           infoText:
-            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you.",
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
         },
       ],
 
@@ -119,27 +116,33 @@ module.exports = {
           onlineCharge: 0,
           label: "We will collect the vehicle from your hotel",
           infoText:
-            "Free within city limits. Extra charges (~₹100) apply if outside.",
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
         },
       ],
 
       timings: {
-        season: "08:00 AM - 06:00 PM",
-        offSeason: "08:00 AM - 06:00 PM",
+        season: "10:00 AM",
+        offSeason: "11:00 AM",
       },
 
       pickupDropPoints: [
         {
-          name: "Airport",
+          name: "Veer Savarkar International Airport",
           address:
-            "Port Blair Airport, Port Blair, Andaman and Nicobar Islands",
+            "Veer Savarkar International Airport, Port Blair, Andaman and Nicobar Islands",
           pickup: true,
           drop: true,
         },
         {
-          name: "Ferry Terminal",
+          name: "Phoenix Bay Jetty",
           address:
             "Phoenix Bay Jetty, Aberdeen Bazaar, Port Blair, Andaman and Nicobar Islands",
+          pickup: true,
+          drop: true,
+        },
+        {
+          name: "Haddo Jetty",
+          address: "Haddo Jetty, Port Blair, Andaman and Nicobar Islands",
           pickup: true,
           drop: true,
         },
@@ -148,8 +151,7 @@ module.exports = {
 
     {
       name: "Havelock",
-      maxQtyPerBooking: 2,
-      totalStock: 10,
+      maxQtyPerBooking: 7,
 
       // 🧪 HAVELOCK-ONLY blackout — only affects Havelock widget
       // Test: try picking Mar 2 on the Havelock page
@@ -162,8 +164,8 @@ module.exports = {
         {
           paymentType: "full",
           amount: 500,
-          label: "Pay Full - Not Available",
-          enabled: false,
+          label: "Pay Full",
+          enabled: true,
           description:
             "Full payment is not available for this booking, please pay partially.",
         },
@@ -195,7 +197,7 @@ module.exports = {
           onlineCharge: 0,
           label: "We will deliver the vehicle to your hotel",
           infoText:
-            "Free within city limits. Extra charges (~₹100) apply if outside.",
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
         },
       ],
 
@@ -217,20 +219,122 @@ module.exports = {
           onlineCharge: 0,
           label: "We will collect the vehicle from your hotel",
           infoText:
-            "Free within city limits. Extra charges (~₹100) apply if outside.",
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
         },
       ],
 
       timings: {
-        season: "08:00 AM - 06:00 PM",
-        offSeason: "08:00 AM - 06:00 PM",
+        season: "10:00 AM",
+        offSeason: "11:00 AM",
       },
 
       pickupDropPoints: [
         {
-          name: "Ferry Terminal",
+          name: "Havelock Jetty",
           address:
-            "Havelock Island Jetty, Havelock Island, Andaman and Nicobar Islands",
+            "Havelock Jetty, Havelock Island, Andaman and Nicobar Islands",
+          pickup: true,
+          drop: true,
+        },
+        {
+          name: "Go2Andaman Outlet (Srisha Travels) - Opposite Full Moon Cafe",
+          address:
+            "3, Havelock Island, Swaraj Dweep, Govind Nagar, Andaman and Nicobar Islands 744211",
+          pickup: true,
+          drop: true,
+        },
+      ],
+    },
+    {
+      name: "Neil",
+      maxQtyPerBooking: 2,
+
+      // 🧪 Neil-ONLY blackout — only affects Neil widget
+      // Test: try picking Mar 2 on the Neil page
+      // Feb 24 and Feb 28 should ALSO be blocked (from product level)
+      blackoutDates: ["2026-03-02"],
+
+      peakMonths: [0, 1, 2, 3, 11],
+
+      paymentModes: [
+        {
+          paymentType: "full",
+          amount: 500,
+          label: "Pay Full",
+          enabled: true,
+          description:
+            "Full payment is not available for this booking, please pay partially.",
+        },
+        {
+          paymentType: "partial",
+          amount: 200,
+          label: "Pay after confirmation",
+          enabled: true,
+          description: "",
+        },
+      ],
+
+      deliveryOptions: [
+        {
+          title: "Self Pickup",
+          type: "self-pickup",
+          enabled: true,
+          onlineChargeApplicable: false,
+          onlineCharge: 0,
+          label: "Pick up the vehicle yourself",
+          infoText:
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
+        },
+        {
+          title: "Hotel Pickup",
+          type: "hotel",
+          enabled: true,
+          onlineChargeApplicable: false,
+          onlineCharge: 0,
+          label: "We will deliver the vehicle to your hotel",
+          infoText:
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
+        },
+      ],
+
+      dropOptions: [
+        {
+          title: "Self Drop",
+          type: "self-drop",
+          enabled: true,
+          onlineChargeApplicable: false,
+          onlineCharge: 0,
+          label: "Drop the vehicle yourself",
+          infoText: null,
+        },
+        {
+          title: "Hotel Drop",
+          type: "hotel",
+          enabled: true,
+          onlineChargeApplicable: false,
+          onlineCharge: 0,
+          label: "We will collect the vehicle from your hotel",
+          infoText:
+            "Free within city limits. Extra charges (~₹100) apply if outside. Our agent will contact you for more details.",
+        },
+      ],
+
+      timings: {
+        season: "10:00 AM",
+        offSeason: "11:00 AM",
+      },
+
+      pickupDropPoints: [
+        {
+          name: "Neil Market",
+          address: "Neil Kendra, Shaheed, Neil Kendra, 744104",
+          pickup: true,
+          drop: true,
+        },
+        {
+          name: "Go2Andaman Outlet (Saha Travels) - 200m from Neil Jetty",
+          address:
+            "Neil Jetty, Bharatpur, Neil Island, Andaman and Nicobar Islands 744104",
           pickup: true,
           drop: true,
         },
