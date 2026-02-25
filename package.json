@@ -8,11 +8,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "cross-env NODE_ENV=development node server.js",
-    "start:staging": "cross-env NODE_ENV=staging pm2 start server.js --name activities-service-staging --update-env",
-    "start:prod": "cross-env NODE_ENV=production pm2 start server.js --name activities-service-prod --update-env",
-    "restart:staging": "cross-env NODE_ENV=staging pm2 restart activities-service-staging --update-env",
-    "restart:prod": "cross-env NODE_ENV=production pm2 restart activities-service-prod --update-env",
+    "dev": "NODE_ENV=development node server.js",
+    "start:staging": "NODE_ENV=staging pm2 start server.js --name activities-service-staging --update-env",
+    "start:prod": "NODE_ENV=production pm2 start server.js --name activities-service-prod --update-env",
+    "restart:staging": "NODE_ENV=staging pm2 restart activities-service-staging --update-env",
+    "restart:prod": "NODE_ENV=production pm2 restart activities-service-prod --update-env",
     "stop:staging": "pm2 stop activities-service-staging",
     "stop:prod": "pm2 stop activities-service-prod"
   },
