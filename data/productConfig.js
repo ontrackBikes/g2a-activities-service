@@ -11,7 +11,8 @@ module.exports = {
 
       // 🧪 PRODUCT-LEVEL blackout — affects ALL locations
       // Test: try picking Feb 24 or Feb 28 as pickup or within a range
-      blackoutDates: ["2026-02-24", "2026-02-28"],
+      // blackoutDates: ["2026-02-24", "2026-02-28"],
+      blackoutDates: [],
 
       productThumbnailUrl:
         "https://www.go2andaman.com/wp-content/uploads/2021/05/two-wheeler-rental-port-blair-andaman1-1.jpg",
@@ -40,7 +41,7 @@ module.exports = {
             "Free cancellation up to 24 hours before scheduled pickup time",
             "50% refund if cancelled between 12-24 hours before pickup",
             "No refund for cancellations within 12 hours of pickup time",
-            "Full refund will be provided in case of last-minute flight or ferry cancellation, as this is  not in the customer's control",
+            "Full refund will be provided in case of last-minute flight or ferry cancellation",
             "Free rescheduling allowed if informed 24 hours before pickup",
             "Refunds will be processed within 5-7 business days",
           ],
@@ -57,14 +58,15 @@ module.exports = {
       // 🧪 PORT BLAIR-ONLY blackout — only affects Port Blair widget
       // Test: try picking Feb 26 on the Port Blair page
       // Feb 24 and Feb 28 should ALSO be blocked (from product level)
-      blackoutDates: ["2026-02-26"],
+      // blackoutDates: ["2026-02-26"],
+      blackoutDates: [],
 
       peakMonths: [0, 1, 2, 3, 11],
 
       paymentModes: [
         {
           paymentType: "full",
-          amount: 500,
+          amount: 600,
           label: "Pay Full",
           enabled: true,
           description: "",
@@ -159,7 +161,8 @@ module.exports = {
       // 🧪 HAVELOCK-ONLY blackout — only affects Havelock widget
       // Test: try picking Mar 2 on the Havelock page
       // Feb 24 and Feb 28 should ALSO be blocked (from product level)
-      blackoutDates: ["2026-03-02"],
+      // blackoutDates: ["2026-03-02"],
+      blackoutDates: [],
 
       peakMonths: [0, 1, 2, 3, 11],
 
@@ -256,7 +259,8 @@ module.exports = {
       // 🧪 Neil-ONLY blackout — only affects Neil widget
       // Test: try picking Mar 2 on the Neil page
       // Feb 24 and Feb 28 should ALSO be blocked (from product level)
-      blackoutDates: ["2026-03-02"],
+      // blackoutDates: ["2026-03-02"],
+      blackoutDates: [],
 
       peakMonths: [0, 1, 2, 3, 11],
 
