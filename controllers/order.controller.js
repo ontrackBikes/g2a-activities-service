@@ -40,6 +40,8 @@ const createBikeRentalOrder = async (req, res) => {
       pickupHotelName,
       dropHotelName,
 
+      pickupTime,
+
       customer,
       usePaymentLink = false,
     } = req.body;
@@ -74,7 +76,7 @@ const createBikeRentalOrder = async (req, res) => {
 
     /* -------------------- SELECT PRICING -------------------- */
     const pricing = availability.data.pricing.find(
-      (p) => p.paymentType === paymentType
+      (p) => p.paymentType === paymentType,
     );
 
     if (!pricing) {
@@ -109,6 +111,9 @@ const createBikeRentalOrder = async (req, res) => {
       drop,
       pickupHotelName,
       dropHotelName,
+
+      pickupTime,
+      dropTime: pickupTime,
 
       pricing: {
         paymentType: pricing.paymentType,

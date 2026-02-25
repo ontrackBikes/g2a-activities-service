@@ -30,16 +30,18 @@ module.exports = {
           description:
             "A refundable security deposit is required at the time of vehicle pickup.",
           refundConditions:
-            "The deposit will be refunded within 48 hours after vehicle return, provided there are no damages or violations.",
+            "The deposit will be refunded immediately at the time of return after vehicle inspection.",
         },
         damagePolicy:
-          "Any damages to the vehicle, missing items, or traffic violations will be assessed and deducted from your security deposit. You will be notified of any deductions with supporting evidence.",
+          "Please take photos and a video of the scooter at pickup to ensure safety and a damage record. Any damages to the vehicle, missing items, or traffic violations will be assessed and deducted from your security deposit.",
         cancellationPolicy: {
           title: "Cancellation & Refund Policy",
           terms: [
             "Free cancellation up to 24 hours before scheduled pickup time",
             "50% refund if cancelled between 12-24 hours before pickup",
             "No refund for cancellations within 12 hours of pickup time",
+            "Full refund will be provided in case of last-minute flight or ferry cancellation, as this is  not in the customer's control",
+            "Free rescheduling allowed if informed 24 hours before pickup",
             "Refunds will be processed within 5-7 business days",
           ],
         },
@@ -50,7 +52,7 @@ module.exports = {
   bikeRentalLocations: [
     {
       name: "Port Blair",
-      maxQtyPerBooking: 6,
+      maxQtyPerBooking: 5,
 
       // 🧪 PORT BLAIR-ONLY blackout — only affects Port Blair widget
       // Test: try picking Feb 26 on the Port Blair page
@@ -123,6 +125,7 @@ module.exports = {
       timings: {
         season: "10:00 AM",
         offSeason: "11:00 AM",
+        availableTimeSlots: ["9 AM", "10 AM", "11 AM", "12 PM"],
       },
 
       pickupDropPoints: [
@@ -151,7 +154,7 @@ module.exports = {
 
     {
       name: "Havelock",
-      maxQtyPerBooking: 7,
+      maxQtyPerBooking: 5,
 
       // 🧪 HAVELOCK-ONLY blackout — only affects Havelock widget
       // Test: try picking Mar 2 on the Havelock page
@@ -226,6 +229,7 @@ module.exports = {
       timings: {
         season: "10:00 AM",
         offSeason: "11:00 AM",
+        availableTimeSlots: ["9 AM", "10 AM", "11 AM", "12 PM"],
       },
 
       pickupDropPoints: [
@@ -247,7 +251,7 @@ module.exports = {
     },
     {
       name: "Neil",
-      maxQtyPerBooking: 2,
+      maxQtyPerBooking: 5,
 
       // 🧪 Neil-ONLY blackout — only affects Neil widget
       // Test: try picking Mar 2 on the Neil page
@@ -322,6 +326,7 @@ module.exports = {
       timings: {
         season: "10:00 AM",
         offSeason: "11:00 AM",
+        availableTimeSlots: ["9 AM", "10 AM", "11 AM", "12 PM"],
       },
 
       pickupDropPoints: [

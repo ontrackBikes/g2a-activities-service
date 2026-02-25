@@ -47,6 +47,11 @@ const schema = {
   pickup: { type: "string" },
   drop: { type: "string" },
 
+  pickupTime: {
+    required: true,
+    type: "string",
+  },
+
   pickupHotelName: {
     type: "string",
     validate: (v, payload) =>

@@ -43,6 +43,8 @@ async function appendOrder(order) {
     order.pricing.total,
     pickupDisplay, // ✅ was: order.pickup
     dropDisplay, // ✅ was: order.drop
+    order.pickupTime || "", // ← ADD THIS (column 13: Pickup Time)
+    order.dropTime || "", // ← ADD THIS (column 14: Drop Time)
     order.customer.title,
     order.customer.firstName,
     order.customer.lastName,
@@ -78,6 +80,8 @@ async function createOrder({
   drop, // ✅ was defaulting to true — wrong
   pickupHotelName, // ✅ added
   dropHotelName, // ✅ added
+  pickupTime, // ← ADD THIS
+  dropTime, // ← ADD THIS
   customer,
   pricing,
 }) {
@@ -96,6 +100,8 @@ async function createOrder({
     drop, // ✅ now correctly undefined when hotel
     pickupHotelName, // ✅ added
     dropHotelName, // ✅ added
+    pickupTime, // ← ADD THIS
+    dropTime, // ← ADD THIS
     customer,
     pricing,
     createdAt: new Date().toISOString(),
@@ -146,4 +152,3 @@ module.exports = {
   createOrder,
   logPayment,
 };
-
