@@ -169,7 +169,7 @@ module.exports = {
       paymentModes: [
         {
           paymentType: "full",
-          amount: 500,
+          amount: 700,
           label: "Pay Full",
           enabled: true,
           description:
@@ -179,7 +179,7 @@ module.exports = {
           paymentType: "partial",
           amount: 200,
           label: "Pay after confirmation",
-          enabled: true,
+          enabled: false,
           description: "",
         },
       ],
@@ -267,7 +267,7 @@ module.exports = {
       paymentModes: [
         {
           paymentType: "full",
-          amount: 500,
+          amount: 600,
           label: "Pay Full",
           enabled: true,
           description:
@@ -277,7 +277,7 @@ module.exports = {
           paymentType: "partial",
           amount: 200,
           label: "Pay after confirmation",
-          enabled: true,
+          enabled: false,
           description: "",
         },
       ],
