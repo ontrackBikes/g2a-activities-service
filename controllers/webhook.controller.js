@@ -52,6 +52,7 @@ const razorpayWebhook = async (req, res) => {
       const notes = payment.notes || {};
       const razorpayOrderId = payment.order_id;
       const orderId = notes.orderId;
+      const productType = notes.productType;
 
       console.log("💰 Internal orderId from notes:", orderId);
       console.log("💰 Razorpay orderId:", razorpayOrderId);
@@ -63,18 +64,29 @@ const razorpayWebhook = async (req, res) => {
       }
 
       console.log("📝 Attempting to log payment to Google Sheet...");
-      const sheetResult = await googleSheetService.logPayment({
-        orderId,
-        razorpayOrderId,
-        paymentId: payment.id,
-        amount: payment.amount / 100,
-        currency: payment.currency,
-        status: payment.status,
-        notes,
-        paidAt: new Date(payment.created_at * 1000).toISOString(),
-      });
 
-      console.log("📝 Sheet log result:", JSON.stringify(sheetResult, null, 2));
+      // ← ONLY log if we recognise the product type
+      if (productType === "bike-rentals") {
+        const sheetResult = await googleSheetService.logPayment({
+          productType,
+          orderId,
+          razorpayOrderId,
+          paymentId: payment.id,
+          amount: payment.amount / 100,
+          currency: payment.currency,
+          status: payment.status,
+          notes,
+          paidAt: new Date(payment.created_at * 1000).toISOString(),
+        });
+        console.log(
+          "📝 Sheet log result:",
+          JSON.stringify(sheetResult, null, 2),
+        );
+      } else {
+        console.log(
+          `ℹ️ payment.captured for unhandled productType: ${productType} — skipping sheet log`,
+        );
+      }
     } else {
       console.log("ℹ️ Event not handled:", event);
     }

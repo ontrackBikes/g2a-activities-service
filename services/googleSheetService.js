@@ -1,5 +1,5 @@
 const { google } = require("googleapis");
-const { v4: uuidv4 } = require("uuid"); // To generate orderId
+const { v4: uuidv4 } = require("uuid");
 const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
 const moment = require("moment");
 
@@ -9,17 +9,43 @@ const auth = new google.auth.GoogleAuth({
   scopes: SCOPES,
 });
 
-// Spreadsheet ID
-const SPREADSHEET_ID = process.env.SPREAD_SHEET_ID;
-const SHEET_NAME = "Orders"; // Sheet where orders will be logged
+// ---------------------------------------------------------------------------
+// Sheet config — one entry per product type.
+// Add a new product here when you introduce it; each can point to its own
+// spreadsheet and use whatever tab names make sense.
+// ---------------------------------------------------------------------------
+const SHEET_CONFIG = {
+  "bike-rentals": {
+    spreadsheetId:
+      process.env.SPREAD_SHEET_ID_BIKE_RENTALS || process.env.SPREAD_SHEET_ID,
+    ordersSheet: "Orders",
+    paymentsSheet: "Payments",
+  },
+  // "ferry-tickets": {
+  //   spreadsheetId: process.env.SPREAD_SHEET_ID_FERRY,
+  //   ordersSheet: "Orders",
+  //   paymentsSheet: "Payments",
+  // },
+};
 
+// ---------------------------------------------------------------------------
+// Internal — appends a fully-formed order row to the correct sheet
+// ---------------------------------------------------------------------------
 async function appendOrder(order) {
+  const config = SHEET_CONFIG[order.productType];
+
+  if (!config) {
+    console.error(
+      `❌ appendOrder: no sheet config for productType "${order.productType}"`,
+    );
+    return { success: false, reason: "Unknown productType" };
+  }
+
   const client = await auth.getClient();
   const sheets = google.sheets({ version: "v4", auth: client });
 
   const now = new Date().toISOString();
 
-  // ✅ Write the correct pickup/drop value based on type
   const pickupDisplay =
     order.pickupType === "hotel"
       ? `Hotel: ${order.pickupHotelName || ""}`
@@ -41,10 +67,10 @@ async function appendOrder(order) {
     order.pricing.paymentType,
     order.pricing.amountPerDay,
     order.pricing.total,
-    pickupDisplay, // ✅ was: order.pickup
-    dropDisplay, // ✅ was: order.drop
-    order.pickupTime || "", // ← ADD THIS (column 13: Pickup Time)
-    order.dropTime || "", // ← ADD THIS (column 14: Drop Time)
+    pickupDisplay,
+    dropDisplay,
+    order.pickupTime || "",
+    order.dropTime || "",
     order.customer.title,
     order.customer.firstName,
     order.customer.lastName,
@@ -56,8 +82,8 @@ async function appendOrder(order) {
   ];
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: SHEET_NAME,
+    spreadsheetId: config.spreadsheetId,
+    range: config.ordersSheet,
     valueInputOption: "USER_ENTERED",
     resource: { values: [row] },
   });
@@ -65,23 +91,23 @@ async function appendOrder(order) {
   return { success: true, orderId: order.orderId };
 }
 
-/**
- * Create order with backend-calculated pricing
- */
+// ---------------------------------------------------------------------------
+// Public — create order row in the sheet and return the generated orderId
+// ---------------------------------------------------------------------------
 async function createOrder({
   productType,
   locationName,
   startDate,
   endDate,
   quantity,
-  pickupType, // ✅ added
-  dropType, // ✅ added
-  pickup, // ✅ was defaulting to true — wrong
-  drop, // ✅ was defaulting to true — wrong
-  pickupHotelName, // ✅ added
-  dropHotelName, // ✅ added
-  pickupTime, // ← ADD THIS
-  dropTime, // ← ADD THIS
+  pickupType,
+  dropType,
+  pickup,
+  drop,
+  pickupHotelName,
+  dropHotelName,
+  pickupTime,
+  dropTime,
   customer,
   pricing,
 }) {
@@ -94,14 +120,14 @@ async function createOrder({
     startDate,
     endDate,
     quantity,
-    pickupType, // ✅ added
-    dropType, // ✅ added
-    pickup, // ✅ now correctly undefined when hotel
-    drop, // ✅ now correctly undefined when hotel
-    pickupHotelName, // ✅ added
-    dropHotelName, // ✅ added
-    pickupTime, // ← ADD THIS
-    dropTime, // ← ADD THIS
+    pickupType,
+    dropType,
+    pickup,
+    drop,
+    pickupHotelName,
+    dropHotelName,
+    pickupTime,
+    dropTime,
     customer,
     pricing,
     createdAt: new Date().toISOString(),
@@ -110,9 +136,12 @@ async function createOrder({
   return appendOrder(order);
 }
 
-const PAYMENT_SHEET_NAME = "Payments"; // Sheet where orders will be logged
-
+// ---------------------------------------------------------------------------
+// Public — log a captured Razorpay payment to the correct Payments sheet.
+// productType is read from payment notes and used to route to the right sheet.
+// ---------------------------------------------------------------------------
 async function logPayment({
+  productType,
   orderId,
   razorpayOrderId,
   paymentId,
@@ -122,6 +151,15 @@ async function logPayment({
   notes,
   paidAt,
 }) {
+  const config = SHEET_CONFIG[productType];
+
+  if (!config) {
+    console.error(
+      `❌ logPayment: no sheet config for productType "${productType}" — payment ${paymentId} not logged`,
+    );
+    return { success: false, reason: "Unknown productType" };
+  }
+
   const client = await auth.getClient();
   const sheets = google.sheets({ version: "v4", auth: client });
 
@@ -137,12 +175,10 @@ async function logPayment({
   ];
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: PAYMENT_SHEET_NAME,
+    spreadsheetId: config.spreadsheetId,
+    range: config.paymentsSheet,
     valueInputOption: "USER_ENTERED",
-    resource: {
-      values: [row],
-    },
+    resource: { values: [row] },
   });
 
   return { success: true };
@@ -152,3 +188,4 @@ module.exports = {
   createOrder,
   logPayment,
 };
+
