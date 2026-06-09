@@ -109,9 +109,167 @@ const getBikeRentalLocationByName = (req, res) => {
   }
 };
 
+// controllers/product.controller.js v2
+
+const {
+  Product,
+  ProductConfig,
+  ProductContent,
+  Location,
+} = require("../models");
+
+const createProduct = async (req, res) => {
+  const transaction = await Product.sequelize.transaction();
+
+  try {
+    const { locationIds = [], config, content, ...productData } = req.body;
+
+    const product = await Product.create(productData, { transaction });
+
+    await ProductConfig.create(
+      {
+        product_id: product.id,
+        ...(config || {}),
+      },
+      { transaction },
+    );
+
+    await ProductContent.create(
+      {
+        product_id: product.id,
+        sections: content?.sections || [],
+      },
+      { transaction },
+    );
+
+    if (locationIds.length) {
+      await product.setLocations(locationIds, { transaction });
+    }
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: product.id,
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getProducts = async (req, res) => {
+  const { locationId, productType } = req.query;
+
+  const where = {};
+
+  if (productType) {
+    where.product_type = productType;
+  }
+
+  const include = [
+    {
+      association: "config",
+    },
+    {
+      association: "locations",
+      through: {
+        attributes: [],
+      },
+    },
+  ];
+
+  if (locationId) {
+    include[1].where = {
+      id: locationId,
+    };
+  }
+
+  const products = await Product.findAll({
+    where,
+    include,
+  });
+
+  res.json({
+    success: true,
+    data: products,
+  });
+};
+
+const getAvailableAddons = async (req, res) => {
+  const { locationId } = req.query;
+
+  const products = await Product.findAll({
+    where: {
+      active: true,
+    },
+
+    include: [
+      {
+        association: "locations",
+
+        where: {
+          id: locationId,
+        },
+
+        through: {
+          attributes: [],
+        },
+      },
+    ],
+  });
+
+  return res.json({
+    success: true,
+    data: products,
+  });
+};
+
+const getProductBySlug = async (req, res) => {
+  const product = await Product.findOne({
+    where: {
+      slug: req.params.slug,
+    },
+
+    include: [
+      {
+        association: "config",
+      },
+      {
+        association: "content",
+      },
+      {
+        association: "locations",
+      },
+    ],
+  });
+
+  if (!product) {
+    return res.status(404).json({
+      success: false,
+      message: "Product not found",
+    });
+  }
+
+  return res.json({
+    success: true,
+    data: product,
+  });
+};
+
 module.exports = {
   getinfoBikeRentals,
   checkAvailabilityBikeRentals,
   getPickupDropPointsByLocation,
   getBikeRentalLocationByName,
+  createProduct,
+  getProducts,
+  getAvailableAddons,
+  getProductBySlug,
 };

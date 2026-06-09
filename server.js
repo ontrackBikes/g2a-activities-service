@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const sequelize = require("./config/sequelize");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,11 +22,46 @@ app.use(express.json());
 app.use("/api", require("./routes/product.routes"));
 app.use("/api/order", require("./routes/order.routes"));
 app.use("/api", require("./routes/razorpay.routes"));
+app.use("/api/locations", require("./routes/location.routes"));
 
 // Health check
 app.get("/health", (_, res) => {
   res.json({ status: "ok" });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Bootstrap
+|--------------------------------------------------------------------------
+*/
+
+async function bootstrap() {
+  try {
+    await sequelize.authenticate();
+
+    console.log("✅ Database connected");
+
+    await sequelize.sync({
+      alter: true,
+    });
+
+    console.log("✅ Models synced");
+
+    const PORT = process.env.PORT || 3000;
+
+    app.listen(PORT, () => {
+      console.log(
+        `🚀 Activities Service running on port ${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error("❌ Bootstrap failed");
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+bootstrap();
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

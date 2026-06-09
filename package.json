@@ -8,7 +8,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "NODE_ENV=development node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
     "start:staging": "NODE_ENV=staging pm2 start server.js --name activities-service-staging --update-env",
     "start:prod": "NODE_ENV=production pm2 start server.js --name activities-service-prod --update-env",
     "restart:staging": "NODE_ENV=staging pm2 restart activities-service-staging --update-env",
@@ -24,7 +24,9 @@
     "libphonenumber-js": "^1.12.35",
     "moment": "^2.30.1",
     "moment-timezone": "^0.6.0",
+    "mysql2": "^3.22.5",
     "razorpay": "^2.9.6",
+    "sequelize": "^6.37.8",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
