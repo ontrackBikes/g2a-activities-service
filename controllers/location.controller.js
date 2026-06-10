@@ -1,17 +1,31 @@
+const Joi = require("joi");
 const { Location } = require("../models");
+const locationSchema = require("../schemas/location.schema");
+
 
 const createLocation = async (req, res) => {
   try {
-    const location = await Location.create(req.body);
+    const { error, value } = locationSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const location = await Location.create(value);
 
     return res.status(201).json({
       success: true,
       data: location,
     });
   } catch (error) {
+    console.error("createLocation error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server error",
     });
   }
 };
@@ -36,8 +50,8 @@ const getLocations = async (req, res) => {
       where,
       order: [
         ["sort_order", "ASC"],
-        ["name", "ASC"]
-        ]
+        ["name", "ASC"],
+      ],
     });
 
     return res.json({
@@ -45,9 +59,11 @@ const getLocations = async (req, res) => {
       data: locations,
     });
   } catch (error) {
+    console.error("getLocations error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server error",
     });
   }
 };
@@ -68,9 +84,11 @@ const getLocationById = async (req, res) => {
       data: location,
     });
   } catch (error) {
+    console.error("getLocationById error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server error",
     });
   }
 };
@@ -78,5 +96,5 @@ const getLocationById = async (req, res) => {
 module.exports = {
   createLocation,
   getLocations,
-  getLocationById,
-};
+  getLocationById
+}

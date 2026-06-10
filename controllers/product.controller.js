@@ -1,114 +1,6 @@
 const { products } = require("../data/productConfig");
 const bikeRentalService = require("../services/bikeRentals");
 
-const getinfoBikeRentals = (req, res) => {
-  try {
-    const locations = bikeRentalService.bikeRentals.getLocations();
-    res.json({
-      success: true,
-      product: bikeRentalService.bikeRentals.productInfo(),
-      locations: locations,
-    });
-  } catch (error) {
-    console.error("Error fetching bike rental locations:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-const checkAvailabilityBikeRentals = (req, res) => {
-  try {
-    const {
-      locationName,
-      startDate,
-      endDate,
-      quantity,
-      pickupType = "self-pickup",
-      dropType = "self-drop",
-      pickup,
-      drop,
-    } = req.body;
-
-    // Validate required fields
-    if (!locationName || !startDate || !endDate || quantity === undefined) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Missing required fields: locationName, startDate, endDate, quantity",
-      });
-    }
-
-    // Call service
-    const result = bikeRentalService.bikeRentals.checkAvailabilityPreflight({
-      locationName,
-      startDate,
-      endDate,
-      quantity,
-    });
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error("Error checking bike rental availability:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-const getPickupDropPointsByLocation = (req, res) => {
-  try {
-    const { locationName } = req.params; // GET /pickup-points/:locationName
-    const result = bikeRentalService.bikeRentals.getPickupDropPoints(locationName);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(404).json(result);
-    }
-  } catch (error) {
-    console.error("Error fetching pickup points:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-const getBikeRentalLocationByName = (req, res) => {
-  try {
-    const { locationName } = req.params;
-
-    const product = products.find(
-      (p) => p.productType === "bike-rentals" && p.active,
-    );
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Bike rentals product not available",
-      });
-    }
-
-    const location = bikeRentalService.bikeRentals.getLocationByName(locationName);
-
-    if (!location) {
-      return res.status(404).json({
-        success: false,
-        message: "Location not found",
-      });
-    }
-
-    return res.json({
-      success: true,
-      data: location,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong",
-    });
-  }
-};
-
 // controllers/product.controller.js v2
 
 const {
@@ -118,14 +10,35 @@ const {
   Location,
 } = require("../models");
 
+const productSchema = require("../schemas/product.schema");
+
 const createProduct = async (req, res) => {
-  const transaction = await Product.sequelize.transaction();
+  let transaction;
 
   try {
-    const { locationIds = [], config, content, ...productData } = req.body;
+    // 1. VALIDATE REQUEST FIRST
+    const { error, value } = productSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
 
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: error.details.map((e) => e.message),
+      });
+    }
+
+    const { locationIds = [], config, content, ...productData } = value;
+
+    // 2. START TRANSACTION ONLY AFTER VALIDATION
+    transaction = await Product.sequelize.transaction();
+
+    // 3. CREATE PRODUCT
     const product = await Product.create(productData, { transaction });
 
+    // 4. CREATE CONFIG
     await ProductConfig.create(
       {
         product_id: product.id,
@@ -134,6 +47,7 @@ const createProduct = async (req, res) => {
       { transaction },
     );
 
+    // 5. CREATE CONTENT
     await ProductContent.create(
       {
         product_id: product.id,
@@ -142,10 +56,12 @@ const createProduct = async (req, res) => {
       { transaction },
     );
 
+    // 6. MAP LOCATIONS (M2M)
     if (locationIds.length) {
       await product.setLocations(locationIds, { transaction });
     }
 
+    // 7. COMMIT
     await transaction.commit();
 
     return res.status(201).json({
@@ -155,11 +71,13 @@ const createProduct = async (req, res) => {
       },
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction) await transaction.rollback();
+
+    console.error("createProduct error:", error);
 
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server error",
     });
   }
 };
@@ -264,10 +182,6 @@ const getProductBySlug = async (req, res) => {
 };
 
 module.exports = {
-  getinfoBikeRentals,
-  checkAvailabilityBikeRentals,
-  getPickupDropPointsByLocation,
-  getBikeRentalLocationByName,
   createProduct,
   getProducts,
   getAvailableAddons,

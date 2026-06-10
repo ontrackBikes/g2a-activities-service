@@ -19,7 +19,8 @@ app.use(
 app.use(express.json());
 
 // Routes
-app.use("/api", require("./routes/product.routes"));
+app.use("/api", require("./routes/bikeRentals.routes"));
+app.use("/api/products", require("./routes/product.routes"));
 app.use("/api/order", require("./routes/order.routes"));
 app.use("/api", require("./routes/razorpay.routes"));
 app.use("/api/locations", require("./routes/location.routes"));
@@ -49,9 +50,7 @@ async function bootstrap() {
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {
-      console.log(
-        `🚀 Activities Service running on port ${PORT}`
-      );
+      console.log(`🚀 Activities Service running on port ${PORT}`);
     });
   } catch (error) {
     console.error("❌ Bootstrap failed");
@@ -65,4 +64,3 @@ bootstrap();
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
