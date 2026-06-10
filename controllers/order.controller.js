@@ -1,6 +1,6 @@
 const { validate } = require("../schemas/bikeRentalsOrder.schema");
 const googleSheetService = require("../services/googleSheetService");
-const productService = require("../services/productService");
+const bikeRentalService = require("../services/bikeRentals");
 const razorpayService = require("../services/razorpayService");
 
 const normalizePickupDropPayload = (payload) => {
@@ -59,7 +59,7 @@ const createBikeRentalOrder = async (req, res) => {
     }
 
     /* -------------------- AVAILABILITY -------------------- */
-    const availability = productService.bikeRentals.checkAvailability({
+    const availability = bikeRentalService.bikeRentals.checkAvailability({
       locationName,
       startDate,
       endDate,

@@ -1,12 +1,12 @@
 const { products } = require("../data/productConfig");
-const productService = require("../services/productService");
+const bikeRentalService = require("../services/bikeRentals");
 
 const getinfoBikeRentals = (req, res) => {
   try {
-    const locations = productService.bikeRentals.getLocations();
+    const locations = bikeRentalService.bikeRentals.getLocations();
     res.json({
       success: true,
-      product: productService.bikeRentals.productInfo(),
+      product: bikeRentalService.bikeRentals.productInfo(),
       locations: locations,
     });
   } catch (error) {
@@ -38,7 +38,7 @@ const checkAvailabilityBikeRentals = (req, res) => {
     }
 
     // Call service
-    const result = productService.bikeRentals.checkAvailabilityPreflight({
+    const result = bikeRentalService.bikeRentals.checkAvailabilityPreflight({
       locationName,
       startDate,
       endDate,
@@ -59,7 +59,7 @@ const checkAvailabilityBikeRentals = (req, res) => {
 const getPickupDropPointsByLocation = (req, res) => {
   try {
     const { locationName } = req.params; // GET /pickup-points/:locationName
-    const result = productService.bikeRentals.getPickupDropPoints(locationName);
+    const result = bikeRentalService.bikeRentals.getPickupDropPoints(locationName);
 
     if (result.success) {
       res.json(result);
@@ -87,7 +87,7 @@ const getBikeRentalLocationByName = (req, res) => {
       });
     }
 
-    const location = productService.bikeRentals.getLocationByName(locationName);
+    const location = bikeRentalService.bikeRentals.getLocationByName(locationName);
 
     if (!location) {
       return res.status(404).json({
