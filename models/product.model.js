@@ -5,27 +5,69 @@ class Product extends Model {}
 
 Product.init(
   {
+    // Internal PK
     id: {
       type: DataTypes.BIGINT.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },
 
+    // Human readable code
+    // Example: DSD_BOAT_DIVE_BASIC
     code: {
       type: DataTypes.STRING(100),
       allowNull: false,
       unique: true,
     },
 
+    // URL slug
     slug: {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: true,
     },
 
+    // Product Name
+    // Example: DSD Boat Dive - Basic
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+
+    // Product Group
+    // Example:
+    // DSD Boat Dive
+    // Airport Transfer
+    // Bike Rental
+    group_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+
+    // activity
+    // rental
+    // transfer
+    // ferry
+    // tour
+    // experience
+    product_type: {
+      type: DataTypes.ENUM(
+        "activity",
+        "rental",
+        "transfer",
+        "ferry",
+        "tour",
+        "experience",
+      ),
+      allowNull: false,
+    },
+
+    // Scuba Diving
+    // Water Sports
+    // Transfers
+    category: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
     },
 
     short_description: {
@@ -33,17 +75,19 @@ Product.init(
       allowNull: true,
     },
 
-    product_type: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-    },
-
-    category: {
-      type: DataTypes.STRING(100),
+    thumbnail_url: {
+      type: DataTypes.TEXT,
       allowNull: true,
     },
 
-    thumbnail_url: {
+    // Mobile listing image
+    thumbnail_url_sm: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
+    // Future search optimization
+    search_keywords: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
@@ -64,6 +108,7 @@ Product.init(
     tableName: "products",
     freezeTableName: true,
     timestamps: true,
+
     indexes: [
       {
         unique: true,
@@ -74,13 +119,19 @@ Product.init(
         fields: ["slug"],
       },
       {
+        fields: ["group_id"],
+      },
+      {
         fields: ["product_type"],
+      },
+      {
+        fields: ["category"],
       },
       {
         fields: ["active"],
       },
     ],
-  }
+  },
 );
 
 module.exports = Product;

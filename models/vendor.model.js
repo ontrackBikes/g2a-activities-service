@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 
-class Location extends Model {}
+class Vendor extends Model {}
 
-Location.init(
+Vendor.init(
   {
     id: {
       type: DataTypes.BIGINT.UNSIGNED,
@@ -16,13 +16,7 @@ Location.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
-      comment: "Unique location code",
-    },
-
-    name: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      comment: "Location name",
+      comment: "Unique vendor code",
     },
 
     slug: {
@@ -32,42 +26,61 @@ Location.init(
       comment: "SEO friendly slug",
     },
 
-    location_type: {
-      type: DataTypes.ENUM(
-        "island",
-        "city",
-        "jetty",
-        "beach",
-        "attraction",
-        "other"
-      ),
+    name: {
+      type: DataTypes.STRING(255),
       allowNull: false,
-      comment: "Location type",
-    },
-
-    parent_location_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: true,
-      comment: "Parent location",
-    },
-
-    latitude: {
-      type: DataTypes.DECIMAL(10, 8),
-      allowNull: true,
-      comment: "Latitude",
+      comment: "Vendor display name",
       validate: {
-        min: -90,
-        max: 90,
+        notEmpty: true,
       },
     },
 
-    longitude: {
-      type: DataTypes.DECIMAL(11, 8),
+    description: {
+      type: DataTypes.TEXT,
       allowNull: true,
-      comment: "Longitude",
+      comment: "Vendor description",
+    },
+
+    logo_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Vendor logo",
+    },
+
+    contact_person: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: "Primary contact",
+    },
+
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: "Vendor email",
       validate: {
-        min: -180,
-        max: 180,
+        isEmail: true,
+      },
+    },
+
+    phone: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: "Vendor phone",
+    },
+
+    website: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: "Vendor website",
+    },
+
+    sort_order: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      comment: "Display ordering",
+      validate: {
+        min: 0,
       },
     },
 
@@ -81,9 +94,9 @@ Location.init(
   {
     sequelize,
 
-    modelName: "Location",
+    modelName: "Vendor",
 
-    tableName: "locations",
+    tableName: "vendors",
 
     freezeTableName: true,
 
@@ -103,19 +116,16 @@ Location.init(
         fields: ["slug"],
       },
       {
-        fields: ["location_type"],
-      },
-      {
-        fields: ["parent_location_id"],
-      },
-      {
         fields: ["active"],
       },
       {
         fields: ["name"],
       },
+      {
+        fields: ["sort_order"],
+      },
     ],
-  }
+  },
 );
 
-module.exports = Location;
+module.exports = Vendor;
