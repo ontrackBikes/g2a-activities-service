@@ -1,0 +1,109 @@
+const { Model, DataTypes } = require("sequelize");
+const sequelize = require("../config/sequelize");
+
+class VendorProductSlot extends Model {}
+
+VendorProductSlot.init(
+  {
+    id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      primaryKey: true,
+      autoIncrement: true,
+      comment: "Primary Key",
+    },
+
+    vendor_product_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+      comment: "Vendor Product",
+    },
+
+    slot_name: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      comment: "Slot Name",
+    },
+
+    start_time: {
+      type: DataTypes.TIME,
+      allowNull: true,
+      comment: "Slot Start Time",
+    },
+
+    end_time: {
+      type: DataTypes.TIME,
+      allowNull: true,
+      comment: "Slot End Time",
+    },
+
+    default_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+      comment: "Default Price",
+      validate: {
+        min: 0,
+      },
+    },
+
+    default_capacity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      comment: "Default Capacity",
+      validate: {
+        min: 0,
+      },
+    },
+
+    sort_order: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      comment: "Display Ordering",
+      validate: {
+        min: 0,
+      },
+    },
+
+    active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      comment: "Active Status",
+    },
+  },
+  {
+    sequelize,
+
+    modelName: "VendorProductSlot",
+
+    tableName: "vendor_product_slots",
+
+    freezeTableName: true,
+
+    timestamps: true,
+
+    createdAt: "created_at",
+
+    updatedAt: "updated_at",
+
+    indexes: [
+      {
+        unique: true,
+        fields: ["vendor_product_id", "slot_name"],
+      },
+      {
+        fields: ["vendor_product_id"],
+      },
+      {
+        fields: ["active"],
+      },
+      {
+        fields: ["sort_order"],
+      },
+    ],
+  }
+);
+
+module.exports = VendorProductSlot;
