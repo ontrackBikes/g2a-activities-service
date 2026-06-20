@@ -21,7 +21,12 @@ VendorProductSlot.init(
     slot_name: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      comment: "Slot Name",
+      set(value) {
+        this.setDataValue(
+          "slot_name",
+          value?.trim()
+        );
+      },
     },
 
     start_time: {

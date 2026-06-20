@@ -1,0 +1,46 @@
+const express = require("express");
+
+const {
+  createVendorSchedules,
+  getVendorSchedules,
+  getVendorSchedule,
+  updateVendorSchedule,
+  deleteVendorSchedule,
+  getVendorProductCalendar,
+} = require("../controllers/vendorSchedule.controller");
+
+const router = express.Router({
+  mergeParams: true,
+});
+
+router.post(
+  "/schedules",
+  createVendorSchedules
+);
+
+router.get(
+  "/schedules",
+  getVendorSchedules
+);
+
+router.get(
+  "/schedules/:scheduleId",
+  getVendorSchedule
+);
+
+router.patch(
+  "/schedules/:scheduleId",
+  updateVendorSchedule
+);
+
+router.delete(
+  "/schedules/:scheduleId",
+  deleteVendorSchedule
+);
+
+router.get(
+  "/calendar",
+  getVendorProductCalendar
+);
+
+module.exports = router;
