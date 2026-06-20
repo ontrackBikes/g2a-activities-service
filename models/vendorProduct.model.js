@@ -35,19 +35,40 @@ VendorProduct.init(
       allowNull: false,
     },
 
-    maintain_inventory_days: {
-      type: DataTypes.INTEGER,
+    base_price: {
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 90,
+      defaultValue: 0.0,
       validate: {
         min: 0,
       },
     },
 
-    auto_sync_inventory: {
-      type: DataTypes.BOOLEAN,
+    base_capacity: {
+      type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: true,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+      },
+    },
+
+    max_bookable_per_booking: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 10,
+      validate: {
+        min: 1,
+      },
+    },
+
+    maintain_inventory_days: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 90,
+      validate: {
+        min: 1,
+      },
     },
 
     active: {
@@ -80,20 +101,28 @@ VendorProduct.init(
           "location_id",
         ],
       },
+
       {
         fields: ["vendor_id"],
       },
+
       {
         fields: ["product_id"],
       },
+
       {
         fields: ["location_id"],
       },
+
+      {
+        fields: ["pricing_type"],
+      },
+
       {
         fields: ["active"],
       },
     ],
   }
 );
-
+//VendorProduct.sync({alter: true})
 module.exports = VendorProduct;

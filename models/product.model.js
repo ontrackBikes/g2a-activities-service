@@ -16,7 +16,7 @@ Product.init(
     // Example: DSD_BOAT_DIVE_BASIC
     code: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true,
       unique: true,
     },
 

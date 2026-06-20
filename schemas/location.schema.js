@@ -1,55 +1,56 @@
-// schemas/location.schema.js
 const Joi = require("joi");
 
-module.exports = Joi.object({
-  code: Joi.string()
-    .max(50)
-    .required(),
+const LOCATION_TYPES = [
+  "island",
+  "city",
+  "jetty",
+  "beach",
+  "attraction",
+  "other",
+];
 
+const createLocationSchema = Joi.object({
   name: Joi.string()
+    .trim()
     .max(255)
     .required(),
-
-  display_name: Joi.string()
-    .max(255)
-    .allow(null, "")
-    .optional(),
-
-  image_url: Joi.string()
-    .uri()
-    .allow(null, "")
-    .optional(),
 
   slug: Joi.string()
+    .trim()
+    .lowercase()
     .max(255)
     .required(),
 
-  type: Joi.string()
-    .valid("island", "city", "beach", "attraction", "jetty", "other")
+  location_type: Joi.string()
+    .valid(...LOCATION_TYPES)
     .required(),
 
   parent_location_id: Joi.number()
     .integer()
     .positive()
-    .allow(null)
-    .optional(),
-
-  sort_order: Joi.number()
-    .integer()
-    .default(0),
+    .allow(null),
 
   latitude: Joi.number()
     .min(-90)
     .max(90)
-    .allow(null)
-    .optional(),
+    .allow(null),
 
   longitude: Joi.number()
     .min(-180)
     .max(180)
-    .allow(null)
-    .optional(),
+    .allow(null),
 
   active: Joi.boolean()
     .default(true),
 });
+
+const updateLocationSchema =
+  createLocationSchema.fork(
+    ["name", "slug", "location_type"],
+    (schema) => schema.optional()
+  ).min(1);
+
+module.exports = {
+  createLocationSchema,
+  updateLocationSchema,
+};
