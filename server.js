@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const sequelize = require("./config/sequelize");
+const routes = require("./routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,10 +21,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api", require("./routes/bikeRentals.routes"));
-app.use("/api/products", require("./routes/product.routes"));
-app.use("/api/order", require("./routes/order.routes"));
-app.use("/api", require("./routes/razorpay.routes"));
-app.use("/api/locations", require("./routes/location.routes"));
+app.use("/api/v1", routes);
 
 // Health check
 app.get("/health", (_, res) => {
