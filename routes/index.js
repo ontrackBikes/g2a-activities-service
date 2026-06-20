@@ -6,7 +6,7 @@ const productRoutes = require("./product.routes");
 const productGroupRoutes = require("./productGroup.routes")
 const productImagesRoutes = require("./productImage.routes")
 const vendorProductsRoutes = require("./vendorProduct.routes")
-
+const productTermRoutes = require("./productTerm.routes")
 
 const router = express.Router();
 
@@ -21,5 +21,7 @@ router.use("/product-groups", productGroupRoutes);
 router.use("/product-images", productImagesRoutes);
 
 router.use("/vendor-products", vendorProductsRoutes);
+
+router.use("/product-terms", productTermRoutes);
 
 module.exports = router;
