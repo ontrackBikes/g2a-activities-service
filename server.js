@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const sequelize = require("./config/sequelize");
 const routes = require("./routes");
@@ -18,6 +19,8 @@ app.use(
 
 // JSON parser (for normal APIs)
 app.use(express.json());
+
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Routes
 app.use("/api", require("./routes/bikeRentals.routes"));
@@ -47,6 +50,9 @@ async function bootstrap() {
 
     const PORT = process.env.PORT || 3000;
 
+    const { startMediaCleanup } = require("./services/mediaCleanup.service");
+    startMediaCleanup();
+
     app.listen(PORT, () => {
       console.log(`🚀 Activities Service running on port ${PORT}`);
     });
@@ -58,7 +64,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});

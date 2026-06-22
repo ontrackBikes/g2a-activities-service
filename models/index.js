@@ -20,6 +20,7 @@ const ProductHighlight = require("./productHighlight.model");
 const ProductInclusion = require("./productInclusion.model");
 const ProductExclusion = require("./productExclusion.model");
 const ProductThingToKnow = require("./productThingToKnow.model");
+const MediaLibrary = require("./mediaLibrary.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -280,4 +281,5 @@ module.exports = {
   ProductInclusion,
   ProductExclusion,
   ProductThingToKnow,
+  MediaLibrary,
 };
