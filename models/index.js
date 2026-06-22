@@ -14,6 +14,12 @@ const VendorProductThingToKnow = require("./vendorProductThingToKnow.model");
 const VendorProductSlot = require("./vendorProductSlot.model");
 const VendorSchedule = require("./vendorSchedules.model");
 const VendorScheduleSlot = require("./vendorScheduleSlot.model");
+const ProductFaq = require("./productFaq.model");
+const ProductTerm = require("./productTerm.model");
+const ProductHighlight = require("./productHighlight.model");
+const ProductInclusion = require("./productInclusion.model");
+const ProductExclusion = require("./productExclusion.model");
+const ProductThingToKnow = require("./productThingToKnow.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -185,7 +191,71 @@ VendorScheduleSlot.belongsTo(VendorProductSlot, {
   as: "templateSlot",
 });
 
+Product.hasMany(ProductFaq, {
+  foreignKey: "product_id",
+  as: "faqs",
+  onDelete: "CASCADE",
+});
 
+ProductFaq.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductTerm, {
+  foreignKey: "product_id",
+  as: "terms",
+  onDelete: "CASCADE",
+});
+
+ProductTerm.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductHighlight, {
+  foreignKey: "product_id",
+  as: "highlights",
+  onDelete: "CASCADE",
+});
+
+ProductHighlight.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductInclusion, {
+  foreignKey: "product_id",
+  as: "inclusions",
+  onDelete: "CASCADE",
+});
+
+ProductInclusion.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductExclusion, {
+  foreignKey: "product_id",
+  as: "exclusions",
+  onDelete: "CASCADE",
+});
+
+ProductExclusion.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductThingToKnow, {
+  foreignKey: "product_id",
+  as: "thingsToKnow",
+  onDelete: "CASCADE",
+});
+
+ProductThingToKnow.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
 
 module.exports = {
   Product,
@@ -203,5 +273,11 @@ module.exports = {
   VendorProductThingToKnow,
   VendorProductSlot,
   VendorSchedule,
-  VendorScheduleSlot
+  VendorScheduleSlot,
+  ProductFaq,
+  ProductTerm,
+  ProductHighlight,
+  ProductInclusion,
+  ProductExclusion,
+  ProductThingToKnow,
 };
