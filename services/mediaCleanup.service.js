@@ -4,6 +4,8 @@ const { Op } = require("sequelize");
 const { MediaLibrary } = require("../models");
 const { getDiskPath, normalizeRelativePath } = require("./storage.service");
 
+const MEDIA_URL_FIELDS = ["original_url", "large_url", "medium_url", "thumb_url"];
+
 const deleteFileIfExists = async (filePath) => {
   try {
     await fs.promises.unlink(filePath);
@@ -14,24 +16,38 @@ const deleteFileIfExists = async (filePath) => {
   }
 };
 
-const getVariantRelativePaths = (relativePath) => {
-  const normalized = normalizeRelativePath(relativePath);
-  const extensionPattern = /\.[^.]+$/;
-  const webpPaths = ["large", "medium", "thumb"].map((size) =>
-    normalized.replace(/\/original\//, `/${size}/`).replace(extensionPattern, ".webp")
-  );
-  const legacyPaths = ["large", "medium", "thumb"].map((size) =>
-    normalized.replace(/\/original\//, `/${size}/`)
-  );
+const getUrlRelativePath = (url) => {
+  if (!url) {
+    return null;
+  }
 
-  return [...new Set([normalized, ...webpPaths, ...legacyPaths])];
+  try {
+    const parsedUrl = new URL(url, "http://localhost");
+    const pathname = decodeURIComponent(parsedUrl.pathname).replace(/^\/+/, "");
+
+    if (pathname.startsWith("uploads/")) {
+      return normalizeRelativePath(pathname.replace(/^uploads\//, ""));
+    }
+
+    return normalizeRelativePath(pathname);
+  } catch (error) {
+    return normalizeRelativePath(url.replace(/^\/?uploads\//, ""));
+  }
 };
 
-const deleteMediaFiles = async (relativePath) => {
-  const variantPaths = getVariantRelativePaths(relativePath);
+const getMediaRelativePaths = (media) => {
+  return [
+    ...new Set(
+      MEDIA_URL_FIELDS
+        .map((field) => getUrlRelativePath(media[field]))
+        .filter(Boolean)
+    ),
+  ];
+};
 
+const deleteMediaFiles = async (media) => {
   await Promise.all(
-    variantPaths.map(async (relativeFile) => {
+    getMediaRelativePaths(media).map(async (relativeFile) => {
       const diskPath = getDiskPath(relativeFile);
       await deleteFileIfExists(diskPath);
     })
@@ -51,7 +67,7 @@ const cleanTempMedia = async () => {
   });
 
   for (const media of tempItems) {
-    await deleteMediaFiles(media.relative_path);
+    await deleteMediaFiles(media);
     await media.destroy();
   }
 
@@ -64,6 +80,9 @@ const cleanBinMedia = async () => {
   const binItems = await MediaLibrary.findAll({
     where: {
       active: false,
+      original_url: {
+        [Op.like]: "%/bin/%",
+      },
       deleted_at: {
         [Op.lt]: expirationDate,
       },
@@ -71,7 +90,7 @@ const cleanBinMedia = async () => {
   });
 
   for (const media of binItems) {
-    await deleteMediaFiles(media.relative_path);
+    await deleteMediaFiles(media);
     await media.destroy();
   }
 

@@ -11,28 +11,20 @@ MediaLibrary.init(
       autoIncrement: true,
     },
 
-    folder: {
-      type: DataTypes.STRING(100),
+    uuid: {
+      type: DataTypes.UUID,
       allowNull: false,
+      unique: true,
+      defaultValue: DataTypes.UUIDV4,
     },
 
-    entity_type: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
-    },
-
-    file_name: {
+    name: {
       type: DataTypes.STRING(255),
       allowNull: false,
     },
 
-    original_name: {
+    original_file_name: {
       type: DataTypes.STRING(255),
-      allowNull: true,
-    },
-
-    relative_path: {
-      type: DataTypes.TEXT,
       allowNull: false,
     },
 
@@ -41,24 +33,53 @@ MediaLibrary.init(
       allowNull: false,
     },
 
-    size: {
-      type: DataTypes.BIGINT.UNSIGNED,
+    extension: {
+      type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: 0,
+    },
+
+    size: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
     },
 
     width: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
 
     height: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
 
-    extension: {
-      type: DataTypes.STRING(20),
+    entity_type: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+
+    folder: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+
+    original_url: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    large_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
+    medium_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
+    thumb_url: {
+      type: DataTypes.TEXT,
       allowNull: true,
     },
 
@@ -66,6 +87,11 @@ MediaLibrary.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
+    },
+
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
     },
 
     deleted_at: {
@@ -78,9 +104,7 @@ MediaLibrary.init(
     modelName: "MediaLibrary",
     tableName: "media_library",
     freezeTableName: true,
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
+    timestamps: false,
 
     indexes: [
       { fields: ["folder"] },

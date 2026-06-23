@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { randomUUID } = require("crypto");
 const { MediaLibrary } = require("../models");
 const { createMediaSchema, updateMediaSchema } = require("../schemas/media.schema");
 const {
@@ -24,6 +25,59 @@ const getVariantRelativePaths = (relativePath) => {
 
 const getVariantFileName = (fileName) => {
   return `${path.basename(fileName, path.extname(fileName))}.webp`;
+};
+
+const getDisplayName = (file, value) => {
+  if (value.name) {
+    return value.name;
+  }
+
+  return path.parse(file.originalname).name;
+};
+
+const getUrlRelativePath = (url) => {
+  if (!url) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(url, "http://localhost");
+    const pathname = decodeURIComponent(parsedUrl.pathname).replace(/^\/+/, "");
+
+    if (pathname.startsWith("uploads/")) {
+      return normalizeRelativePath(pathname.replace(/^uploads\//, ""));
+    }
+
+    return normalizeRelativePath(pathname);
+  } catch (error) {
+    return normalizeRelativePath(url.replace(/^\/?uploads\//, ""));
+  }
+};
+
+const getVariantUrls = (folder, variantFileName) => ({
+  large_url: getPublicUrl(`${folder}/large/${variantFileName}`),
+  medium_url: getPublicUrl(`${folder}/medium/${variantFileName}`),
+  thumb_url: getPublicUrl(`${folder}/thumb/${variantFileName}`),
+});
+
+const getBinUrl = (url) => {
+  const relativePath = getUrlRelativePath(url);
+
+  if (!relativePath) {
+    return null;
+  }
+
+  return getPublicUrl(getBinRelativePath(relativePath));
+};
+
+const getOriginalUrl = (url) => {
+  const relativePath = getUrlRelativePath(url);
+
+  if (!relativePath) {
+    return null;
+  }
+
+  return getPublicUrl(getOriginalRelativePath(relativePath));
 };
 
 const deleteFiles = async (relativePath) => {
@@ -85,23 +139,17 @@ const getOriginalRelativePath = (relativePath) => {
 };
 
 const serializeMedia = (media) => {
-  const relativePath = media.relative_path;
-  const largeVariant = relativePath.replace(/\/original\//, "/large/").replace(/\.\w+$/, ".webp");
-  const mediumVariant = relativePath.replace(/\/original\//, "/medium/").replace(/\.\w+$/, ".webp");
-  const thumbVariant = relativePath.replace(/\/original\//, "/thumb/").replace(/\.\w+$/, ".webp");
-
   return {
     id: media.id,
+    uuid: media.uuid,
+    name: media.name,
     folder: media.folder,
     entity_type: media.entity_type,
-    file_name: media.file_name,
-    original_name: media.original_name,
-    relative_path: media.relative_path,
-    public_url: getPublicUrl(media.relative_path),
-    public_url_original: getPublicUrl(media.relative_path),
-    public_url_large: getPublicUrl(largeVariant),
-    public_url_medium: getPublicUrl(mediumVariant),
-    public_url_thumb: getPublicUrl(thumbVariant),
+    original_file_name: media.original_file_name,
+    original_url: media.original_url,
+    large_url: media.large_url,
+    medium_url: media.medium_url,
+    thumb_url: media.thumb_url,
     mime_type: media.mime_type,
     extension: media.extension,
     size: media.size,
@@ -109,7 +157,6 @@ const serializeMedia = (media) => {
     height: media.height,
     active: media.active,
     created_at: media.created_at,
-    updated_at: media.updated_at,
   };
 };
 
@@ -136,6 +183,7 @@ const uploadMedia = async (req, res) => {
     const file = req.file;
     relativePath = normalizeRelativePath(file.path);
     const variantFileName = getVariantFileName(file.filename);
+    const variantUrls = getVariantUrls(value.folder, variantFileName);
     const destinationPaths = {
       large: getDiskPath(`${value.folder}/large/${variantFileName}`),
       medium: getDiskPath(`${value.folder}/medium/${variantFileName}`),
@@ -145,16 +193,19 @@ const uploadMedia = async (req, res) => {
     await generateVariants(file.path, destinationPaths);
 
     const media = await MediaLibrary.create({
+      uuid: randomUUID(),
+      name: getDisplayName(file, value),
       folder: value.folder,
       entity_type: value.entity_type || null,
-      file_name: file.filename,
-      original_name: file.originalname,
-      relative_path: relativePath,
+      original_file_name: file.originalname,
+      original_url: getPublicUrl(relativePath),
+      ...variantUrls,
       mime_type: file.mimetype,
       size: file.size,
       extension: path.extname(file.filename).replace(".", "").toLowerCase(),
       width: file.width || null,
       height: file.height || null,
+      created_at: new Date(),
     });
 
     return res.status(201).json({
@@ -208,6 +259,7 @@ const bulkUploadMedia = async (req, res) => {
     for (const file of req.files) {
       const relativePath = normalizeRelativePath(file.path);
       const variantFileName = getVariantFileName(file.filename);
+      const variantUrls = getVariantUrls(value.folder, variantFileName);
       const destinationPaths = {
         large: getDiskPath(`${value.folder}/large/${variantFileName}`),
         medium: getDiskPath(`${value.folder}/medium/${variantFileName}`),
@@ -216,18 +268,24 @@ const bulkUploadMedia = async (req, res) => {
 
       await generateVariants(file.path, destinationPaths);
 
-      const media = await MediaLibrary.create({
+      const media = await MediaLibrary.create(
+        {
+          uuid: randomUUID(),
+          name: getDisplayName(file, value),
           folder: value.folder,
           entity_type: value.entity_type || null,
-          file_name: file.filename,
-          original_name: file.originalname,
-          relative_path: relativePath,
+          original_file_name: file.originalname,
+          original_url: getPublicUrl(relativePath),
+          ...variantUrls,
           mime_type: file.mimetype,
           size: file.size,
           extension: path.extname(file.filename).replace(".", "").toLowerCase(),
           width: file.width || null,
           height: file.height || null,
-        }, { transaction });
+          created_at: new Date(),
+        },
+        { transaction },
+      );
 
       records.push(media);
     }
@@ -332,13 +390,17 @@ const deleteMedia = async (req, res) => {
       });
     }
 
-    const binRelativePath = getBinRelativePath(media.relative_path);
-    await moveMediaFiles(media.relative_path, binRelativePath);
+    const relativePath = getUrlRelativePath(media.original_url);
+    const binRelativePath = getBinRelativePath(relativePath);
+    await moveMediaFiles(relativePath, binRelativePath);
 
     await media.update({
       active: false,
       deleted_at: new Date(),
-      relative_path: binRelativePath,
+      original_url: getBinUrl(media.original_url),
+      large_url: getBinUrl(media.large_url),
+      medium_url: getBinUrl(media.medium_url),
+      thumb_url: getBinUrl(media.thumb_url),
     });
 
     return res.json({
@@ -365,13 +427,17 @@ const restoreMedia = async (req, res) => {
       });
     }
 
-    const originalRelativePath = getOriginalRelativePath(media.relative_path);
-    await moveMediaFiles(media.relative_path, originalRelativePath);
+    const relativePath = getUrlRelativePath(media.original_url);
+    const originalRelativePath = getOriginalRelativePath(relativePath);
+    await moveMediaFiles(relativePath, originalRelativePath);
 
     await media.update({
       active: true,
       deleted_at: null,
-      relative_path: originalRelativePath,
+      original_url: getOriginalUrl(media.original_url),
+      large_url: getOriginalUrl(media.large_url),
+      medium_url: getOriginalUrl(media.medium_url),
+      thumb_url: getOriginalUrl(media.thumb_url),
     });
 
     return res.json({
@@ -399,7 +465,7 @@ const forceDeleteMedia = async (req, res) => {
       });
     }
 
-    const relativePath = normalizeRelativePath(media.relative_path);
+    const relativePath = getUrlRelativePath(media.original_url);
 
     if (media.active || !relativePath.startsWith("bin/")) {
       return res.status(400).json({
