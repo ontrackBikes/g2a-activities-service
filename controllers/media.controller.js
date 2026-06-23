@@ -325,7 +325,7 @@ const bulkUploadMedia = async (req, res) => {
 const listMedia = async (req, res) => {
   try {
     const filters = {
-      active: true,
+      active: req.query.active === "false" ? false : true,
     };
 
     if (req.query.folder) {
