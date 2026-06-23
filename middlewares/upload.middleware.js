@@ -1,19 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
-const sharp = require("sharp");
-const { MEDIA_FOLDERS } = require("../config/media.config");
+const {
+  IMAGE_MIME_TYPES,
+  MEDIA_FOLDERS,
+  VIDEO_MIME_TYPES,
+} = require("../config/media.config");
 const { createMediaSchema } = require("../schemas/media.schema");
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; 
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-];
+const MAX_FILE_SIZE_MB = Number(process.env.MEDIA_MAX_FILE_SIZE_MB || 200);
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ALLOWED_MIME_TYPES = [...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES];
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads");
 
 const memoryStorage = multer.memoryStorage();
@@ -27,7 +24,7 @@ const upload = multer({
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       return cb(
         new Error(
-          `Unsupported file type: ${file.mimetype}. Only image files are allowed.`
+          `Unsupported file type: ${file.mimetype}. Only image and video files are allowed.`
         )
       );
     }
@@ -67,33 +64,35 @@ const normalizeFileName = (originalName, extension) => {
   return `${baseName}-${uniqueKey}${ext}`;
 };
 
-const FORMAT_MIME_TYPES = {
-  jpeg: ["image/jpeg", "image/jpg"],
-  png: ["image/png"],
-  webp: ["image/webp"],
-  gif: ["image/gif"],
-  svg: ["image/svg+xml"],
+const MIME_EXTENSIONS = {
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/svg+xml": ".svg",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/quicktime": ".mov",
 };
 
-const FORMAT_EXTENSIONS = {
-  jpeg: ".jpg",
-  png: ".png",
-  webp: ".webp",
-  gif: ".gif",
-  svg: ".svg",
-};
-
-const inspectImage = async (file) => {
-  const metadata = await sharp(file.buffer, { animated: true }).metadata();
-  const validMimeTypes = FORMAT_MIME_TYPES[metadata.format];
-
-  if (!validMimeTypes || !validMimeTypes.includes(file.mimetype)) {
-    throw new Error("The uploaded file content does not match its image type.");
+const getMediaType = (mimeType) => {
+  if (IMAGE_MIME_TYPES.includes(mimeType)) {
+    return "image";
   }
 
-  file.width = metadata.width || null;
-  file.height = metadata.height || null;
-  file.detectedExtension = FORMAT_EXTENSIONS[metadata.format];
+  if (VIDEO_MIME_TYPES.includes(mimeType)) {
+    return "video";
+  }
+
+  throw new Error(`Unsupported file type: ${mimeType}.`);
+};
+
+const prepareMediaFile = (file) => {
+  file.media_type = getMediaType(file.mimetype);
+  file.detectedExtension = MIME_EXTENSIONS[file.mimetype] || path.extname(file.originalname).toLowerCase();
+  file.width = null;
+  file.height = null;
 };
 
 const validateMediaBody = (body) => {
@@ -122,7 +121,7 @@ const saveSingleFile = async (req) => {
 
   const value = validateMediaBody(req.body);
   const folder = normalizeFolder(value.folder);
-  await inspectImage(req.file);
+  prepareMediaFile(req.file);
   const destDir = buildDestination(folder);
   const filename = normalizeFileName(req.file.originalname, req.file.detectedExtension);
   const filePath = path.join(destDir, filename);
@@ -144,7 +143,7 @@ const saveMultipleFiles = async (req) => {
   const folder = normalizeFolder(value.folder);
   const destDir = buildDestination(folder);
 
-  await Promise.all(req.files.map(inspectImage));
+  req.files.forEach(prepareMediaFile);
 
   const savedPaths = [];
 

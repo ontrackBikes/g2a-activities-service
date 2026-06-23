@@ -1,7 +1,7 @@
 const path = require("path");
 
 const UPLOAD_ROOT = path.resolve(process.cwd(), "uploads");
-const CDN_URL = (process.env.CDN_URL || "/uploads").replace(/\/$/, "");
+const CDN_URL = (process.env.MEDIA_FILE_BASE_URL || "/uploads").replace(/\/$/, "");
 
 const normalizeRelativePath = (filePath) => {
   if (!filePath || typeof filePath !== "string") {

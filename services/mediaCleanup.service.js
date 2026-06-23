@@ -4,7 +4,13 @@ const { Op } = require("sequelize");
 const { MediaLibrary } = require("../models");
 const { getDiskPath, normalizeRelativePath } = require("./storage.service");
 
-const MEDIA_URL_FIELDS = ["original_url", "large_url", "medium_url", "thumb_url"];
+const MEDIA_URL_FIELDS = [
+  "original_url",
+  "optimized_url",
+  "large_url",
+  "medium_url",
+  "thumb_url",
+];
 
 const deleteFileIfExists = async (filePath) => {
   try {

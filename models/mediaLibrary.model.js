@@ -33,6 +33,11 @@ MediaLibrary.init(
       allowNull: false,
     },
 
+    media_type: {
+      type: DataTypes.ENUM("image", "video"),
+      allowNull: true,
+    },
+
     extension: {
       type: DataTypes.STRING(20),
       allowNull: false,
@@ -53,6 +58,31 @@ MediaLibrary.init(
       allowNull: true,
     },
 
+    duration_seconds: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+
+    video_codec: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+
+    audio_codec: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+
+    bitrate: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
+
+    frame_rate: {
+      type: DataTypes.DECIMAL(8, 2),
+      allowNull: true,
+    },
+
     entity_type: {
       type: DataTypes.STRING(100),
       allowNull: true,
@@ -66,6 +96,11 @@ MediaLibrary.init(
     original_url: {
       type: DataTypes.TEXT,
       allowNull: false,
+    },
+
+    optimized_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
 
     large_url: {
@@ -89,6 +124,17 @@ MediaLibrary.init(
       defaultValue: true,
     },
 
+    processing_status: {
+      type: DataTypes.ENUM("queued", "processing", "completed", "failed"),
+      allowNull: false,
+      defaultValue: "queued",
+    },
+
+    processing_error: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -110,6 +156,8 @@ MediaLibrary.init(
       { fields: ["folder"] },
       { fields: ["entity_type"] },
       { fields: ["active"] },
+      { fields: ["media_type"] },
+      { fields: ["processing_status"] },
     ],
   },
 );

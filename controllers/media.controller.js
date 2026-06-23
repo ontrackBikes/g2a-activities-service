@@ -8,24 +8,15 @@ const {
   getDiskPath,
   normalizeRelativePath,
 } = require("../services/storage.service");
-const { generateVariants } = require("../services/image.service");
+const { mediaQueue } = require("../queues/media.queue");
 
-const getVariantRelativePaths = (relativePath) => {
-  const normalized = normalizeRelativePath(relativePath);
-  const extensionPattern = /\.[^.]+$/;
-  const webpPaths = ["large", "medium", "thumb"].map((size) =>
-    normalized.replace(/\/original\//, `/${size}/`).replace(extensionPattern, ".webp")
-  );
-  const legacyPaths = ["large", "medium", "thumb"].map((size) =>
-    normalized.replace(/\/original\//, `/${size}/`)
-  );
-
-  return [...new Set([normalized, ...webpPaths, ...legacyPaths])];
-};
-
-const getVariantFileName = (fileName) => {
-  return `${path.basename(fileName, path.extname(fileName))}.webp`;
-};
+const MEDIA_URL_FIELDS = [
+  "original_url",
+  "optimized_url",
+  "large_url",
+  "medium_url",
+  "thumb_url",
+];
 
 const getDisplayName = (file, value) => {
   if (value.name) {
@@ -54,73 +45,6 @@ const getUrlRelativePath = (url) => {
   }
 };
 
-const getVariantUrls = (folder, variantFileName) => ({
-  large_url: getPublicUrl(`${folder}/large/${variantFileName}`),
-  medium_url: getPublicUrl(`${folder}/medium/${variantFileName}`),
-  thumb_url: getPublicUrl(`${folder}/thumb/${variantFileName}`),
-});
-
-const getBinUrl = (url) => {
-  const relativePath = getUrlRelativePath(url);
-
-  if (!relativePath) {
-    return null;
-  }
-
-  return getPublicUrl(getBinRelativePath(relativePath));
-};
-
-const getOriginalUrl = (url) => {
-  const relativePath = getUrlRelativePath(url);
-
-  if (!relativePath) {
-    return null;
-  }
-
-  return getPublicUrl(getOriginalRelativePath(relativePath));
-};
-
-const deleteFiles = async (relativePath) => {
-  const files = getVariantRelativePaths(relativePath);
-
-  await Promise.all(
-    files.map(async (fileRelative) => {
-      const filePath = getDiskPath(fileRelative);
-      try {
-        await fs.promises.unlink(filePath);
-      } catch (error) {
-        if (error.code === "ENOENT") {
-          return;
-        }
-        throw error;
-      }
-    })
-  );
-};
-
-const moveMediaFiles = async (sourceRelativePath, targetRelativePath) => {
-  const sources = getVariantRelativePaths(sourceRelativePath);
-  const targets = getVariantRelativePaths(targetRelativePath);
-
-  await Promise.all(
-    sources.map(async (sourceRelative, index) => {
-      const sourcePath = getDiskPath(sourceRelative);
-      const targetPath = getDiskPath(targets[index]);
-      const targetDir = path.dirname(targetPath);
-
-      try {
-        await fs.promises.mkdir(targetDir, { recursive: true });
-        await fs.promises.rename(sourcePath, targetPath);
-      } catch (error) {
-        if (error.code === "ENOENT") {
-          return;
-        }
-        throw error;
-      }
-    })
-  );
-};
-
 const getBinRelativePath = (relativePath) => {
   const normalized = normalizeRelativePath(relativePath);
   const parts = normalized.split("/");
@@ -138,6 +62,78 @@ const getOriginalRelativePath = (relativePath) => {
   return parts.slice(1).join("/");
 };
 
+const deleteFile = async (relativePath) => {
+  const filePath = getDiskPath(relativePath);
+
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+};
+
+const deleteUploadedFile = async (relativePath) => {
+  if (!relativePath) {
+    return;
+  }
+
+  await deleteFile(relativePath);
+};
+
+const getMediaRelativePaths = (media) => {
+  return [
+    ...new Set(
+      MEDIA_URL_FIELDS
+        .map((field) => getUrlRelativePath(media[field]))
+        .filter(Boolean)
+    ),
+  ];
+};
+
+const deleteMediaFiles = async (media) => {
+  await Promise.all(getMediaRelativePaths(media).map(deleteFile));
+};
+
+const moveFile = async (sourceRelativePath, targetRelativePath) => {
+  const sourcePath = getDiskPath(sourceRelativePath);
+  const targetPath = getDiskPath(targetRelativePath);
+  const targetDir = path.dirname(targetPath);
+
+  try {
+    await fs.promises.mkdir(targetDir, { recursive: true });
+    await fs.promises.rename(sourcePath, targetPath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+};
+
+const moveMediaUrlFiles = async (media, getTargetRelativePath) => {
+  const updates = {};
+
+  for (const field of MEDIA_URL_FIELDS) {
+    const relativePath = getUrlRelativePath(media[field]);
+
+    if (!relativePath) {
+      updates[field] = null;
+      continue;
+    }
+
+    const targetRelativePath = getTargetRelativePath(relativePath);
+    await moveFile(relativePath, targetRelativePath);
+    updates[field] = getPublicUrl(targetRelativePath);
+  }
+
+  return updates;
+};
+
 const serializeMedia = (media) => {
   return {
     id: media.id,
@@ -146,7 +142,9 @@ const serializeMedia = (media) => {
     folder: media.folder,
     entity_type: media.entity_type,
     original_file_name: media.original_file_name,
+    media_type: media.media_type,
     original_url: media.original_url,
+    optimized_url: media.optimized_url,
     large_url: media.large_url,
     medium_url: media.medium_url,
     thumb_url: media.thumb_url,
@@ -155,13 +153,27 @@ const serializeMedia = (media) => {
     size: media.size,
     width: media.width,
     height: media.height,
+    duration_seconds: media.duration_seconds,
+    video_codec: media.video_codec,
+    audio_codec: media.audio_codec,
+    bitrate: media.bitrate,
+    frame_rate: media.frame_rate,
     active: media.active,
+    processing_status: media.processing_status,
+    processing_error: media.processing_error,
     created_at: media.created_at,
   };
 };
 
+const enqueueMediaProcessing = async (media) => {
+  await mediaQueue.add("process-media", {
+    mediaId: media.id,
+  });
+};
+
 const uploadMedia = async (req, res) => {
   let relativePath = null;
+  let media = null;
 
   try {
     if (!req.file) {
@@ -182,40 +194,50 @@ const uploadMedia = async (req, res) => {
 
     const file = req.file;
     relativePath = normalizeRelativePath(file.path);
-    const variantFileName = getVariantFileName(file.filename);
-    const variantUrls = getVariantUrls(value.folder, variantFileName);
-    const destinationPaths = {
-      large: getDiskPath(`${value.folder}/large/${variantFileName}`),
-      medium: getDiskPath(`${value.folder}/medium/${variantFileName}`),
-      thumb: getDiskPath(`${value.folder}/thumb/${variantFileName}`),
-    };
 
-    await generateVariants(file.path, destinationPaths);
-
-    const media = await MediaLibrary.create({
+    media = await MediaLibrary.create({
       uuid: randomUUID(),
       name: getDisplayName(file, value),
       folder: value.folder,
       entity_type: value.entity_type || null,
       original_file_name: file.originalname,
       original_url: getPublicUrl(relativePath),
-      ...variantUrls,
+      optimized_url: null,
+      large_url: null,
+      medium_url: null,
+      thumb_url: null,
       mime_type: file.mimetype,
+      media_type: file.media_type,
       size: file.size,
       extension: path.extname(file.filename).replace(".", "").toLowerCase(),
-      width: file.width || null,
-      height: file.height || null,
+      width: null,
+      height: null,
+      duration_seconds: null,
+      video_codec: null,
+      audio_codec: null,
+      bitrate: null,
+      frame_rate: null,
+      processing_status: "queued",
+      processing_error: null,
       created_at: new Date(),
     });
 
+    await enqueueMediaProcessing(media);
+
     return res.status(201).json({
       success: true,
-      message: "Media uploaded successfully",
+      message: "Media uploaded successfully. Processing started.",
       data: serializeMedia(media),
     });
   } catch (error) {
+    if (media) {
+      await media.destroy().catch((destroyError) => {
+        console.error("[MediaController] Failed to remove media record", destroyError);
+      });
+    }
+
     if (relativePath) {
-      await deleteFiles(relativePath).catch((cleanupError) => {
+      await deleteUploadedFile(relativePath).catch((cleanupError) => {
         console.error("[MediaController] Failed to clean upload", cleanupError);
       });
     }
@@ -230,6 +252,7 @@ const uploadMedia = async (req, res) => {
 
 const bulkUploadMedia = async (req, res) => {
   const uploadedPaths = [];
+  const records = [];
   let transaction;
 
   try {
@@ -254,19 +277,9 @@ const bulkUploadMedia = async (req, res) => {
     }
 
     transaction = await MediaLibrary.sequelize.transaction();
-    const records = [];
 
     for (const file of req.files) {
       const relativePath = normalizeRelativePath(file.path);
-      const variantFileName = getVariantFileName(file.filename);
-      const variantUrls = getVariantUrls(value.folder, variantFileName);
-      const destinationPaths = {
-        large: getDiskPath(`${value.folder}/large/${variantFileName}`),
-        medium: getDiskPath(`${value.folder}/medium/${variantFileName}`),
-        thumb: getDiskPath(`${value.folder}/thumb/${variantFileName}`),
-      };
-
-      await generateVariants(file.path, destinationPaths);
 
       const media = await MediaLibrary.create(
         {
@@ -276,12 +289,23 @@ const bulkUploadMedia = async (req, res) => {
           entity_type: value.entity_type || null,
           original_file_name: file.originalname,
           original_url: getPublicUrl(relativePath),
-          ...variantUrls,
+          optimized_url: null,
+          large_url: null,
+          medium_url: null,
+          thumb_url: null,
           mime_type: file.mimetype,
+          media_type: file.media_type,
           size: file.size,
           extension: path.extname(file.filename).replace(".", "").toLowerCase(),
-          width: file.width || null,
-          height: file.height || null,
+          width: null,
+          height: null,
+          duration_seconds: null,
+          video_codec: null,
+          audio_codec: null,
+          bitrate: null,
+          frame_rate: null,
+          processing_status: "queued",
+          processing_error: null,
           created_at: new Date(),
         },
         { transaction },
@@ -293,9 +317,11 @@ const bulkUploadMedia = async (req, res) => {
     await transaction.commit();
     transaction = null;
 
+    await Promise.all(records.map(enqueueMediaProcessing));
+
     return res.status(201).json({
       success: true,
-      message: "Media files uploaded successfully",
+      message: "Media files uploaded successfully. Processing started.",
       count: records.length,
       data: records.map(serializeMedia),
     });
@@ -308,11 +334,21 @@ const bulkUploadMedia = async (req, res) => {
 
     await Promise.all(
       uploadedPaths.map((relativePath) =>
-        deleteFiles(relativePath).catch((cleanupError) => {
+        deleteUploadedFile(relativePath).catch((cleanupError) => {
           console.error("[MediaController] Failed to clean bulk upload", cleanupError);
         })
       )
     );
+
+    if (!transaction && records.length > 0) {
+      await MediaLibrary.destroy({
+        where: {
+          id: records.map((record) => record.id),
+        },
+      }).catch((destroyError) => {
+        console.error("[MediaController] Failed to remove bulk media records", destroyError);
+      });
+    }
 
     console.error("[MediaController] bulkUploadMedia", error);
     return res.status(500).json({
@@ -390,17 +426,12 @@ const deleteMedia = async (req, res) => {
       });
     }
 
-    const relativePath = getUrlRelativePath(media.original_url);
-    const binRelativePath = getBinRelativePath(relativePath);
-    await moveMediaFiles(relativePath, binRelativePath);
+    const urlUpdates = await moveMediaUrlFiles(media, getBinRelativePath);
 
     await media.update({
       active: false,
       deleted_at: new Date(),
-      original_url: getBinUrl(media.original_url),
-      large_url: getBinUrl(media.large_url),
-      medium_url: getBinUrl(media.medium_url),
-      thumb_url: getBinUrl(media.thumb_url),
+      ...urlUpdates,
     });
 
     return res.json({
@@ -427,17 +458,12 @@ const restoreMedia = async (req, res) => {
       });
     }
 
-    const relativePath = getUrlRelativePath(media.original_url);
-    const originalRelativePath = getOriginalRelativePath(relativePath);
-    await moveMediaFiles(relativePath, originalRelativePath);
+    const urlUpdates = await moveMediaUrlFiles(media, getOriginalRelativePath);
 
     await media.update({
       active: true,
       deleted_at: null,
-      original_url: getOriginalUrl(media.original_url),
-      large_url: getOriginalUrl(media.large_url),
-      medium_url: getOriginalUrl(media.medium_url),
-      thumb_url: getOriginalUrl(media.thumb_url),
+      ...urlUpdates,
     });
 
     return res.json({
@@ -474,7 +500,7 @@ const forceDeleteMedia = async (req, res) => {
       });
     }
 
-    await deleteFiles(relativePath);
+    await deleteMediaFiles(media);
     await media.destroy();
 
     return res.json({
