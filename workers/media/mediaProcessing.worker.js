@@ -8,15 +8,15 @@ let ffprobeStatic = null;
 const sharp = require("sharp");
 const { Worker } = require("bullmq");
 
-const sequelize = require("../config/sequelize");
-const { MediaLibrary } = require("../models");
-const { connection, MEDIA_QUEUE_NAME } = require("../queues/media.queue");
+const sequelize = require("../../config/sequelize");
+const { MediaLibrary } = require("../../models");
+const { connection, MEDIA_QUEUE_NAME } = require("../../queues/media/media.queue");
 const {
   getDiskPath,
   getPublicUrl,
   normalizeRelativePath,
-} = require("../services/storage.service");
-const { generateVariants } = require("../services/image.service");
+} = require("../../services/storage.service");
+const { generateVariants } = require("../../services/image.service");
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic);

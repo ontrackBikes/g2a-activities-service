@@ -1,5 +1,5 @@
 const { products } = require("../data/productConfig");
-const { bikeRentals } = require("../services/bikeRentals");
+const { bikeRentals } = require("../services/bikeRentals.service");
 
 const getinfoBikeRentals = (req, res) => {
   try {

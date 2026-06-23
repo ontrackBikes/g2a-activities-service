@@ -1,8 +1,10 @@
 const fs = require("fs");
-const cron = require("node-cron");
 const { Op } = require("sequelize");
 const { MediaLibrary } = require("../models");
-const { getDiskPath, normalizeRelativePath } = require("./storage.service");
+const {
+  getDiskPath,
+  normalizeRelativePath,
+} = require("./storage.service");
 
 const MEDIA_URL_FIELDS = [
   "original_url",
@@ -12,7 +14,7 @@ const MEDIA_URL_FIELDS = [
   "thumb_url",
 ];
 
-const deleteFileIfExists = async (filePath) => {
+async function deleteFileIfExists(filePath) {
   try {
     await fs.promises.unlink(filePath);
   } catch (error) {
@@ -20,50 +22,62 @@ const deleteFileIfExists = async (filePath) => {
       throw error;
     }
   }
-};
+}
 
-const getUrlRelativePath = (url) => {
-  if (!url) {
-    return null;
-  }
+function getUrlRelativePath(url) {
+  if (!url) return null;
 
   try {
     const parsedUrl = new URL(url, "http://localhost");
-    const pathname = decodeURIComponent(parsedUrl.pathname).replace(/^\/+/, "");
+
+    const pathname = decodeURIComponent(
+      parsedUrl.pathname
+    ).replace(/^\/+/, "");
 
     if (pathname.startsWith("uploads/")) {
-      return normalizeRelativePath(pathname.replace(/^uploads\//, ""));
+      return normalizeRelativePath(
+        pathname.replace(/^uploads\//, "")
+      );
     }
 
     return normalizeRelativePath(pathname);
-  } catch (error) {
-    return normalizeRelativePath(url.replace(/^\/?uploads\//, ""));
+  } catch {
+    return normalizeRelativePath(
+      url.replace(/^\/?uploads\//, "")
+    );
   }
-};
+}
 
-const getMediaRelativePaths = (media) => {
+function getMediaRelativePaths(media) {
   return [
     ...new Set(
       MEDIA_URL_FIELDS
-        .map((field) => getUrlRelativePath(media[field]))
+        .map((field) =>
+          getUrlRelativePath(media[field])
+        )
         .filter(Boolean)
     ),
   ];
-};
+}
 
-const deleteMediaFiles = async (media) => {
+async function deleteMediaFiles(media) {
   await Promise.all(
-    getMediaRelativePaths(media).map(async (relativeFile) => {
-      const diskPath = getDiskPath(relativeFile);
-      await deleteFileIfExists(diskPath);
-    })
+    getMediaRelativePaths(media).map(
+      async (relativeFile) => {
+        await deleteFileIfExists(
+          getDiskPath(relativeFile)
+        );
+      }
+    )
   );
-};
+}
 
-const cleanTempMedia = async () => {
-  const expirationDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+async function cleanTempMedia() {
+  const expirationDate = new Date(
+    Date.now() - 2 * 24 * 60 * 60 * 1000
+  );
 
-  const tempItems = await MediaLibrary.findAll({
+  const items = await MediaLibrary.findAll({
     where: {
       folder: "temp",
       created_at: {
@@ -72,18 +86,20 @@ const cleanTempMedia = async () => {
     },
   });
 
-  for (const media of tempItems) {
+  for (const media of items) {
     await deleteMediaFiles(media);
     await media.destroy();
   }
 
-  return tempItems.length;
-};
+  return items.length;
+}
 
-const cleanBinMedia = async () => {
-  const expirationDate = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+async function cleanBinMedia() {
+  const expirationDate = new Date(
+    Date.now() - 15 * 24 * 60 * 60 * 1000
+  );
 
-  const binItems = await MediaLibrary.findAll({
+  const items = await MediaLibrary.findAll({
     where: {
       active: false,
       original_url: {
@@ -95,36 +111,24 @@ const cleanBinMedia = async () => {
     },
   });
 
-  for (const media of binItems) {
+  for (const media of items) {
     await deleteMediaFiles(media);
     await media.destroy();
   }
 
-  return binItems.length;
-};
+  return items.length;
+}
 
-const runMediaCleanup = async () => {
-  try {
-    const tempCount = await cleanTempMedia();
-    const binCount = await cleanBinMedia();
+async function runMediaCleanup() {
+  const tempCount = await cleanTempMedia();
+  const binCount = await cleanBinMedia();
 
-    console.log(
-      `[MediaCleanup] Temp expired: ${tempCount}, Bin expired: ${binCount}`
-    );
-  } catch (error) {
-    console.error("[MediaCleanup] Cleanup failed", error);
-  }
-};
-
-const startMediaCleanup = () => {
-  runMediaCleanup();
-  cron.schedule("0 */6 * * *", runMediaCleanup, {
-    scheduled: true,
-    timezone: "UTC",
-  });
-};
+  return {
+    tempCount,
+    binCount,
+  };
+}
 
 module.exports = {
-  startMediaCleanup,
   runMediaCleanup,
 };

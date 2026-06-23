@@ -1,6 +1,6 @@
 const { validate } = require("../schemas/bikeRentalsOrder.schema");
 const googleSheetService = require("../services/googleSheetService");
-const bikeRentalService = require("../services/bikeRentals");
+const bikeRentalService = require("../services/bikeRentals.service");
 const razorpayService = require("../services/razorpayService");
 
 const normalizePickupDropPayload = (payload) => {

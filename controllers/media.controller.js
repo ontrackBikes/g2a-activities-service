@@ -8,7 +8,8 @@ const {
   getDiskPath,
   normalizeRelativePath,
 } = require("../services/storage.service");
-const { mediaQueue } = require("../queues/media.queue");
+const { mediaQueue } = require("../queues/media/media.queue");
+const jobNames = require("../constants/jobNames");
 
 const MEDIA_URL_FIELDS = [
   "original_url",
@@ -166,7 +167,7 @@ const serializeMedia = (media) => {
 };
 
 const enqueueMediaProcessing = async (media) => {
-  await mediaQueue.add("process-media", {
+  await mediaQueue.add(jobNames.PROCESS_MEDIA, {
     mediaId: media.id,
   });
 };

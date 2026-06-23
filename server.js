@@ -50,9 +50,6 @@ async function bootstrap() {
 
     const PORT = process.env.PORT || 3000;
 
-    const { startMediaCleanup } = require("./services/mediaCleanup.service");
-    startMediaCleanup();
-
     app.listen(PORT, () => {
       console.log(`🚀 Activities Service running on port ${PORT}`);
     });
