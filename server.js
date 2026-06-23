@@ -7,6 +7,7 @@ const routes = require("./routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const registerCrons = require("./crons");
 
 app.use(
   cors({
@@ -48,10 +49,11 @@ async function bootstrap() {
     // });
     // console.log("✅ Models synced");
 
+    registerCrons();
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {
-      console.log(`🚀 Activities Service running on port ${PORT}`);
+      console.log(`Activities Service running on port ${PORT}`);
     });
   } catch (error) {
     console.error("❌ Bootstrap failed");

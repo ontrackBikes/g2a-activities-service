@@ -9,6 +9,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development nodemon server.js",
+    "dev:media": "NODE_ENV=development nodemon workers/media-processing.js",
+    "dev:media-cleanup": "NODE_ENV=development nodemon workers/media-cleanup.js",
     "start:staging": "NODE_ENV=staging pm2 start server.js --name activities-service-staging --update-env",
     "start:prod": "NODE_ENV=production pm2 start server.js --name activities-service-prod --update-env",
     "restart:staging": "NODE_ENV=staging pm2 restart activities-service-staging --update-env",
@@ -16,7 +18,12 @@
     "stop:staging": "pm2 stop activities-service-staging",
     "stop:prod": "pm2 stop activities-service-prod",
     "generate_token": "node scripts/generateToken.js",
-    "worker:media": "node workers/mediaProcessing.worker.js"
+    "worker:media": "node workers/media-processing.js",
+    "worker:media-cleanup": "node workers/media-cleanup.js",
+    "pm2:media": "pm2 start workers/media-processing.js --name activities-media-worker",
+    "pm2:media-cleanup": "pm2 start workers/media-cleanup.js --name activities-media-cleanup-worker",
+    "pm2:restart-media": "pm2 restart activities-media-worker",
+    "pm2:restart-media-cleanup": "pm2 restart activities-media-cleanup-worker"
   },
   "dependencies": {
     "bullmq": "^5.79.1",

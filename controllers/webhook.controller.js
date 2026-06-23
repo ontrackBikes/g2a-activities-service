@@ -1,6 +1,6 @@
 const crypto = require("crypto");
-const googleSheetService = require("../services/googleSheetService");
-const { fetchPaymentByOrderId } = require("../services/razorpayService");
+const googleSheetService = require("../services/googleSheet.service");
+const { fetchPaymentByOrderId } = require("../services/razorpay.service");
 
 const razorpayWebhook = async (req, res) => {
   console.log("🔔 Webhook received");

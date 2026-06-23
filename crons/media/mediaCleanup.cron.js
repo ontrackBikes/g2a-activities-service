@@ -1,14 +1,16 @@
-const {
-  mediaCleanupQueue,
-} = require("../../queues/media/mediaCleanup.queue");
+const { mediaCleanupQueue } = require("../../queues/media/mediaCleanup.queue");
+const JOBS = require("../../constants/jobNames");
 
 module.exports = async () => {
-  await mediaCleanupQueue.add(
-    "cleanup",
-    {}
+  const job = await mediaCleanupQueue.add(
+    JOBS.CLEANUP_MEDIA,
+    {},
+    {
+      removeOnComplete: true,
+    }
   );
 
   console.info(
-    "[MediaCleanupCron] queued"
+    `[MediaCleanupCron] Job queued: ${job.id}`
   );
 };
