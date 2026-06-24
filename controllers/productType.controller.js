@@ -66,12 +66,13 @@ const createProductType = async (req, res) => {
 const getProductTypes = async (req, res) => {
   try {
     const where = {};
+    const category_where = {};
 
     if (req.query.category_id) {
       where.category_id = req.query.category_id;
     }
-    if (req.query.category_id) {
-      where.category_id = req.query.category_id;
+    if (req.query.category_slug) {
+      category_where.slug = req.query.category_slug;
     }
 
     if (req.query.active !== undefined) {
@@ -84,6 +85,7 @@ const getProductTypes = async (req, res) => {
         {
           model: Category,
           as: "category",
+          where : category_where
         },
       ],
       order: [

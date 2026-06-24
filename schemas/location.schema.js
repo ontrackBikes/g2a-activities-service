@@ -21,6 +21,12 @@ const createLocationSchema = Joi.object({
     .max(255)
     .required(),
 
+  image: Joi.string()
+    .trim()
+    .lowercase()
+    .max(255)
+    .required(),
+
   location_type: Joi.string()
     .valid(...LOCATION_TYPES)
     .required(),
