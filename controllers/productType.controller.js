@@ -11,8 +11,7 @@ const {
  */
 const createProductType = async (req, res) => {
   try {
-    const { error, value } =
-      createProductTypeSchema.validate(req.body);
+    const { error, value } = createProductTypeSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -21,14 +20,26 @@ const createProductType = async (req, res) => {
       });
     }
 
-    const category = await Category.findByPk(
-      value.category_id
-    );
+    const category = await Category.findByPk(value.category_id);
 
     if (!category) {
       return res.status(404).json({
         success: false,
         message: "Category not found",
+      });
+    }
+
+    const existing = await ProductType.findOne({
+      where: {
+        category_id: value.category_id,
+        slug: value.slug,
+      },
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "Product type slug already exists in this category",
       });
     }
 
@@ -57,6 +68,13 @@ const getProductTypes = async (req, res) => {
 
     if (req.query.category_id) {
       where.category_id = req.query.category_id;
+    }
+    if (req.query.category_id) {
+      where.category_id = req.query.category_id;
+    }
+
+    if (req.query.active !== undefined) {
+      where.active = req.query.active === "true";
     }
 
     const productTypes = await ProductType.findAll({
@@ -93,17 +111,14 @@ const getProductTypes = async (req, res) => {
  */
 const getProductTypeById = async (req, res) => {
   try {
-    const productType = await ProductType.findByPk(
-      req.params.id,
-      {
-        include: [
-          {
-            model: Category,
-            as: "category",
-          },
-        ],
-      }
-    );
+    const productType = await ProductType.findByPk(req.params.id, {
+      include: [
+        {
+          model: Category,
+          as: "category",
+        },
+      ],
+    });
 
     if (!productType) {
       return res.status(404).json({
@@ -131,8 +146,7 @@ const getProductTypeById = async (req, res) => {
  */
 const updateProductType = async (req, res) => {
   try {
-    const { error, value } =
-      updateProductTypeSchema.validate(req.body);
+    const { error, value } = updateProductTypeSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -141,9 +155,7 @@ const updateProductType = async (req, res) => {
       });
     }
 
-    const productType = await ProductType.findByPk(
-      req.params.id
-    );
+    const productType = await ProductType.findByPk(req.params.id);
 
     if (!productType) {
       return res.status(404).json({
@@ -153,14 +165,31 @@ const updateProductType = async (req, res) => {
     }
 
     if (value.category_id) {
-      const category = await Category.findByPk(
-        value.category_id
-      );
+      const category = await Category.findByPk(value.category_id);
 
       if (!category) {
         return res.status(404).json({
           success: false,
           message: "Category not found",
+        });
+      }
+    }
+
+    if (value.slug || value.category_id) {
+      const existing = await ProductType.findOne({
+        where: {
+          category_id: value.category_id || productType.category_id,
+          slug: value.slug || productType.slug,
+          id: {
+            [Op.ne]: productType.id,
+          },
+        },
+      });
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: "Product type slug already exists in this category",
         });
       }
     }
@@ -186,9 +215,7 @@ const updateProductType = async (req, res) => {
  */
 const deleteProductType = async (req, res) => {
   try {
-    const productType = await ProductType.findByPk(
-      req.params.id
-    );
+    const productType = await ProductType.findByPk(req.params.id);
 
     if (!productType) {
       return res.status(404).json({

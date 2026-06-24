@@ -263,19 +263,6 @@ ProductThingToKnow.belongsTo(Product, {
 });
 
 /**
- * Category -> Product Types
- */
-Category.hasMany(ProductType, {
-  foreignKey: "category_id",
-  as: "productTypes",
-});
-
-ProductType.belongsTo(Category, {
-  foreignKey: "category_id",
-  as: "category",
-});
-
-/**
  * Product Type -> Products
  */
 ProductType.hasMany(Product, {
@@ -305,12 +292,47 @@ ProductTag.belongsToMany(Product, {
   as: "products",
 });
 
+Product.hasMany(ProductTagMapping, {
+  foreignKey: "product_id",
+  as: "tagMappings",
+  onDelete: "CASCADE",
+});
+
+ProductTagMapping.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+ProductTag.hasMany(ProductTagMapping, {
+  foreignKey: "tag_id",
+  as: "tagMappings",
+  onDelete: "CASCADE",
+});
+
+ProductTagMapping.belongsTo(ProductTag, {
+  foreignKey: "tag_id",
+  as: "tag",
+});
+
+/**
+ * Category -> Product Types
+ */
+Category.hasMany(ProductType, {
+  foreignKey: "category_id",
+  as: "productTypes",
+});
+
+ProductType.belongsTo(Category, {
+  foreignKey: "category_id",
+  as: "category",
+});
+
 module.exports = {
   Product,
   ProductGroup,
   ProductImage,
   Location,
-  Vendor, 
+  Vendor,
   VendorProduct,
   VendorProductImage,
   VendorProductFaq,
@@ -329,4 +351,8 @@ module.exports = {
   ProductExclusion,
   ProductThingToKnow,
   MediaLibrary,
+  ProductTag,
+  ProductTagMapping,
+  ProductType,
+  Category,
 };

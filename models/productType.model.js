@@ -11,23 +11,48 @@ ProductType.init(
       autoIncrement: true,
     },
 
+    category_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
 
+    /**
+     * Example:
+     * Scuba Diving
+     * Kayaking
+     * Day Trip
+     * Ferry
+     * Transfer
+     */
     name: {
       type: DataTypes.STRING(100),
       allowNull: false,
     },
 
+    /**
+     * Example:
+     * scuba-diving
+     * kayaking
+     * day-trip
+     */
     slug: {
       type: DataTypes.STRING(100),
       allowNull: false,
+      unique: true,
     },
 
+    /**
+     * Display order
+     */
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
     },
 
+    /**
+     * Active / Inactive
+     */
     active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -54,9 +79,6 @@ ProductType.init(
       },
       {
         fields: ["sort_order"],
-      },
-      {
-        fields: ["category_id", "active"],
       },
     ],
   },

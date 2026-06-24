@@ -13,6 +13,11 @@ const createProductTypeSchema = Joi.object({
     .max(100)
     .required(),
 
+    category_id: Joi.number()
+  .integer()
+  .positive()
+  .required(),
+
   sort_order: Joi.number()
     .integer()
     .min(0)
@@ -32,6 +37,11 @@ const updateProductTypeSchema = Joi.object({
     .trim()
     .lowercase()
     .max(100),
+
+  category_id: Joi.number()
+  .integer()
+  .positive()
+  .required(),
 
   sort_order: Joi.number()
     .integer()
