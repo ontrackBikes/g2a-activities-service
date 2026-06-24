@@ -14,11 +14,23 @@ ProductTagMapping.init(
     product_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
+      references: {
+        model: "products",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
 
     tag_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
+      references: {
+        model: "product_tags",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
 
     sort_order: {
