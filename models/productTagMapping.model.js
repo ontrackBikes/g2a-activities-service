@@ -48,6 +48,9 @@ ProductTagMapping.init(
       {
         fields: ["product_id", "sort_order"],
       },
+      {
+        fields: ["tag_id", "sort_order"],
+      },
     ],
   },
 );
