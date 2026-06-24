@@ -23,9 +23,6 @@ const createProductTypeSchema = Joi.object({
 });
 
 const updateProductTypeSchema = Joi.object({
-  category_id: Joi.number()
-    .integer()
-    .positive(),
 
   name: Joi.string()
     .trim()

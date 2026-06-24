@@ -71,9 +71,11 @@ router.use("/product-things-to-know", productThingToKnowRoutes);
 
 router.use("/media", mediaRoutes);
 
-router.use("/product/categories", categoryRoutes);
-router.use("/product/product-types", productTypeRoutes);
-router.use("/product/product-tag", productTagRoutes);
+router.use("/product-categories", categoryRoutes);
+
+router.use("/product-types", productTypeRoutes);
+
+router.use("/product-tags", productTagRoutes);
 
 
 module.exports = router;
