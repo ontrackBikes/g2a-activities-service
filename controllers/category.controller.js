@@ -95,9 +95,7 @@ const getCategoryById = async (req, res) => {
  */
 const updateCategory = async (req, res) => {
   try {
-    const { error, value } = updateCategorySchema.validate(
-      req.body
-    );
+    const { error, value } = updateCategorySchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -145,7 +143,9 @@ const deleteCategory = async (req, res) => {
       });
     }
 
-    await category.destroy();
+    await category.update({
+      active: false,
+    });
 
     return res.status(200).json({
       success: true,
