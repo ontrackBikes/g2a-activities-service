@@ -68,10 +68,10 @@ Product.init(
      * Day Trips
      * Getting Around
      */
-    category_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: false,
-    },
+    // category_id: {
+    //   type: DataTypes.BIGINT.UNSIGNED,
+    //   allowNull: false,
+    // },
 
     /**
      * Product Type
@@ -157,9 +157,6 @@ Product.init(
     timestamps: true,
 
     indexes: [
-      /**
-       * Unique identifiers
-       */
       {
         unique: true,
         fields: ["code"],
@@ -169,47 +166,34 @@ Product.init(
         fields: ["slug"],
       },
 
-      /**
-       * Foreign key lookups
-       */
       {
         fields: ["group_id"],
       },
-      {
-        fields: ["category_id"],
-      },
+
       {
         fields: ["product_type_id"],
       },
 
-      /**
-       * Common listing queries
-       */
-      {
-        fields: ["category_id", "active"],
-      },
       {
         fields: ["product_type_id", "active"],
       },
+
       {
         fields: ["featured", "active"],
       },
-      {
-        fields: ["category_id", "product_type_id", "active"],
-      },
 
-      /**
-       * Sorting
-       */
       {
         fields: ["sort_order"],
       },
 
-      /**
-       * General status filtering
-       */
       {
         fields: ["active"],
+      },
+      {
+        fields: ["active", "sort_order"],
+      },
+      {
+        fields: ["featured", "active", "sort_order"],
       },
     ],
   },

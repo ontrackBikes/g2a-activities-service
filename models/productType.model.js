@@ -38,7 +38,6 @@ ProductType.init(
     slug: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      unique: true,
     },
 
     /**

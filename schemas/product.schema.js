@@ -3,7 +3,6 @@ const Joi = require("joi");
 const createProductSchema = Joi.object({
   group_id: Joi.number().integer().positive().optional(),
 
-  category_id: Joi.number().integer().positive().required(),
 
   product_type_id: Joi.number().integer().positive().required(),
 
@@ -27,7 +26,6 @@ const createProductSchema = Joi.object({
 const updateProductSchema = Joi.object({
   group_id: Joi.number().integer().positive(),
 
-  category_id: Joi.number().integer().positive(),
 
   product_type_id: Joi.number().integer().positive(),
 

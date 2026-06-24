@@ -4,12 +4,14 @@ const {
   Product,
   ProductGroup,
   ProductImage,
+  ProductType,
 } = require("../models");
 
 const {
   createProductSchema,
   updateProductSchema,
 } = require("../schemas/product.schema");
+
 
 const createProduct = async (req, res) => {
   try {
@@ -21,6 +23,72 @@ const createProduct = async (req, res) => {
         success: false,
         message: error.details[0].message,
       });
+    }
+
+    /**
+     * Validate Product Group
+     */
+    if (value.group_id) {
+      const group = await ProductGroup.findByPk(
+        value.group_id
+      );
+
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          message: "Product group not found",
+        });
+      }
+    }
+
+    /**
+     * Validate Product Type
+     */
+    const productType = await ProductType.findByPk(
+      value.product_type_id
+    );
+
+    if (!productType) {
+      return res.status(404).json({
+        success: false,
+        message: "Product type not found",
+      });
+    }
+
+    /**
+     * Duplicate Slug Check
+     */
+    const existingSlug =
+      await Product.findOne({
+        where: {
+          slug: value.slug,
+        },
+      });
+
+    if (existingSlug) {
+      return res.status(409).json({
+        success: false,
+        message: "Slug already exists",
+      });
+    }
+
+    /**
+     * Duplicate Code Check
+     */
+    if (value.code) {
+      const existingCode =
+        await Product.findOne({
+          where: {
+            code: value.code,
+          },
+        });
+
+      if (existingCode) {
+        return res.status(409).json({
+          success: false,
+          message: "Code already exists",
+        });
+      }
     }
 
     const product = await Product.create(value);
@@ -38,7 +106,7 @@ const createProduct = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to create product",
     });
   }
 };
