@@ -18,6 +18,12 @@ Location.init(
       comment: "Location name",
     },
 
+    image: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      comment: "Location Image",
+    },
+
     slug: {
       type: DataTypes.STRING(255),
       allowNull: false,

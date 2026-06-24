@@ -8,7 +8,7 @@ const {
 const express = require("express");
 const router = express.Router();
 
-router.post("/", createProductType);
+router.post("/", createProductType); 
 
 router.get("/", getProductTypes);
 
