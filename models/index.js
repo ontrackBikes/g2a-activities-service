@@ -262,30 +262,35 @@ ProductThingToKnow.belongsTo(Product, {
   as: "product",
 });
 
+/**
+ * Category -> Product Types
+ */
 Category.hasMany(ProductType, {
   foreignKey: "category_id",
+  as: "productTypes",
 });
 
 ProductType.belongsTo(Category, {
   foreignKey: "category_id",
+  as: "category",
 });
 
-Category.hasMany(Product, {
-  foreignKey: "category_id",
-});
-
-Product.belongsTo(Category, {
-  foreignKey: "category_id",
-});
-
+/**
+ * Product Type -> Products
+ */
 ProductType.hasMany(Product, {
   foreignKey: "product_type_id",
+  as: "products",
 });
 
 Product.belongsTo(ProductType, {
   foreignKey: "product_type_id",
+  as: "productType",
 });
 
+/**
+ * Product <-> Tags
+ */
 Product.belongsToMany(ProductTag, {
   through: ProductTagMapping,
   foreignKey: "product_id",
@@ -297,6 +302,7 @@ ProductTag.belongsToMany(Product, {
   through: ProductTagMapping,
   foreignKey: "tag_id",
   otherKey: "product_id",
+  as: "products",
 });
 
 module.exports = {
