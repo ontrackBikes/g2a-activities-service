@@ -1,10 +1,20 @@
-const { Op } = require("sequelize");
+const { Op, fn, col, literal } = require("sequelize");
 
 const {
   Product,
   ProductGroup,
   ProductImage,
   ProductType,
+  VendorProduct,
+  Category,
+  ProductTag,
+  Location,
+  ProductFaq,
+  ProductTerm,
+  ProductHighlight,
+  ProductInclusion,
+  ProductExclusion,
+  ProductThingToKnow,
 } = require("../models");
 
 const {
@@ -12,11 +22,9 @@ const {
   updateProductSchema,
 } = require("../schemas/product.schema");
 
-
 const createProduct = async (req, res) => {
   try {
-    const { error, value } =
-      createProductSchema.validate(req.body);
+    const { error, value } = createProductSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -29,9 +37,7 @@ const createProduct = async (req, res) => {
      * Validate Product Group
      */
     if (value.group_id) {
-      const group = await ProductGroup.findByPk(
-        value.group_id
-      );
+      const group = await ProductGroup.findByPk(value.group_id);
 
       if (!group) {
         return res.status(404).json({
@@ -44,9 +50,7 @@ const createProduct = async (req, res) => {
     /**
      * Validate Product Type
      */
-    const productType = await ProductType.findByPk(
-      value.product_type_id
-    );
+    const productType = await ProductType.findByPk(value.product_type_id);
 
     if (!productType) {
       return res.status(404).json({
@@ -58,12 +62,11 @@ const createProduct = async (req, res) => {
     /**
      * Duplicate Slug Check
      */
-    const existingSlug =
-      await Product.findOne({
-        where: {
-          slug: value.slug,
-        },
-      });
+    const existingSlug = await Product.findOne({
+      where: {
+        slug: value.slug,
+      },
+    });
 
     if (existingSlug) {
       return res.status(409).json({
@@ -76,12 +79,11 @@ const createProduct = async (req, res) => {
      * Duplicate Code Check
      */
     if (value.code) {
-      const existingCode =
-        await Product.findOne({
-          where: {
-            code: value.code,
-          },
-        });
+      const existingCode = await Product.findOne({
+        where: {
+          code: value.code,
+        },
+      });
 
       if (existingCode) {
         return res.status(409).json({
@@ -99,10 +101,7 @@ const createProduct = async (req, res) => {
       data: product,
     });
   } catch (error) {
-    console.error(
-      "[ProductController] createProduct",
-      error
-    );
+    console.error("[ProductController] createProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -113,12 +112,7 @@ const createProduct = async (req, res) => {
 
 const getProducts = async (req, res) => {
   try {
-    const {
-      active,
-      group_id,
-      product_type,
-      search,
-    } = req.query;
+    const { active, group_id, product_type_id, search } = req.query;
 
     const where = {};
 
@@ -130,8 +124,8 @@ const getProducts = async (req, res) => {
       where.group_id = group_id;
     }
 
-    if (product_type) {
-      where.product_type = product_type;
+    if (product_type_id) {
+      where.product_type_id = product_type_id;
     }
 
     if (search) {
@@ -156,6 +150,10 @@ const getProducts = async (req, res) => {
           model: ProductGroup,
           as: "group",
         },
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+        },
       ],
       order: [
         ["sort_order", "ASC"],
@@ -169,10 +167,7 @@ const getProducts = async (req, res) => {
       data: products,
     });
   } catch (error) {
-    console.error(
-      "[ProductController] getProducts",
-      error
-    );
+    console.error("[ProductController] getProducts", error);
 
     return res.status(500).json({
       success: false,
@@ -183,21 +178,18 @@ const getProducts = async (req, res) => {
 
 const getProduct = async (req, res) => {
   try {
-    const product = await Product.findByPk(
-      req.params.id,
-      {
-        include: [
-          {
-            model: ProductGroup,
-            as: "group",
-          },
-          {
-            model: ProductImage,
-            as: "images",
-          },
-        ],
-      }
-    );
+    const product = await Product.findByPk(req.params.id, {
+      include: [
+        {
+          model: ProductGroup,
+          as: "group",
+        },
+        {
+          model: ProductImage,
+          as: "images",
+        },
+      ],
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -211,10 +203,7 @@ const getProduct = async (req, res) => {
       data: product,
     });
   } catch (error) {
-    console.error(
-      "[ProductController] getProduct",
-      error
-    );
+    console.error("[ProductController] getProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -225,8 +214,7 @@ const getProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
-    const { error, value } =
-      updateProductSchema.validate(req.body);
+    const { error, value } = updateProductSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -235,9 +223,7 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    const product = await Product.findByPk(
-      req.params.id
-    );
+    const product = await Product.findByPk(req.params.id);
 
     if (!product) {
       return res.status(404).json({
@@ -254,10 +240,7 @@ const updateProduct = async (req, res) => {
       data: product,
     });
   } catch (error) {
-    console.error(
-      "[ProductController] updateProduct",
-      error
-    );
+    console.error("[ProductController] updateProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -268,9 +251,7 @@ const updateProduct = async (req, res) => {
 
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByPk(
-      req.params.id
-    );
+    const product = await Product.findByPk(req.params.id);
 
     if (!product) {
       return res.status(404).json({
@@ -288,10 +269,7 @@ const deleteProduct = async (req, res) => {
       message: "Product deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "[ProductController] deleteProduct",
-      error
-    );
+    console.error("[ProductController] deleteProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -300,10 +278,512 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const getProductsListForApp = async (req, res) => {
+  try {
+    const {
+      search,
+      featured,
+      category_slug,
+      product_type_slug,
+      min_price,
+      max_price,
+      sort = "recommended",
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const where = {
+      active: true,
+    };
+
+    if (featured !== undefined) {
+      where.featured = featured === "true";
+    }
+
+    if (search) {
+      where[Op.or] = [
+        {
+          name: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          short_description: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      ];
+    }
+
+    const productTypeWhere = {
+      active: true,
+    };
+
+    const categoryWhere = {
+      active: true,
+    };
+
+    if (product_type_slug) {
+      productTypeWhere.slug = product_type_slug;
+    }
+
+    if (category_slug) {
+      categoryWhere.slug = category_slug;
+    }
+
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+
+    const pageSize = Math.min(parseInt(limit, 10) || 20, 100);
+
+    const offset = (pageNumber - 1) * pageSize;
+
+    let order = [];
+
+    switch (sort) {
+      case "price_low":
+        order.push([literal("starting_price"), "ASC"]);
+        break;
+
+      case "price_high":
+        order.push([literal("starting_price"), "DESC"]);
+        break;
+
+      case "newest":
+        order.push(["createdAt", "DESC"]);
+        break;
+
+      default:
+        order.push(["featured", "DESC"], ["sort_order", "ASC"]);
+        break;
+    }
+
+    const products = await Product.findAll({
+      subQuery: false,
+
+      attributes: [
+        "id",
+        "slug",
+        "name",
+        "short_description",
+        "thumbnail_url",
+        "thumbnail_url_sm",
+        "featured",
+
+        [fn("MIN", col("vendorProducts.base_price")), "starting_price"],
+      ],
+
+      where,
+
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+
+          attributes: ["id", "name", "slug"],
+
+          where: productTypeWhere,
+
+          include: [
+            {
+              model: Category,
+              as: "category",
+
+              attributes: ["id", "name", "slug"],
+
+              where: categoryWhere,
+            },
+          ],
+        },
+
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+
+          attributes: [],
+
+          where: {
+            active: true,
+          },
+
+          required: false,
+
+          include: [
+            {
+              model: Location,
+              as: "location",
+
+              attributes: ["id", "name", "slug"],
+            },
+          ],
+        },
+
+        {
+          model: ProductTag,
+          as: "tags",
+
+          attributes: ["id", "name", "slug"],
+
+          through: {
+            attributes: [],
+          },
+
+          required: false,
+        },
+      ],
+
+      group: [
+        "Product.id",
+
+        "productType.id",
+
+        "productType->category.id",
+
+        "tags.id",
+      ],
+
+      order,
+
+      limit: pageSize,
+      offset,
+    });
+
+    const data = products.map((product) => {
+      const json = product.toJSON();
+
+      const locations = [];
+
+      if (product.vendorProducts && product.vendorProducts.length) {
+        const seen = new Set();
+
+        product.vendorProducts.forEach((vp) => {
+          if (vp.location && !seen.has(vp.location.id)) {
+            seen.add(vp.location.id);
+
+            locations.push({
+              name: vp.location.name,
+              slug: vp.location.slug,
+            });
+          }
+        });
+      }
+
+      return {
+        slug: json.slug,
+
+        name: json.name,
+
+        short_description: json.short_description,
+
+        thumbnail_url: json.thumbnail_url,
+
+        thumbnail_url_sm: json.thumbnail_url_sm,
+
+        featured: json.featured,
+
+        starting_price: Number(json.starting_price || 0),
+
+        category: json.productType?.category || null,
+
+        product_type: json.productType
+          ? {
+              name: json.productType.name,
+              slug: json.productType.slug,
+            }
+          : null,
+
+        locations,
+
+        tags:
+          json.tags?.map((tag) => ({
+            name: tag.name,
+            slug: tag.slug,
+          })) || [],
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+
+      page: pageNumber,
+
+      limit: pageSize,
+
+      count: data.length,
+
+      data,
+    });
+  } catch (error) {
+    console.error("[ProductController] getProductsListForApp", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch products",
+    });
+  }
+};
+
+
+const getProductDetailsForApp = async (
+  req,
+  res
+) => {
+  try {
+    const { slug } = req.params;
+
+    const product =
+      await Product.findOne({
+        where: {
+          slug,
+          active: true,
+        },
+
+        include: [
+          {
+            model: ProductImage,
+            as: "images",
+            required: false,
+          },
+
+          {
+            model: ProductFaq,
+            as: "faqs",
+            required: false,
+          },
+
+          {
+            model: ProductTerm,
+            as: "terms",
+            required: false,
+          },
+
+          {
+            model: ProductHighlight,
+            as: "highlights",
+            required: false,
+          },
+
+          {
+            model: ProductInclusion,
+            as: "inclusions",
+            required: false,
+          },
+
+          {
+            model: ProductExclusion,
+            as: "exclusions",
+            required: false,
+          },
+
+          {
+            model: ProductThingToKnow,
+            as: "thingsToKnow",
+            required: false,
+          },
+
+          {
+            model: ProductTag,
+            as: "tags",
+            through: {
+              attributes: [],
+            },
+            required: false,
+          },
+
+          {
+            model: VendorProduct,
+            as: "vendorProducts",
+
+            required: false,
+
+            where: {
+              active: true,
+            },
+
+            include: [
+              {
+                model: Location,
+                as: "location",
+                required: false,
+              },
+            ],
+          },
+        ],
+      });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const locationsMap =
+      new Map();
+
+    let startingPrice = null;
+
+    for (const vp of product.vendorProducts ||
+      []) {
+      if (
+        vp.location &&
+        !locationsMap.has(
+          vp.location.id
+        )
+      ) {
+        locationsMap.set(
+          vp.location.id,
+          {
+            id: vp.location.id,
+            name:
+              vp.location.name,
+            slug:
+              vp.location.slug,
+          }
+        );
+      }
+
+      const price =
+        Number(
+          vp.base_price
+        );
+
+      if (
+        !Number.isNaN(price)
+      ) {
+        if (
+          startingPrice ===
+          null
+        ) {
+          startingPrice =
+            price;
+        } else {
+          startingPrice =
+            Math.min(
+              startingPrice,
+              price
+            );
+        }
+      }
+    }
+
+    const relatedProducts =
+      await Product.findAll({
+        where: {
+          active: true,
+
+          product_type_id:
+            product.product_type_id,
+
+          id: {
+            [Op.ne]:
+              product.id,
+          },
+        },
+
+        limit: 8,
+
+        order: [
+          [
+            "featured",
+            "DESC",
+          ],
+          [
+            "sort_order",
+            "ASC",
+          ],
+        ],
+
+        attributes: [
+          "id",
+          "slug",
+          "name",
+          "thumbnail_url",
+        ],
+      });
+
+    return res.json({
+      success: true,
+
+      data: {
+        id: product.id,
+
+        slug: product.slug,
+
+        name: product.name,
+
+        short_description:
+          product.short_description,
+
+        thumbnail_url:
+          product.thumbnail_url,
+
+        thumbnail_url_sm:
+          product.thumbnail_url_sm,
+
+        featured:
+          product.featured,
+
+        starting_price:
+          startingPrice,
+
+        images:
+          product.images || [],
+
+        highlights:
+          product.highlights ||
+          [],
+
+        thingsToKnow:
+          product.thingsToKnow ||
+          [],
+
+        inclusions:
+          product.inclusions ||
+          [],
+
+        exclusions:
+          product.exclusions ||
+          [],
+
+        faqs:
+          product.faqs || [],
+
+        terms:
+          product.terms || [],
+
+        tags:
+          product.tags || [],
+
+        locations:
+          Array.from(
+            locationsMap.values()
+          ),
+
+        related_products:
+          relatedProducts,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[getProductDetailsForApp]",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch product",
+    });
+  }
+};
+
+
 module.exports = {
   createProduct,
   getProducts,
   getProduct,
   updateProduct,
   deleteProduct,
+  getProductsListForApp,
+  getProductDetailsForApp
 };

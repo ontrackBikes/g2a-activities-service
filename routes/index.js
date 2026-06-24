@@ -25,6 +25,11 @@ const mediaRoutes = require("./media.routes");
 const categoryRoutes = require("./category.routes");
 const productTypeRoutes = require("./productType.routes");
 const productTagRoutes = require("./productTag.routes");
+const productCollectionRoutes =
+  require("./productCollection.routes");
+
+const productCollectionProductRoutes =
+  require("./productCollectionProduct.routes");
 const router = express.Router();
 
 router.use("/vendors", vendorRoutes);
@@ -76,6 +81,16 @@ router.use("/product-categories", categoryRoutes);
 router.use("/product-types", productTypeRoutes);
 
 router.use("/product-tags", productTagRoutes);
+
+router.use(
+  "/product-collections",
+  productCollectionRoutes
+);
+
+router.use(
+  "/product-collection-products",
+  productCollectionProductRoutes
+);
 
 
 module.exports = router;

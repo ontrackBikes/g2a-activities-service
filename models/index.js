@@ -25,6 +25,8 @@ const ProductTag = require("./productTag.model");
 const ProductTagMapping = require("./productTagMapping.model");
 const ProductType = require("./productType.model");
 const Category = require("./category.model");
+const ProductCollection = require("./productCollection.model");
+const ProductCollectionProduct = require("./productCollectionProduct.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -327,6 +329,42 @@ ProductType.belongsTo(Category, {
   as: "category",
 });
 
+ProductCollection.hasMany(ProductCollectionProduct, {
+  foreignKey: "collection_id",
+  as: "productMappings",
+  onDelete: "CASCADE",
+});
+
+ProductCollectionProduct.belongsTo(ProductCollection, {
+  foreignKey: "collection_id",
+  as: "collection",
+});
+
+Product.hasMany(ProductCollectionProduct, {
+  foreignKey: "product_id",
+  as: "collectionMappings",
+  onDelete: "CASCADE",
+});
+
+ProductCollectionProduct.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.belongsToMany(ProductCollection, {
+  through: ProductCollectionProduct,
+  foreignKey: "product_id",
+  otherKey: "collection_id",
+  as: "collections",
+});
+
+ProductCollection.belongsToMany(Product, {
+  through: ProductCollectionProduct,
+  foreignKey: "collection_id",
+  otherKey: "product_id",
+  as: "productsList",
+});
+
 module.exports = {
   Product,
   ProductGroup,
@@ -355,4 +393,6 @@ module.exports = {
   ProductTagMapping,
   ProductType,
   Category,
+  ProductCollection,
+  ProductCollectionProduct
 };
