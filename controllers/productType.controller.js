@@ -1,5 +1,6 @@
 const Category = require("../models/category.model");
 const ProductType = require("../models/productType.model");
+const { Op } = require("sequelize");
 
 const {
   createProductTypeSchema,
