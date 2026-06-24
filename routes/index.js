@@ -22,6 +22,9 @@ const vendorProductThingToKnowRoutes = require("./vendorProductThingToKnow.route
 const vendorProductTermRoutes = require("./vendorProductTerm.routes");
 const vendorProductImageRoutes = require("./vendorProductImage.routes");
 const mediaRoutes = require("./media.routes");
+const categoryRoutes = require("./category.routes");
+const productTypeRoutes = require("./productType.routes");
+const productTagRoutes = require("./productTag.routes");
 const router = express.Router();
 
 router.use("/vendors", vendorRoutes);
@@ -67,5 +70,11 @@ router.use("/product-exclusions", productExclusionRoutes);
 router.use("/product-things-to-know", productThingToKnowRoutes);
 
 router.use("/media", mediaRoutes);
+
+
+router.use("/product/categories", categoryRoutes);
+router.use("/product/product-types", productTypeRoutes);
+router.use("/product/product-tag", productTagRoutes);
+
 
 module.exports = router;

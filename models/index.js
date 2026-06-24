@@ -21,6 +21,10 @@ const ProductInclusion = require("./productInclusion.model");
 const ProductExclusion = require("./productExclusion.model");
 const ProductThingToKnow = require("./productThingToKnow.model");
 const MediaLibrary = require("./mediaLibrary.model");
+const ProductTag = require("./productTag.model");
+const ProductTagMapping = require("./productTagMapping.model");
+const ProductType = require("./productType.model");
+const Category = require("./category.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -256,6 +260,43 @@ Product.hasMany(ProductThingToKnow, {
 ProductThingToKnow.belongsTo(Product, {
   foreignKey: "product_id",
   as: "product",
+});
+
+Category.hasMany(ProductType, {
+  foreignKey: "category_id",
+});
+
+ProductType.belongsTo(Category, {
+  foreignKey: "category_id",
+});
+
+Category.hasMany(Product, {
+  foreignKey: "category_id",
+});
+
+Product.belongsTo(Category, {
+  foreignKey: "category_id",
+});
+
+ProductType.hasMany(Product, {
+  foreignKey: "product_type_id",
+});
+
+Product.belongsTo(ProductType, {
+  foreignKey: "product_type_id",
+});
+
+Product.belongsToMany(ProductTag, {
+  through: ProductTagMapping,
+  foreignKey: "product_id",
+  otherKey: "tag_id",
+  as: "tags",
+});
+
+ProductTag.belongsToMany(Product, {
+  through: ProductTagMapping,
+  foreignKey: "tag_id",
+  otherKey: "product_id",
 });
 
 module.exports = {

@@ -1,82 +1,47 @@
 const Joi = require("joi");
 
-const PRODUCT_TYPES = [
-  "ACTIVITY",
-  "RENTAL",
-  "TRANSFER",
-  "FERRY",
-  "TOUR",
-  "EXPERIENCE",
-];
-
 const createProductSchema = Joi.object({
-  group_id: Joi.number()
-    .integer()
-    .positive()
-    .optional(),
+  group_id: Joi.number().integer().positive().optional(),
 
-  name: Joi.string()
-    .trim()
-    .max(255)
-    .required(),
+  category_id: Joi.number().integer().positive().required(),
 
-  slug: Joi.string()
-    .trim()
-    .lowercase()
-    .max(255)
-    .required(),
+  product_type_id: Joi.number().integer().positive().required(),
 
-  product_type: Joi.string()
-    .valid(...PRODUCT_TYPES)
-    .required(),
+  featured: Joi.boolean().default(false),
 
-  short_description: Joi.string()
-    .allow("", null),
+  name: Joi.string().trim().max(255).required(),
 
-  thumbnail_url: Joi.string()
-    .allow("", null),
+  slug: Joi.string().trim().lowercase().max(255).required(),
 
-  thumbnail_url_sm: Joi.string()
-    .allow("", null),
+  short_description: Joi.string().allow("", null),
 
-  sort_order: Joi.number()
-    .integer()
-    .min(0)
-    .default(0),
+  thumbnail_url: Joi.string().allow("", null),
 
-  active: Joi.boolean()
-    .default(true),
+  thumbnail_url_sm: Joi.string().allow("", null),
+
+  sort_order: Joi.number().integer().min(0).default(0),
+
+  active: Joi.boolean().default(true),
 });
 
 const updateProductSchema = Joi.object({
-  group_id: Joi.number()
-    .integer()
-    .positive(),
+  group_id: Joi.number().integer().positive(),
 
-  name: Joi.string()
-    .trim()
-    .max(255),
+  category_id: Joi.number().integer().positive(),
 
-  slug: Joi.string()
-    .trim()
-    .lowercase()
-    .max(255),
+  product_type_id: Joi.number().integer().positive(),
 
-  product_type: Joi.string()
-    .valid(...PRODUCT_TYPES),
+  name: Joi.string().trim().max(255),
 
-  short_description: Joi.string()
-    .allow("", null),
+  slug: Joi.string().trim().lowercase().max(255),
 
-  thumbnail_url: Joi.string()
-    .allow("", null),
+  short_description: Joi.string().allow("", null),
 
-  thumbnail_url_sm: Joi.string()
-    .allow("", null),
+  thumbnail_url: Joi.string().allow("", null),
 
-  sort_order: Joi.number()
-    .integer()
-    .min(0),
+  thumbnail_url_sm: Joi.string().allow("", null),
+
+  sort_order: Joi.number().integer().min(0),
 
   active: Joi.boolean(),
 }).min(1);
