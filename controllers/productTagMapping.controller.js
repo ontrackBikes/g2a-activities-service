@@ -70,6 +70,87 @@ const assignTagToProduct = async (req, res) => {
   }
 };
 
+
+const getProductsByTag = async (req, res) => {
+  try {
+    const tag = await ProductTag.findByPk(
+      req.params.id
+    );
+
+    if (!tag) {
+      return res.status(404).json({
+        success: false,
+        message: "Tag not found",
+      });
+    }
+
+    const mappings =
+      await ProductTagMapping.findAll({
+        where: {
+          tag_id: tag.id,
+        },
+        include: [
+          {
+            model: Product,
+          },
+        ],
+        order: [["sort_order", "ASC"]],
+      });
+
+    return res.status(200).json({
+      success: true,
+      count: mappings.length,
+      data: mappings,
+    });
+  } catch (err) {
+    console.error("[getProductsByTag]", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch products",
+    });
+  }
+};
+
+const removeTagFromProduct = async (
+  req,
+  res
+) => {
+  try {
+    const { product_id, tag_id } = req.body;
+
+    const deleted =
+      await ProductTagMapping.destroy({
+        where: {
+          product_id,
+          tag_id,
+        },
+      });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Mapping not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Tag removed from product successfully",
+    });
+  } catch (err) {
+    console.error("[removeTagFromProduct]", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove tag",
+    });
+  }
+};
+
 module.exports = {
-  assignTagToProduct
+  assignTagToProduct,
+  getProductsByTag,
+  removeTagFromProduct
 }
