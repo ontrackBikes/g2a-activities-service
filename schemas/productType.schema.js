@@ -1,10 +1,6 @@
 const Joi = require("joi");
 
 const createProductTypeSchema = Joi.object({
-  category_id: Joi.number()
-    .integer()
-    .positive()
-    .required(),
 
   name: Joi.string()
     .trim()

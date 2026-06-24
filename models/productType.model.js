@@ -11,10 +11,6 @@ ProductType.init(
       autoIncrement: true,
     },
 
-    category_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: false,
-    },
 
     name: {
       type: DataTypes.STRING(100),
