@@ -447,25 +447,73 @@ const getProductsListForApp = async (req, res) => {
       offset,
     });
 
+    const productIds = products.map(
+      (product) => product.id
+    );
+
+    let locationMap = {};
+
+    if (productIds.length) {
+      const vendorProductLocations =
+        await VendorProduct.findAll({
+          attributes: [
+            "product_id",
+            "location_id",
+          ],
+          where: {
+            product_id: productIds,
+            active: true,
+          },
+          include: [
+            {
+              model: Location,
+              as: "location",
+              attributes: [
+                "id",
+                "name",
+                "slug",
+              ],
+            },
+          ],
+        });
+
+      locationMap =
+        vendorProductLocations.reduce(
+          (acc, vendorProduct) => {
+            if (!vendorProduct.location) {
+              return acc;
+            }
+
+            if (!acc[vendorProduct.product_id]) {
+              acc[vendorProduct.product_id] =
+                new Map();
+            }
+
+            acc[vendorProduct.product_id].set(
+              vendorProduct.location.id,
+              {
+                id: vendorProduct.location.id,
+                name: vendorProduct.location.name,
+                slug: vendorProduct.location.slug,
+              }
+            );
+
+            return acc;
+          },
+          {}
+        );
+    }
+
     const data = products.map((product) => {
       const json = product.toJSON();
 
-      const locations = [];
-
-      if (product.vendorProducts && product.vendorProducts.length) {
-        const seen = new Set();
-
-        product.vendorProducts.forEach((vp) => {
-          if (vp.location && !seen.has(vp.location.id)) {
-            seen.add(vp.location.id);
-
-            locations.push({
-              name: vp.location.name,
-              slug: vp.location.slug,
-            });
-          }
-        });
-      }
+      const locations = locationMap[
+        product.id
+      ]
+        ? Array.from(
+            locationMap[product.id].values()
+          )
+        : [];
 
       return {
         slug: json.slug,
