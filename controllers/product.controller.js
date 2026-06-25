@@ -287,6 +287,8 @@ const getProductsListForApp = async (req, res) => {
       product_type_slug,
       location_slug,
       location_id,
+      location_slugs,
+      location_ids,
       min_price,
       max_price,
       sort = "recommended",
@@ -333,20 +335,52 @@ const getProductsListForApp = async (req, res) => {
       categoryWhere.slug = category_slug;
     }
 
+    const parseQueryList = (value) => {
+      if (!value) {
+        return [];
+      }
+
+      return (Array.isArray(value) ? value : [value])
+        .flatMap((item) => String(item).split(","))
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
+    const selectedLocationIds = [
+      ...new Set([
+        ...parseQueryList(location_id),
+        ...parseQueryList(location_ids),
+      ]),
+    ];
+
+    const selectedLocationSlugs = [
+      ...new Set([
+        ...parseQueryList(location_slug),
+        ...parseQueryList(location_slugs),
+      ]),
+    ];
+
     const vendorProductWhere = {
       active: true,
     };
 
     const locationWhere = {};
 
-    if (location_id) {
-      vendorProductWhere.location_id =
-        location_id;
+    if (selectedLocationIds.length) {
+      vendorProductWhere.location_id = {
+        [Op.in]: selectedLocationIds,
+      };
     }
 
-    if (location_slug) {
-      locationWhere.slug = location_slug;
+    if (selectedLocationSlugs.length) {
+      locationWhere.slug = {
+        [Op.in]: selectedLocationSlugs,
+      };
     }
+
+    const hasLocationFilter =
+      selectedLocationIds.length > 0 ||
+      selectedLocationSlugs.length > 0;
 
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
 
@@ -420,9 +454,7 @@ const getProductsListForApp = async (req, res) => {
 
           where: vendorProductWhere,
 
-          required:
-            Boolean(location_id) ||
-            Boolean(location_slug),
+          required: hasLocationFilter,
 
           include: [
             {
@@ -434,7 +466,8 @@ const getProductsListForApp = async (req, res) => {
                 .length
                 ? locationWhere
                 : undefined,
-              required: Boolean(location_slug),
+              required:
+                selectedLocationSlugs.length > 0,
             },
           ],
         },
@@ -485,8 +518,13 @@ const getProductsListForApp = async (req, res) => {
           where: {
             product_id: productIds,
             active: true,
-            ...(location_id
-              ? { location_id }
+            ...(selectedLocationIds.length
+              ? {
+                  location_id: {
+                    [Op.in]:
+                      selectedLocationIds,
+                  },
+                }
               : {}),
           },
           include: [
@@ -502,7 +540,8 @@ const getProductsListForApp = async (req, res) => {
                 .length
                 ? locationWhere
                 : undefined,
-              required: Boolean(location_slug),
+              required:
+                selectedLocationSlugs.length > 0,
             },
           ],
         });
