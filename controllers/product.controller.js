@@ -285,6 +285,8 @@ const getProductsListForApp = async (req, res) => {
       featured,
       category_slug,
       product_type_slug,
+      location_slug,
+      location_id,
       min_price,
       max_price,
       sort = "recommended",
@@ -329,6 +331,21 @@ const getProductsListForApp = async (req, res) => {
 
     if (category_slug) {
       categoryWhere.slug = category_slug;
+    }
+
+    const vendorProductWhere = {
+      active: true,
+    };
+
+    const locationWhere = {};
+
+    if (location_id) {
+      vendorProductWhere.location_id =
+        location_id;
+    }
+
+    if (location_slug) {
+      locationWhere.slug = location_slug;
     }
 
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
@@ -401,11 +418,11 @@ const getProductsListForApp = async (req, res) => {
 
           attributes: [],
 
-          where: {
-            active: true,
-          },
+          where: vendorProductWhere,
 
-          required: false,
+          required:
+            Boolean(location_id) ||
+            Boolean(location_slug),
 
           include: [
             {
@@ -413,6 +430,11 @@ const getProductsListForApp = async (req, res) => {
               as: "location",
 
               attributes: ["id", "name", "slug"],
+              where: Object.keys(locationWhere)
+                .length
+                ? locationWhere
+                : undefined,
+              required: Boolean(location_slug),
             },
           ],
         },
@@ -463,6 +485,9 @@ const getProductsListForApp = async (req, res) => {
           where: {
             product_id: productIds,
             active: true,
+            ...(location_id
+              ? { location_id }
+              : {}),
           },
           include: [
             {
@@ -473,6 +498,11 @@ const getProductsListForApp = async (req, res) => {
                 "name",
                 "slug",
               ],
+              where: Object.keys(locationWhere)
+                .length
+                ? locationWhere
+                : undefined,
+              required: Boolean(location_slug),
             },
           ],
         });
