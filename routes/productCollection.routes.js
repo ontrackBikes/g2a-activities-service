@@ -8,7 +8,6 @@ const {
   getProductCollectionById,
   updateProductCollection,
   deleteProductCollection,
-  getCollectionProducts,
   getCollectionsWithProducts,
 } = require(
   "../controllers/productCollection.controller"

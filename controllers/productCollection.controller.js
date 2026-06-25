@@ -303,6 +303,7 @@ const getCollectionsWithProducts = async (req, res) => {
       banner_url: collection.banner_url,
       entity_type: collection.entity_type,
       entity_id: collection.entity_id,
+      sort_order: collection.sort_order,
 
       products: collection.productMappings.map((mapping) => ({
         ...mapping.product.toJSON(),
