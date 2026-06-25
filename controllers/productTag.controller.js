@@ -5,6 +5,7 @@ const {
 
 const {
   createProductTagSchema,
+  updateProductTagSchema,
 } = require("../schemas/productTag.schema");
 const ProductTag = require("../models/productTag.model");
 const { Product } = require("../models");
