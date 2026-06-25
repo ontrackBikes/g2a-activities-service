@@ -542,42 +542,49 @@ const getProductDetailsForApp = async (
             model: ProductImage,
             as: "images",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductFaq,
             as: "faqs",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductTerm,
             as: "terms",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductHighlight,
             as: "highlights",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductInclusion,
             as: "inclusions",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductExclusion,
             as: "exclusions",
             required: false,
+            separate: true,
           },
 
           {
             model: ProductThingToKnow,
             as: "thingsToKnow",
             required: false,
+            separate: true,
           },
 
           {
@@ -594,6 +601,7 @@ const getProductDetailsForApp = async (
             as: "vendorProducts",
 
             required: false,
+            separate: true,
 
             where: {
               active: true,
