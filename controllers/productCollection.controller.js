@@ -4,7 +4,9 @@ const {
   ProductType,
   ProductImage,
   Category,
+  VendorProduct,
 } = require("../models");
+const { Sequelize } = require("sequelize");
 const ProductCollection = require("../models/productCollection.model");
 
 const {
@@ -295,6 +297,50 @@ const getCollectionsWithProducts = async (req, res) => {
       ],
     });
 
+    const productIds = [
+      ...new Set(
+        collections.flatMap((collection) =>
+          collection.productMappings.map(
+            (mapping) => mapping.product_id
+          )
+        )
+      ),
+    ];
+
+    let priceMap = {};
+
+    if (productIds.length) {
+      const productPrices =
+        await VendorProduct.findAll({
+          attributes: [
+            "product_id",
+            [
+              Sequelize.fn(
+                "MIN",
+                Sequelize.col("base_price")
+              ),
+              "base_price",
+            ],
+          ],
+          where: {
+            product_id: productIds,
+            active: true,
+          },
+          group: ["product_id"],
+          raw: true,
+        });
+
+      priceMap = productPrices.reduce(
+        (acc, item) => {
+          acc[item.product_id] = Number(
+            item.base_price
+          );
+          return acc;
+        },
+        {}
+      );
+    }
+
     const data = collections.map((collection) => ({
       id: collection.id,
       name: collection.name,
@@ -307,6 +353,8 @@ const getCollectionsWithProducts = async (req, res) => {
 
       products: collection.productMappings.map((mapping) => ({
         ...mapping.product.toJSON(),
+        starting_price:
+          priceMap[mapping.product.id] || null,
         collection_sort_order: mapping.sort_order,
       })),
     }));
