@@ -1,4 +1,5 @@
-const { Location } = require("../models");
+const { Sequelize } = require("sequelize");
+const { Location, VendorProduct } = require("../models");
 
 const {
   createLocationSchema,
@@ -84,10 +85,59 @@ const getLocations = async (req, res) => {
         order: [["name", "ASC"]],
       });
 
+    const locationIds = locations.map(
+      (location) => location.id
+    );
+
+    let countMap = {};
+
+    if (locationIds.length) {
+      const productCounts =
+        await VendorProduct.findAll({
+          attributes: [
+            "location_id",
+            [
+              Sequelize.fn(
+                "COUNT",
+                Sequelize.fn(
+                  "DISTINCT",
+                  Sequelize.col("product_id")
+                )
+              ),
+              "product_count",
+            ],
+          ],
+          where: {
+            location_id: locationIds,
+            active: true,
+          },
+          group: ["location_id"],
+          raw: true,
+        });
+
+      countMap = productCounts.reduce(
+        (acc, item) => {
+          acc[item.location_id] = Number(
+            item.product_count
+          );
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const data = locations.map(
+      (location) => ({
+        ...location.toJSON(),
+        product_count:
+          countMap[location.id] || 0,
+      })
+    );
+
     return res.json({
       success: true,
-      count: locations.length,
-      data: locations,
+      count: data.length,
+      data,
     });
   } catch (error) {
     console.error(
