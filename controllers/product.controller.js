@@ -15,6 +15,7 @@ const {
   ProductInclusion,
   ProductExclusion,
   ProductThingToKnow,
+  BookingTemplate,
 } = require("../models");
 
 const {
@@ -379,8 +380,7 @@ const getProductsListForApp = async (req, res) => {
     }
 
     const hasLocationFilter =
-      selectedLocationIds.length > 0 ||
-      selectedLocationSlugs.length > 0;
+      selectedLocationIds.length > 0 || selectedLocationSlugs.length > 0;
 
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
 
@@ -462,12 +462,10 @@ const getProductsListForApp = async (req, res) => {
               as: "location",
 
               attributes: ["id", "name", "slug"],
-              where: Object.keys(locationWhere)
-                .length
+              where: Object.keys(locationWhere).length
                 ? locationWhere
                 : undefined,
-              required:
-                selectedLocationSlugs.length > 0,
+              required: selectedLocationSlugs.length > 0,
             },
           ],
         },
@@ -502,86 +500,61 @@ const getProductsListForApp = async (req, res) => {
       offset,
     });
 
-    const productIds = products.map(
-      (product) => product.id
-    );
+    const productIds = products.map((product) => product.id);
 
     let locationMap = {};
 
     if (productIds.length) {
-      const vendorProductLocations =
-        await VendorProduct.findAll({
-          attributes: [
-            "product_id",
-            "location_id",
-          ],
-          where: {
-            product_id: productIds,
-            active: true,
-            ...(selectedLocationIds.length
-              ? {
-                  location_id: {
-                    [Op.in]:
-                      selectedLocationIds,
-                  },
-                }
-              : {}),
+      const vendorProductLocations = await VendorProduct.findAll({
+        attributes: ["product_id", "location_id"],
+        where: {
+          product_id: productIds,
+          active: true,
+          ...(selectedLocationIds.length
+            ? {
+                location_id: {
+                  [Op.in]: selectedLocationIds,
+                },
+              }
+            : {}),
+        },
+        include: [
+          {
+            model: Location,
+            as: "location",
+            attributes: ["id", "name", "slug"],
+            where: Object.keys(locationWhere).length
+              ? locationWhere
+              : undefined,
+            required: selectedLocationSlugs.length > 0,
           },
-          include: [
-            {
-              model: Location,
-              as: "location",
-              attributes: [
-                "id",
-                "name",
-                "slug",
-              ],
-              where: Object.keys(locationWhere)
-                .length
-                ? locationWhere
-                : undefined,
-              required:
-                selectedLocationSlugs.length > 0,
-            },
-          ],
+        ],
+      });
+
+      locationMap = vendorProductLocations.reduce((acc, vendorProduct) => {
+        if (!vendorProduct.location) {
+          return acc;
+        }
+
+        if (!acc[vendorProduct.product_id]) {
+          acc[vendorProduct.product_id] = new Map();
+        }
+
+        acc[vendorProduct.product_id].set(vendorProduct.location.id, {
+          id: vendorProduct.location.id,
+          name: vendorProduct.location.name,
+          slug: vendorProduct.location.slug,
         });
 
-      locationMap =
-        vendorProductLocations.reduce(
-          (acc, vendorProduct) => {
-            if (!vendorProduct.location) {
-              return acc;
-            }
-
-            if (!acc[vendorProduct.product_id]) {
-              acc[vendorProduct.product_id] =
-                new Map();
-            }
-
-            acc[vendorProduct.product_id].set(
-              vendorProduct.location.id,
-              {
-                id: vendorProduct.location.id,
-                name: vendorProduct.location.name,
-                slug: vendorProduct.location.slug,
-              }
-            );
-
-            return acc;
-          },
-          {}
-        );
+        return acc;
+      }, {});
     }
 
     const data = products.map((product) => {
       const json = product.toJSON();
 
-      const locations = locationMap[
-        product.id
-      ]
-        ? Array.from(
-            locationMap[product.id].values()
-          )
+      const locations = locationMap[product.id]
+        ? Array.from(locationMap[product.id].values())
         : [];
 
       return {
@@ -605,6 +578,7 @@ const getProductsListForApp = async (req, res) => {
           ? {
               name: json.productType.name,
               slug: json.productType.slug,
+              category: json.productType.category
             }
           : null,
 
@@ -639,101 +613,101 @@ const getProductsListForApp = async (req, res) => {
   }
 };
 
-
-const getProductDetailsForApp = async (
-  req,
-  res
-) => {
+const getProductDetailsForApp = async (req, res) => {
   try {
     const { slug } = req.params;
 
-    const product =
-      await Product.findOne({
-        where: {
-          slug,
-          active: true,
+    const product = await Product.findOne({
+      where: {
+        slug,
+        active: true,
+      },
+
+      include: [
+        {
+          model: ProductImage,
+          as: "images",
+          required: false,
+          separate: true,
         },
 
-        include: [
-          {
-            model: ProductImage,
-            as: "images",
-            required: false,
-            separate: true,
+        {
+          model: ProductFaq,
+          as: "faqs",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductTerm,
+          as: "terms",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductHighlight,
+          as: "highlights",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductInclusion,
+          as: "inclusions",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductExclusion,
+          as: "exclusions",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductThingToKnow,
+          as: "thingsToKnow",
+          required: false,
+          separate: true,
+        },
+
+        {
+          model: ProductTag,
+          as: "tags",
+          through: {
+            attributes: [],
+          },
+          required: false,
+        },
+
+        {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+        },
+
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+
+          required: false,
+          separate: true,
+
+          where: {
+            active: true,
           },
 
-          {
-            model: ProductFaq,
-            as: "faqs",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductTerm,
-            as: "terms",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductHighlight,
-            as: "highlights",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductInclusion,
-            as: "inclusions",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductExclusion,
-            as: "exclusions",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductThingToKnow,
-            as: "thingsToKnow",
-            required: false,
-            separate: true,
-          },
-
-          {
-            model: ProductTag,
-            as: "tags",
-            through: {
-              attributes: [],
+          include: [
+            {
+              model: Location,
+              as: "location",
+              required: false,
             },
-            required: false,
-          },
-
-          {
-            model: VendorProduct,
-            as: "vendorProducts",
-
-            required: false,
-            separate: true,
-
-            where: {
-              active: true,
-            },
-
-            include: [
-              {
-                model: Location,
-                as: "location",
-                required: false,
-              },
-            ],
-          },
-        ],
-      });
+          ],
+        },
+      ],
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -742,166 +716,101 @@ const getProductDetailsForApp = async (
       });
     }
 
-    const locationsMap =
-      new Map();
+    const locationsMap = new Map();
 
     let startingPrice = null;
 
-    for (const vp of product.vendorProducts ||
-      []) {
-      if (
-        vp.location &&
-        !locationsMap.has(
-          vp.location.id
-        )
-      ) {
-        locationsMap.set(
-          vp.location.id,
-          {
-            id: vp.location.id,
-            name:
-              vp.location.name,
-            slug:
-              vp.location.slug,
-          }
-        );
+    for (const vp of product.vendorProducts || []) {
+      if (vp.location && !locationsMap.has(vp.location.id)) {
+        locationsMap.set(vp.location.id, {
+          id: vp.location.id,
+          name: vp.location.name,
+          slug: vp.location.slug,
+        });
       }
 
-      const price =
-        Number(
-          vp.base_price
-        );
+      const price = Number(vp.base_price);
 
-      if (
-        !Number.isNaN(price)
-      ) {
-        if (
-          startingPrice ===
-          null
-        ) {
-          startingPrice =
-            price;
+      if (!Number.isNaN(price)) {
+        if (startingPrice === null) {
+          startingPrice = price;
         } else {
-          startingPrice =
-            Math.min(
-              startingPrice,
-              price
-            );
+          startingPrice = Math.min(startingPrice, price);
         }
       }
     }
 
-    const relatedProducts =
-      await Product.findAll({
-        where: {
-          active: true,
+    const relatedProducts = await Product.findAll({
+      where: {
+        active: true,
 
-          product_type_id:
-            product.product_type_id,
+        product_type_id: product.product_type_id,
 
-          id: {
-            [Op.ne]:
-              product.id,
-          },
+        id: {
+          [Op.ne]: product.id,
         },
+      },
 
-        limit: 8,
+      limit: 8,
 
-        order: [
-          [
-            "featured",
-            "DESC",
-          ],
-          [
-            "sort_order",
-            "ASC",
-          ],
-        ],
+      order: [
+        ["featured", "DESC"],
+        ["sort_order", "ASC"],
+      ],
 
-        attributes: [
-          "id",
-          "slug",
-          "name",
-          "thumbnail_url",
-        ],
-      });
+      attributes: ["id", "slug", "name", "thumbnail_url"],
+    });
 
     return res.json({
       success: true,
 
       data: {
-        id: product.id,
+        bookingTemplate: product.bookingTemplate,
 
         slug: product.slug,
 
         name: product.name,
 
-        short_description:
-          product.short_description,
+        short_description: product.short_description,
 
-        thumbnail_url:
-          product.thumbnail_url,
+        thumbnail_url: product.thumbnail_url,
 
-        thumbnail_url_sm:
-          product.thumbnail_url_sm,
+        thumbnail_url_sm: product.thumbnail_url_sm,
 
-        featured:
-          product.featured,
+        featured: product.featured,
 
-        starting_price:
-          startingPrice,
+        starting_price: startingPrice,
 
-        images:
-          product.images || [],
+        images: product.images || [],
 
-        highlights:
-          product.highlights ||
-          [],
+        highlights: product.highlights || [],
 
-        thingsToKnow:
-          product.thingsToKnow ||
-          [],
+        thingsToKnow: product.thingsToKnow || [],
 
-        inclusions:
-          product.inclusions ||
-          [],
+        inclusions: product.inclusions || [],
 
-        exclusions:
-          product.exclusions ||
-          [],
+        exclusions: product.exclusions || [],
 
-        faqs:
-          product.faqs || [],
+        faqs: product.faqs || [],
 
-        terms:
-          product.terms || [],
+        terms: product.terms || [],
 
-        tags:
-          product.tags || [],
+        tags: product.tags || [],
 
-        locations:
-          Array.from(
-            locationsMap.values()
-          ),
+        locations: Array.from(locationsMap.values()),
 
-        related_products:
-          relatedProducts,
+        related_products: relatedProducts,
       },
     });
   } catch (error) {
-    console.error(
-      "[getProductDetailsForApp]",
-      error
-    );
+    console.error("[getProductDetailsForApp]", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch product",
+      message: "Failed to fetch product",
     });
   }
 };
-
 
 module.exports = {
   createProduct,
@@ -910,5 +819,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getProductsListForApp,
-  getProductDetailsForApp
+  getProductDetailsForApp,
 };

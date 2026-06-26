@@ -25,6 +25,8 @@ const mediaRoutes = require("./media.routes");
 const categoryRoutes = require("./category.routes");
 const productTypeRoutes = require("./productType.routes");
 const productTagRoutes = require("./productTag.routes");
+const bookingTemplate = require("./bookingTemplate.routes");
+
 const productCollectionRoutes =
   require("./productCollection.routes");
 
@@ -90,6 +92,11 @@ router.use(
 router.use(
   "/product-collection-products",
   productCollectionProductRoutes
+);
+
+router.use(
+  "/booking-templates",
+  bookingTemplate
 );
 
 

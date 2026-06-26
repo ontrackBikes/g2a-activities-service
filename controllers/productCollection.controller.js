@@ -281,6 +281,15 @@ const getCollectionsWithProducts = async (req, res) => {
                 {
                   model: ProductType,
                   as: "productType",
+                  include: [
+                    {
+                      model: Category,
+                      as: "category",
+                      attributes: {
+                        exclude: ["id"]
+                      }
+                    },
+                  ]
                 },
                 {
                   model: ProductImage,

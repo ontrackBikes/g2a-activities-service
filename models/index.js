@@ -27,6 +27,7 @@ const ProductType = require("./productType.model");
 const Category = require("./category.model");
 const ProductCollection = require("./productCollection.model");
 const ProductCollectionProduct = require("./productCollectionProduct.model");
+const BookingTemplate = require("./bookingTemplates.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -365,6 +366,16 @@ ProductCollection.belongsToMany(Product, {
   as: "productsList",
 });
 
+BookingTemplate.hasMany(Product, {
+  foreignKey: "booking_template_id",
+  as: "products",
+});
+
+Product.belongsTo(BookingTemplate, {
+  foreignKey: "booking_template_id",
+  as: "bookingTemplate",
+});
+
 module.exports = {
   Product,
   ProductGroup,
@@ -394,5 +405,6 @@ module.exports = {
   ProductType,
   Category,
   ProductCollection,
-  ProductCollectionProduct
+  ProductCollectionProduct,
+  BookingTemplate
 };
