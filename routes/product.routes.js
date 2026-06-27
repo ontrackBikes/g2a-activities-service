@@ -6,6 +6,7 @@ const {
   getProduct,
   updateProduct,
   deleteProduct,
+  searchProducts,
   getProductsListForApp,
   getProductDetailsForApp,
 } = require("../controllers/product.controller");
@@ -15,6 +16,8 @@ const router = express.Router();
 router.post("/", createProduct);
 
 router.get("/", getProducts);
+
+router.get("/search", searchProducts);
 
 router.get(
   "/app/products-list",

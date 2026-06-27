@@ -279,6 +279,121 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const searchProducts = async (req, res) => {
+  try {
+    const query = String(req.query.q || "").trim();
+
+    if (query.length < 2 || query.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query must be between 2 and 100 characters",
+      });
+    }
+
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isInteger(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 20)
+      : 10;
+    const searchPattern = `%${query}%`;
+
+    const products = await Product.findAll({
+      attributes: [
+        "name",
+        "slug",
+        "thumbnail_url",
+        "thumbnail_url_sm",
+      ],
+      where: {
+        active: true,
+        [Op.or]: [
+          {
+            name: {
+              [Op.like]: searchPattern,
+            },
+          },
+          {
+            slug: {
+              [Op.like]: searchPattern,
+            },
+          },
+          {
+            "$productType.name$": {
+              [Op.like]: searchPattern,
+            },
+          },
+          {
+            "$productType.slug$": {
+              [Op.like]: searchPattern,
+            },
+          },
+          {
+            "$productType.category.name$": {
+              [Op.like]: searchPattern,
+            },
+          },
+          {
+            "$productType.category.slug$": {
+              [Op.like]: searchPattern,
+            },
+          },
+        ],
+      },
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+          attributes: ["name", "slug"],
+          required: true,
+          where: {
+            active: true,
+          },
+          include: [
+            {
+              model: Category,
+              as: "category",
+              attributes: ["name", "slug"],
+              required: true,
+              where: {
+                active: true,
+              },
+            },
+          ],
+        },
+      ],
+      order: [["name", "ASC"]],
+      limit,
+      subQuery: false,
+    });
+
+    const data = products.map((product) => ({
+      name: product.name,
+      slug: product.slug,
+      image: product.thumbnail_url_sm || product.thumbnail_url,
+      product_type: {
+        name: product.productType.name,
+        slug: product.productType.slug,
+      },
+      category: {
+        name: product.productType.category.name,
+        slug: product.productType.category.slug,
+      },
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error("[ProductController] searchProducts", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to search products",
+    });
+  }
+};
+
 const getProductsListForApp = async (req, res) => {
   try {
     const {
@@ -818,6 +933,7 @@ module.exports = {
   getProduct,
   updateProduct,
   deleteProduct,
+  searchProducts,
   getProductsListForApp,
   getProductDetailsForApp,
 };
