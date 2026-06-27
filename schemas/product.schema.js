@@ -21,6 +21,7 @@ const createProductSchema = Joi.object({
   sort_order: Joi.number().integer().min(0).default(0),
 
   active: Joi.boolean().default(true),
+  booking_template_id: Joi.number().integer().positive().required(),
 });
 
 const updateProductSchema = Joi.object({

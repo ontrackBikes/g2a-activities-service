@@ -14,4 +14,6 @@ module.exports = {
   REVIEW: "review",
 
   PAYMENT: "payment",
+
+  RENTAL_DETAILS: "rental_details"
 };
