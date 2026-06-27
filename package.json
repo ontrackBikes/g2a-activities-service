@@ -20,10 +20,13 @@
     "generate_token": "node scripts/generateToken.js",
     "worker:media": "node workers/media-processing.js",
     "worker:media-cleanup": "node workers/media-cleanup.js",
+    "worker:vendor-schedule": "node workers/vendor-schedule.js",
     "pm2:media": "pm2 start workers/media-processing.js --name activities-media-worker",
     "pm2:media-cleanup": "pm2 start workers/media-cleanup.js --name activities-media-cleanup-worker",
+    "pm2:vendor-schedule": "pm2 start workers/vendor-schedule.js --name activities-vendor-schedule-worker",
     "pm2:restart-media": "pm2 restart activities-media-worker",
-    "pm2:restart-media-cleanup": "pm2 restart activities-media-cleanup-worker"
+    "pm2:restart-media-cleanup": "pm2 restart activities-media-cleanup-worker",
+    "pm2:restart-vendor-schedule": "pm2 restart activities-vendor-schedule-worker"
   },
   "dependencies": {
     "bullmq": "^5.79.1",

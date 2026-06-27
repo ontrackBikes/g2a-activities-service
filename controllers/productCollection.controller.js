@@ -4,10 +4,13 @@ const {
   ProductType,
   ProductImage,
   Category,
-  VendorProduct,
 } = require("../models");
-const { Sequelize } = require("sequelize");
 const ProductCollection = require("../models/productCollection.model");
+const {
+  getAvailableVendorsForProducts,
+} = require(
+  "../services/availableVendor.service"
+);
 
 const {
   createProductCollectionSchema,
@@ -185,7 +188,14 @@ const ALLOWED_ENTITY_TYPES = ["global", "category", "product_type", "location"];
 
 const getCollectionsWithProducts = async (req, res) => {
   try {
-    const { entity_type, entity_id, entity_slug } = req.query;
+    const {
+      entity_type,
+      entity_id,
+      entity_slug,
+      location_slug,
+      date,
+      pax = 1,
+    } = req.query;
 
     const where = {
       active: true,
@@ -316,39 +326,18 @@ const getCollectionsWithProducts = async (req, res) => {
       ),
     ];
 
-    let priceMap = {};
-
-    if (productIds.length) {
-      const productPrices =
-        await VendorProduct.findAll({
-          attributes: [
-            "product_id",
-            [
-              Sequelize.fn(
-                "MIN",
-                Sequelize.col("base_price")
-              ),
-              "base_price",
-            ],
-          ],
-          where: {
-            product_id: productIds,
-            active: true,
-          },
-          group: ["product_id"],
-          raw: true,
-        });
-
-      priceMap = productPrices.reduce(
-        (acc, item) => {
-          acc[item.product_id] = Number(
-            item.base_price
-          );
-          return acc;
-        },
-        {}
-      );
-    }
+    const availabilityMap =
+      await getAvailableVendorsForProducts({
+        productIds,
+        locationSlugs: location_slug
+          ? [location_slug]
+          : [],
+        date,
+        pax: Math.max(
+          Number.parseInt(pax, 10) || 1,
+          1,
+        ),
+      });
 
     const data = collections.map((collection) => ({
       id: collection.id,
@@ -360,12 +349,27 @@ const getCollectionsWithProducts = async (req, res) => {
       entity_id: collection.entity_id,
       sort_order: collection.sort_order,
 
-      products: collection.productMappings.map((mapping) => ({
-        ...mapping.product.toJSON(),
-        starting_price:
-          priceMap[mapping.product.id] || null,
-        collection_sort_order: mapping.sort_order,
-      })),
+      products: collection.productMappings.map((mapping) => {
+        const availability =
+          availabilityMap.get(mapping.product.id);
+
+        return {
+          ...mapping.product.toJSON(),
+          available: Boolean(availability),
+          out_of_stock: !availability,
+          starting_price: availability
+            ? availability.pricing.display_price
+            : null,
+          base_price: availability
+            ? availability.pricing.base_price
+            : null,
+          price_type: availability
+            ? availability.pricing.price_type
+            : null,
+          collection_sort_order:
+            mapping.sort_order,
+        };
+      }),
     }));
 
     return res.status(200).json({

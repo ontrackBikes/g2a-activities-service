@@ -22,6 +22,12 @@ const {
   createProductSchema,
   updateProductSchema,
 } = require("../schemas/product.schema");
+const {
+  getAvailableVendorForProduct,
+  getAvailableVendorsForProducts,
+} = require(
+  "../services/availableVendor.service"
+);
 
 const createProduct = async (req, res) => {
   try {
@@ -405,6 +411,8 @@ const getProductsListForApp = async (req, res) => {
       location_id,
       location_slugs,
       location_ids,
+      date,
+      pax = 1,
       min_price,
       max_price,
       sort = "recommended",
@@ -616,6 +624,18 @@ const getProductsListForApp = async (req, res) => {
     });
 
     const productIds = products.map((product) => product.id);
+    const requestedPax = Math.max(
+      Number.parseInt(pax, 10) || 1,
+      1,
+    );
+    const availabilityMap =
+      await getAvailableVendorsForProducts({
+        productIds,
+        locationIds: selectedLocationIds,
+        locationSlugs: selectedLocationSlugs,
+        date,
+        pax: requestedPax,
+      });
 
     let locationMap = {};
 
@@ -671,6 +691,8 @@ const getProductsListForApp = async (req, res) => {
       const locations = locationMap[product.id]
         ? Array.from(locationMap[product.id].values())
         : [];
+      const availability =
+        availabilityMap.get(product.id);
 
       return {
         slug: json.slug,
@@ -685,7 +707,21 @@ const getProductsListForApp = async (req, res) => {
 
         featured: json.featured,
 
-        starting_price: Number(json.starting_price || 0),
+        available: Boolean(availability),
+
+        out_of_stock: !availability,
+
+        starting_price: availability
+          ? availability.pricing.display_price
+          : null,
+
+        base_price: availability
+          ? availability.pricing.base_price
+          : null,
+
+        price_type: availability
+          ? availability.pricing.price_type
+          : null,
 
         category: json.productType?.category || null,
 
@@ -731,6 +767,11 @@ const getProductsListForApp = async (req, res) => {
 const getProductDetailsForApp = async (req, res) => {
   try {
     const { slug } = req.params;
+    const {
+      location_slug,
+      date,
+      pax = 1,
+    } = req.query;
 
     const product = await Product.findOne({
       where: {
@@ -833,8 +874,6 @@ const getProductDetailsForApp = async (req, res) => {
 
     const locationsMap = new Map();
 
-    let startingPrice = null;
-
     for (const vp of product.vendorProducts || []) {
       if (vp.location && !locationsMap.has(vp.location.id)) {
         locationsMap.set(vp.location.id, {
@@ -843,17 +882,18 @@ const getProductDetailsForApp = async (req, res) => {
           slug: vp.location.slug,
         });
       }
-
-      const price = Number(vp.base_price);
-
-      if (!Number.isNaN(price)) {
-        if (startingPrice === null) {
-          startingPrice = price;
-        } else {
-          startingPrice = Math.min(startingPrice, price);
-        }
-      }
     }
+
+    const availability =
+      await getAvailableVendorForProduct({
+        productId: product.id,
+        locationSlug: location_slug,
+        date,
+        pax: Math.max(
+          Number.parseInt(pax, 10) || 1,
+          1,
+        ),
+      });
 
     const relatedProducts = await Product.findAll({
       where: {
@@ -894,7 +934,21 @@ const getProductDetailsForApp = async (req, res) => {
 
         featured: product.featured,
 
-        starting_price: startingPrice,
+        available: Boolean(availability),
+
+        out_of_stock: !availability,
+
+        starting_price: availability
+          ? availability.pricing.display_price
+          : null,
+
+        base_price: availability
+          ? availability.pricing.base_price
+          : null,
+
+        price_type: availability
+          ? availability.pricing.price_type
+          : null,
 
         images: product.images || [],
 

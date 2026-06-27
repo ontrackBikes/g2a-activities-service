@@ -1,6 +1,9 @@
 const cron = require("node-cron");
 
 const mediaCleanupCron = require("./media/mediaCleanup.cron");
+const vendorScheduleCron = require(
+  "./vendorSchedule/vendorSchedule.cron"
+);
 
 module.exports = () => {
   console.info("[CRON] Registering jobs");
@@ -17,4 +20,26 @@ module.exports = () => {
   console.info(
     "[CRON] Media cleanup registered (every 6 hours)"
   );
+
+  // Every day at 00:05 in the business timezone.
+  cron.schedule(
+    "5 0 * * *",
+    vendorScheduleCron,
+    {
+      timezone:
+        process.env.APP_TIMEZONE ||
+        "Asia/Kolkata",
+    },
+  );
+
+  console.info(
+    "[CRON] Vendor schedule maintenance registered (daily at 00:05)",
+  );
+
+  vendorScheduleCron().catch((error) => {
+    console.error(
+      "[CRON] Failed to queue initial vendor schedule maintenance",
+      error,
+    );
+  });
 };

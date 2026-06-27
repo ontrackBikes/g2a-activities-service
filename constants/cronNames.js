@@ -1,5 +1,7 @@
 module.exports = {
   MEDIA_CLEANUP: "media-cleanup",
+  VENDOR_SCHEDULE_MAINTENANCE:
+    "vendor-schedule-maintenance",
 
   // future
   VENDOR_SYNC: "vendor-sync",

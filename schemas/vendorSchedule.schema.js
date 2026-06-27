@@ -63,7 +63,14 @@ const updateVendorScheduleSchema =
       "BLACKED_OUT"
     ),
 
-    price: Joi.number().min(0),
+    allow_sync_updates:
+      Joi.boolean(),
+  }).min(1);
+
+const updateVendorScheduleSlotSchema =
+  Joi.object({
+    price: Joi.number()
+      .min(0),
 
     capacity: Joi.number()
       .integer()
@@ -73,6 +80,16 @@ const updateVendorScheduleSchema =
       .integer()
       .min(0),
 
+    max_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1),
+
+    status: Joi.string().valid(
+      "OPEN",
+      "CLOSED"
+    ),
+
     allow_sync_updates:
       Joi.boolean(),
   }).min(1);
@@ -80,4 +97,5 @@ const updateVendorScheduleSchema =
 module.exports = {
   createVendorSchedulesSchema,
   updateVendorScheduleSchema,
+  updateVendorScheduleSlotSchema,
 };

@@ -65,7 +65,7 @@ const updateVendorProductSchema =
     max_bookable_per_booking:
       Joi.number()
         .integer()
-        .min(0),
+        .min(1),
 
     maintain_inventory_days:
       Joi.number()

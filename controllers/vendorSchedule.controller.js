@@ -11,6 +11,7 @@ const {
 const {
   createVendorSchedulesSchema,
   updateVendorScheduleSchema,
+  updateVendorScheduleSlotSchema,
 } = require("../schemas/vendorSchedule.schema");
 
 const moment = require("moment");
@@ -197,7 +198,11 @@ const getVendorSchedules = async (req, res) => {
 
 const getVendorSchedule = async (req, res) => {
   try {
-    const schedule = await VendorSchedule.findByPk(req.params.id, {
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
       include: [
         {
           model: VendorScheduleSlot,
@@ -236,7 +241,12 @@ const updateVendorSchedule = async (req, res) => {
       });
     }
 
-    const schedule = await VendorSchedule.findByPk(req.params.id);
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
+    });
 
     if (!schedule) {
       return res.status(404).json({
@@ -260,9 +270,138 @@ const updateVendorSchedule = async (req, res) => {
   }
 };
 
+const updateVendorScheduleSlot = async (
+  req,
+  res
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { error, value } =
+      updateVendorScheduleSlotSchema.validate(
+        req.body
+      );
+
+    if (error) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!schedule) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found",
+      });
+    }
+
+    const slot = await VendorScheduleSlot.findOne({
+      where: {
+        id: req.params.slotId,
+        vendor_schedule_id: schedule.id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!slot) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Schedule slot not found",
+      });
+    }
+
+    const nextCapacity =
+      value.capacity ?? Number(slot.capacity);
+    const booked = Number(slot.booked);
+
+    if (nextCapacity < booked) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "capacity cannot be less than already booked inventory",
+      });
+    }
+
+    const maximumAvailable =
+      nextCapacity - booked;
+    const nextAvailable =
+      value.available ??
+      (value.capacity !== undefined
+        ? maximumAvailable
+        : Number(slot.available));
+
+    if (nextAvailable > maximumAvailable) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "available cannot exceed capacity minus booked inventory",
+      });
+    }
+
+    const updates = {
+      ...value,
+      capacity: nextCapacity,
+      available: nextAvailable,
+      allow_sync_updates:
+        value.allow_sync_updates ?? false,
+    };
+
+    await slot.update(updates, {
+      transaction,
+    });
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message:
+        "Schedule slot updated successfully",
+      data: slot,
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error(
+      "[VendorScheduleController] updateVendorScheduleSlot",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const deleteVendorSchedule = async (req, res) => {
   try {
-    const schedule = await VendorSchedule.findByPk(req.params.id);
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
+    });
 
     if (!schedule) {
       return res.status(404).json({
@@ -389,6 +528,7 @@ module.exports = {
   getVendorSchedules,
   getVendorSchedule,
   updateVendorSchedule,
+  updateVendorScheduleSlot,
   deleteVendorSchedule,
   getVendorProductCalendar,
 };

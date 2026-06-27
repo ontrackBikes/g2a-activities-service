@@ -10,6 +10,11 @@ const {
   getProductsListForApp,
   getProductDetailsForApp,
 } = require("../controllers/product.controller");
+const {
+  checkProductAvailability,
+} = require(
+  "../controllers/productAvailability.controller"
+);
 
 const router = express.Router();
 
@@ -18,6 +23,11 @@ router.post("/", createProduct);
 router.get("/", getProducts);
 
 router.get("/search", searchProducts);
+
+router.post(
+  "/:slug/check-available",
+  checkProductAvailability,
+);
 
 router.get(
   "/app/products-list",
