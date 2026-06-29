@@ -371,6 +371,15 @@ const searchProducts = async (req, res) => {
             },
           ],
         },
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+          attributes: [],
+          where: {
+            active: true,
+          },
+          required: true,
+        },
       ],
       order: [["name", "ASC"]],
       limit,
@@ -508,9 +517,6 @@ const getProductsListForApp = async (req, res) => {
       };
     }
 
-    const hasLocationFilter =
-      selectedLocationIds.length > 0 || selectedLocationSlugs.length > 0;
-
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
 
     const pageSize = Math.min(parseInt(limit, 10) || 20, 100);
@@ -583,7 +589,7 @@ const getProductsListForApp = async (req, res) => {
 
           where: vendorProductWhere,
 
-          required: hasLocationFilter,
+          required: true,
 
           include: [
             {
@@ -878,7 +884,15 @@ const getProductDetailsForApp = async (req, res) => {
             {
               model: Location,
               as: "location",
-              required: false,
+              required: true,
+              where: {
+                active: true,
+                ...(location_slug
+                  ? {
+                      slug: location_slug,
+                    }
+                  : {}),
+              },
             },
           ],
         },
@@ -889,6 +903,14 @@ const getProductDetailsForApp = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Product not found",
+      });
+    }
+
+    if (!product.vendorProducts?.length) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Product is not available from any vendor",
       });
     }
 

@@ -316,6 +316,32 @@ const getCollectionsWithProducts = async (req, res) => {
                     active: true,
                   },
                 },
+                {
+                  model: VendorProduct,
+                  as: "vendorProducts",
+                  attributes: [],
+                  required: true,
+                  where: {
+                    active: true,
+                  },
+                  include: [
+                    {
+                      model: Location,
+                      as: "location",
+                      attributes: [],
+                      required: true,
+                      where: {
+                        active: true,
+                        ...(location_slug
+                          ? {
+                              slug:
+                                location_slug,
+                            }
+                          : {}),
+                      },
+                    },
+                  ],
+                },
               ],
             },
           ],
