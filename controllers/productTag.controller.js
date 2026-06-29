@@ -8,8 +8,9 @@ const {
   updateProductTagSchema,
 } = require("../schemas/productTag.schema");
 const ProductTag = require("../models/productTag.model");
-const { Product } = require("../models");
+const { Product, ProductType, Category } = require("../models");
 const ProductTagMapping = require("../models/productTagMapping.model");
+const { Op } = require("sequelize");
 
 const createProductTag = async (req, res) => {
   try {
@@ -160,11 +161,100 @@ const deleteProductTag = async (req, res) => {
   }
 };
 
+
+
+
+const getProductTagsAPI = async (req, res) => {
+  try {
+    const {
+      category_slug,
+      product_type_slug,
+    } = req.query;
+    const where = {
+      active: true,
+    };
+
+    if (category_slug) {
+      where["$products.productType.category.slug$"] =
+        category_slug;
+    }
+
+    if (product_type_slug) {
+      where["$products.productType.slug$"] =
+        product_type_slug;
+    }
+
+    const tags = await ProductTag.findAll({
+      where,
+
+      include: [
+        {
+          model: Product,
+          as: "products",
+
+          attributes: [],
+
+          through: {
+            attributes: [],
+          },
+
+          required: true,
+
+          include: [
+            {
+              model: ProductType,
+              as: "productType",
+
+              attributes: [],
+
+              required: true,
+
+              include: [
+                {
+                  model: Category,
+                  as: "category",
+
+                  attributes: [],
+
+                  required: true,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+
+      distinct: true,
+
+      order: [
+        ["sort_order", "ASC"],
+        ["name", "ASC"],
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: tags.length,
+      data: tags,
+    });
+  } catch (err) {
+    console.error("[getProductTags]", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product tags",
+    });
+  }
+};
+
+
+
 module.exports = {
   createProductTag,
   getProductTags,
   getProductTagById,
   updateProductTag,
-  deleteProductTag
+  deleteProductTag,
+  getProductTagsAPI
 }
 

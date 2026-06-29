@@ -57,6 +57,21 @@ ProductType.init(
       allowNull: false,
       defaultValue: true,
     },
+
+    cover_media_url: {
+       type: DataTypes.STRING(150),
+      allowNull: true,
+    },
+
+    cover_title: {
+      type: DataTypes.STRING(150),
+      allowNull: true,
+    },
+
+    cover_subtitle: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -82,5 +97,5 @@ ProductType.init(
     ],
   },
 );
-
+// ProductType.sync({alter: true})
 module.exports = ProductType;

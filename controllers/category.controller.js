@@ -1,4 +1,6 @@
 const Category = require("../models/category.model");
+const Product = require("../models/product.model");
+const ProductType = require("../models/productType.model");
 
 const {
   createCategorySchema,
@@ -90,6 +92,65 @@ const getCategoryById = async (req, res) => {
   }
 };
 
+
+const getCategoryBySlug = async (req, res) => {
+  try {
+    const category = await Category.findOne({
+      where: {
+        slug: req.params.slug,
+        active: true,
+      },
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    const productTypes = await ProductType.count({
+      where: {
+        category_id: category.id,
+        active: true,
+      },
+    });
+
+    const products = await Product.count({
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+          required: true,
+          where: {
+            category_id: category.id,
+            active: true,
+          },
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...category.toJSON(),
+
+        overview: {
+          product_types: productTypes,
+          products,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[getCategoryBySlug]", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch category",
+    });
+  }
+};
+
 /**
  * Update Category
  */
@@ -167,4 +228,5 @@ module.exports = {
   getCategoryById,
   updateCategory,
   deleteCategory,
+  getCategoryBySlug
 };

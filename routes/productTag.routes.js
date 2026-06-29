@@ -2,7 +2,8 @@ const { createProductTag,
   getProductTags,
   getProductTagById,
   updateProductTag,
-  deleteProductTag } = require("../controllers/productTag.controller");
+  deleteProductTag, 
+  getProductTagsAPI} = require("../controllers/productTag.controller");
 
 const express = require("express");
 const { assignTagToProduct, getProductsByTag, removeTagFromProduct } = require("../controllers/productTagMapping.controller");
@@ -16,7 +17,7 @@ router.post(
 router.post("/", createProductTag);
 
 router.get("/", getProductTags);
-
+router.get("/api", getProductTagsAPI);
 router.get("/:id", getProductTagById);
 
 router.patch("/:id", updateProductTag);
