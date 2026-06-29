@@ -4,12 +4,19 @@ const {
   ProductType,
   ProductImage,
   Category,
+  VendorProduct,
+  Location,
 } = require("../models");
 const ProductCollection = require("../models/productCollection.model");
 const {
   getAvailableVendorsForProducts,
 } = require(
   "../services/availableVendor.service"
+);
+const {
+  getNextAvailableSlotsForProducts,
+} = require(
+  "../services/nextAvailableSlot.service"
 );
 
 const {
@@ -326,18 +333,78 @@ const getCollectionsWithProducts = async (req, res) => {
       ),
     ];
 
-    const availabilityMap =
-      await getAvailableVendorsForProducts({
+    const requestedPax = Math.max(
+      Number.parseInt(pax, 10) || 1,
+      1,
+    );
+    const selectedLocationSlugs = location_slug
+      ? [location_slug]
+      : [];
+
+    const [
+      availabilityMap,
+      nextAvailableSlotMap,
+      vendorProductLocations,
+    ] = await Promise.all([
+      getAvailableVendorsForProducts({
         productIds,
-        locationSlugs: location_slug
-          ? [location_slug]
-          : [],
+        locationSlugs: selectedLocationSlugs,
         date,
-        pax: Math.max(
-          Number.parseInt(pax, 10) || 1,
-          1,
-        ),
-      });
+        pax: requestedPax,
+      }),
+      getNextAvailableSlotsForProducts({
+        productIds,
+        locationSlugs: selectedLocationSlugs,
+        pax: requestedPax,
+      }),
+      productIds.length
+        ? VendorProduct.findAll({
+            attributes: ["product_id", "location_id"],
+            where: {
+              product_id: productIds,
+              active: true,
+            },
+            include: [
+              {
+                model: Location,
+                as: "location",
+                attributes: ["id", "name", "slug"],
+                required: true,
+                where: {
+                  active: true,
+                  ...(location_slug
+                    ? {
+                        slug: location_slug,
+                      }
+                    : {}),
+                },
+              },
+            ],
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const locationMap = vendorProductLocations.reduce(
+      (acc, vendorProduct) => {
+        const productId = Number(
+          vendorProduct.product_id,
+        );
+        const location = vendorProduct.location;
+
+        if (!acc.has(productId)) {
+          acc.set(productId, new Map());
+        }
+
+        acc.get(productId).set(location.id, {
+          id: location.id,
+          name: location.name,
+          slug: location.slug,
+        });
+
+        return acc;
+      },
+      new Map(),
+    );
 
     const data = collections.map((collection) => ({
       id: collection.id,
@@ -352,6 +419,14 @@ const getCollectionsWithProducts = async (req, res) => {
       products: collection.productMappings.map((mapping) => {
         const availability =
           availabilityMap.get(mapping.product.id);
+        const productId = Number(mapping.product.id);
+        const nextAvailableSlot =
+          nextAvailableSlotMap.get(productId) || null;
+        const locations = locationMap.has(productId)
+          ? Array.from(
+              locationMap.get(productId).values(),
+            )
+          : [];
 
         return {
           ...mapping.product.toJSON(),
@@ -366,6 +441,8 @@ const getCollectionsWithProducts = async (req, res) => {
           price_type: availability
             ? availability.pricing.price_type
             : null,
+          next_available_slot: nextAvailableSlot,
+          locations,
           collection_sort_order:
             mapping.sort_order,
         };
