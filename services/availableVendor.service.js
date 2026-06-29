@@ -126,39 +126,63 @@ const getAvailableVendorForProduct = async ({
         },
       },
     ],
-    order: [
-      ["base_price", "ASC"],
-      ["id", "ASC"],
-    ],
+    order: [["id", "ASC"]],
   });
 
-  for (const vendorProduct of vendorProducts) {
-    const schedule = await getAvailableSchedule({
-      vendorProduct,
-      date,
-      pax,
-    });
+  const candidates = (
+    await Promise.all(
+      vendorProducts.map(async (vendorProduct) => {
+        const schedule = await getAvailableSchedule({
+          vendorProduct,
+          date,
+          pax,
+        });
 
-    if (!schedule) {
-      continue;
+        if (!schedule) {
+          return null;
+        }
+
+        const slots = schedule.slots || [];
+        const pricing = getVendorProductPrice(
+          vendorProduct,
+          slots,
+        );
+
+        return {
+          vendorProduct,
+          schedule,
+          slots,
+          pricing,
+          location: vendorProduct.location,
+        };
+      }),
+    )
+  ).filter(Boolean);
+
+  candidates.sort((first, second) => {
+    const priceDifference =
+      first.pricing.display_price -
+      second.pricing.display_price;
+
+    if (priceDifference !== 0) {
+      return priceDifference;
     }
 
-    const slots = schedule.slots || [];
-    const pricing = getVendorProductPrice(
-      vendorProduct,
-      slots,
+    const basePriceDifference =
+      first.pricing.base_price -
+      second.pricing.base_price;
+
+    if (basePriceDifference !== 0) {
+      return basePriceDifference;
+    }
+
+    return (
+      Number(first.vendorProduct.id) -
+      Number(second.vendorProduct.id)
     );
+  });
 
-    return {
-      vendorProduct,
-      schedule,
-      slots,
-      pricing,
-      location: vendorProduct.location,
-    };
-  }
-
-  return null;
+  return candidates[0] || null;
 };
 
 const getAvailableVendorsForProducts = async ({

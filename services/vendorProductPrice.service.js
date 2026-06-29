@@ -7,14 +7,6 @@ const getVendorProductPrice = (
 ) => {
   const basePrice = roundMoney(vendorProduct.base_price || 0);
 
-  if (vendorProduct.pricing_type !== "SLOT") {
-    return {
-      base_price: basePrice,
-      display_price: basePrice,
-      price_type: "flat",
-    };
-  }
-
   const slotPrices = availableSlots
     .map((slot) => Number(slot.price))
     .filter((price) => Number.isFinite(price) && price >= 0);
@@ -26,7 +18,10 @@ const getVendorProductPrice = (
   return {
     base_price: basePrice,
     display_price: lowestSlotPrice,
-    price_type: "starts_from",
+    price_type:
+      vendorProduct.pricing_type === "SLOT"
+        ? "starts_from"
+        : "flat",
   };
 };
 
