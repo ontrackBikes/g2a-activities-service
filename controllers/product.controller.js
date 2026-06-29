@@ -28,6 +28,12 @@ const {
 } = require(
   "../services/availableVendor.service"
 );
+const {
+  getNextAvailableSlotForProduct,
+  getNextAvailableSlotsForProducts,
+} = require(
+  "../services/nextAvailableSlot.service"
+);
 
 const createProduct = async (req, res) => {
   try {
@@ -628,14 +634,24 @@ const getProductsListForApp = async (req, res) => {
       Number.parseInt(pax, 10) || 1,
       1,
     );
-    const availabilityMap =
-      await getAvailableVendorsForProducts({
+    const [
+      availabilityMap,
+      nextAvailableSlotMap,
+    ] = await Promise.all([
+      getAvailableVendorsForProducts({
         productIds,
         locationIds: selectedLocationIds,
         locationSlugs: selectedLocationSlugs,
         date,
         pax: requestedPax,
-      });
+      }),
+      getNextAvailableSlotsForProducts({
+        productIds,
+        locationIds: selectedLocationIds,
+        locationSlugs: selectedLocationSlugs,
+        pax: requestedPax,
+      }),
+    ]);
 
     let locationMap = {};
 
@@ -693,6 +709,8 @@ const getProductsListForApp = async (req, res) => {
         : [];
       const availability =
         availabilityMap.get(product.id);
+      const nextAvailableSlot =
+        nextAvailableSlotMap.get(Number(product.id)) || null;
 
       return {
         slug: json.slug,
@@ -722,6 +740,8 @@ const getProductsListForApp = async (req, res) => {
         price_type: availability
           ? availability.pricing.price_type
           : null,
+
+        next_available_slot: nextAvailableSlot,
 
         category: json.productType?.category || null,
 
@@ -884,37 +904,53 @@ const getProductDetailsForApp = async (req, res) => {
       }
     }
 
-    const availability =
-      await getAvailableVendorForProduct({
+    const requestedPax = Math.max(
+      Number.parseInt(pax, 10) || 1,
+      1,
+    );
+
+    const [
+      availability,
+      nextAvailableSlot,
+      relatedProducts,
+    ] = await Promise.all([
+      getAvailableVendorForProduct({
         productId: product.id,
         locationSlug: location_slug,
         date,
-        pax: Math.max(
-          Number.parseInt(pax, 10) || 1,
-          1,
-        ),
-      });
+        pax: requestedPax,
+      }),
+      getNextAvailableSlotForProduct({
+        productId: product.id,
+        locationSlug: location_slug,
+        pax: requestedPax,
+      }),
+      Product.findAll({
+        where: {
+          active: true,
 
-    const relatedProducts = await Product.findAll({
-      where: {
-        active: true,
+          product_type_id: product.product_type_id,
 
-        product_type_id: product.product_type_id,
-
-        id: {
-          [Op.ne]: product.id,
+          id: {
+            [Op.ne]: product.id,
+          },
         },
-      },
 
-      limit: 8,
+        limit: 8,
 
-      order: [
-        ["featured", "DESC"],
-        ["sort_order", "ASC"],
-      ],
+        order: [
+          ["featured", "DESC"],
+          ["sort_order", "ASC"],
+        ],
 
-      attributes: ["id", "slug", "name", "thumbnail_url"],
-    });
+        attributes: [
+          "id",
+          "slug",
+          "name",
+          "thumbnail_url",
+        ],
+      }),
+    ]);
 
     return res.json({
       success: true,
@@ -949,6 +985,8 @@ const getProductDetailsForApp = async (req, res) => {
         price_type: availability
           ? availability.pricing.price_type
           : null,
+
+        next_available_slot: nextAvailableSlot,
 
         images: product.images || [],
 
