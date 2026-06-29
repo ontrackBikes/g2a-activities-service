@@ -141,9 +141,13 @@ const getVendorProductSlot = async (
 ) => {
   try {
     const slot =
-      await VendorProductSlot.findByPk(
-        req.params.id
-      );
+      await VendorProductSlot.findOne({
+        where: {
+          id: req.params.slotId,
+          vendor_product_id:
+            req.params.id,
+        },
+      });
 
     if (!slot) {
       return res.status(404).json({
@@ -187,9 +191,13 @@ const updateVendorProductSlot =
       }
 
       const slot =
-        await VendorProductSlot.findByPk(
-          req.params.id
-        );
+        await VendorProductSlot.findOne({
+          where: {
+            id: req.params.slotId,
+            vendor_product_id:
+              req.params.id,
+          },
+        });
 
       if (!slot) {
         return res.status(404).json({
@@ -224,9 +232,13 @@ const deleteVendorProductSlot =
   async (req, res) => {
     try {
       const slot =
-        await VendorProductSlot.findByPk(
-          req.params.id
-        );
+        await VendorProductSlot.findOne({
+          where: {
+            id: req.params.slotId,
+            vendor_product_id:
+              req.params.id,
+          },
+        });
 
       if (!slot) {
         return res.status(404).json({
