@@ -6,6 +6,7 @@ const {
   getVendorSchedule,
   updateVendorSchedule,
   updateVendorScheduleSlot,
+  bulkUpdateVendorScheduleSlots,
   deleteVendorSchedule,
   getVendorProductCalendar,
 } = require("../controllers/vendorSchedule.controller");
@@ -27,6 +28,11 @@ router.get(
 router.get(
   "/schedules/:scheduleId",
   getVendorSchedule
+);
+
+router.patch(
+  "/schedules/slots/bulk",
+  bulkUpdateVendorScheduleSlots
 );
 
 router.patch(

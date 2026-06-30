@@ -12,6 +12,7 @@ const {
   createVendorSchedulesSchema,
   updateVendorScheduleSchema,
   updateVendorScheduleSlotSchema,
+  bulkUpdateVendorScheduleSlotsSchema,
 } = require("../schemas/vendorSchedule.schema");
 
 const moment = require("moment");
@@ -394,6 +395,204 @@ const updateVendorScheduleSlot = async (
   }
 };
 
+const bulkUpdateVendorScheduleSlots = async (
+  req,
+  res,
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { error, value } =
+      bulkUpdateVendorScheduleSlotsSchema.validate(
+        req.body,
+      );
+
+    if (error) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const duplicateKeys = new Set();
+
+    for (const item of value.slots) {
+      const key =
+        `${item.schedule_id}:${item.slot_id}`;
+
+      if (duplicateKeys.has(key)) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Duplicate schedule and slot combination supplied",
+        });
+      }
+
+      duplicateKeys.add(key);
+    }
+
+    const scheduleIds = [
+      ...new Set(
+        value.slots.map(
+          (item) => item.schedule_id,
+        ),
+      ),
+    ];
+
+    const schedules = await VendorSchedule.findAll({
+      attributes: ["id"],
+      where: {
+        id: {
+          [Op.in]: scheduleIds,
+        },
+        vendor_product_id: req.params.id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (schedules.length !== scheduleIds.length) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "One or more schedules were not found for this vendor product",
+      });
+    }
+
+    const slotIds = value.slots.map(
+      (item) => item.slot_id,
+    );
+    const slots = await VendorScheduleSlot.findAll({
+      where: {
+        id: {
+          [Op.in]: slotIds,
+        },
+        vendor_schedule_id: {
+          [Op.in]: scheduleIds,
+        },
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    const slotMap = new Map(
+      slots.map((slot) => [
+        Number(slot.id),
+        slot,
+      ]),
+    );
+    const updatesToApply = [];
+
+    for (const item of value.slots) {
+      const slot = slotMap.get(
+        Number(item.slot_id),
+      );
+
+      if (
+        !slot ||
+        Number(slot.vendor_schedule_id) !==
+          Number(item.schedule_id)
+      ) {
+        await transaction.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            `Schedule slot ${item.slot_id} was not found in schedule ${item.schedule_id}`,
+        });
+      }
+
+      const {
+        schedule_id,
+        slot_id,
+        ...requestedUpdates
+      } = item;
+      const nextCapacity =
+        requestedUpdates.capacity ??
+        Number(slot.capacity);
+      const booked = Number(slot.booked);
+
+      if (nextCapacity < booked) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            `Slot ${slot_id}: capacity cannot be less than already booked inventory`,
+        });
+      }
+
+      const maximumAvailable =
+        nextCapacity - booked;
+      const nextAvailable =
+        requestedUpdates.available ??
+        (requestedUpdates.capacity !== undefined
+          ? maximumAvailable
+          : Number(slot.available));
+
+      if (nextAvailable > maximumAvailable) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            `Slot ${slot_id}: available cannot exceed capacity minus booked inventory`,
+        });
+      }
+
+      updatesToApply.push({
+        slot,
+        updates: {
+          ...requestedUpdates,
+          capacity: nextCapacity,
+          available: nextAvailable,
+          allow_sync_updates:
+            requestedUpdates.allow_sync_updates ??
+            false,
+        },
+      });
+    }
+
+    for (const item of updatesToApply) {
+      await item.slot.update(
+        item.updates,
+        {
+          transaction,
+        },
+      );
+    }
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message:
+        "Schedule slots updated successfully",
+      count: updatesToApply.length,
+      data: updatesToApply.map(
+        (item) => item.slot,
+      ),
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error(
+      "[VendorScheduleController] bulkUpdateVendorScheduleSlots",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const deleteVendorSchedule = async (req, res) => {
   try {
     const schedule = await VendorSchedule.findOne({
@@ -529,6 +728,7 @@ module.exports = {
   getVendorSchedule,
   updateVendorSchedule,
   updateVendorScheduleSlot,
+  bulkUpdateVendorScheduleSlots,
   deleteVendorSchedule,
   getVendorProductCalendar,
 };
