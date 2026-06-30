@@ -69,6 +69,18 @@ const updateVendorScheduleSchema =
 
 const updateVendorScheduleSlotSchema =
   Joi.object({
+    start_time: Joi.string()
+      .pattern(
+        /^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+      )
+      .allow(null),
+
+    end_time: Joi.string()
+      .pattern(
+        /^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+      )
+      .allow(null),
+
     price: Joi.number()
       .min(0),
 
