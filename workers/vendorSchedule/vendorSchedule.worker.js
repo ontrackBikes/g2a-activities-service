@@ -7,6 +7,7 @@ const executeJob = require(
 );
 const {
   runVendorScheduleMaintenance,
+  runVendorProductScheduleMaintenance,
 } = require(
   "../../services/vendorScheduleMaintenance.service"
 );
@@ -22,10 +23,21 @@ const {
 
 const worker = new Worker(
   VENDOR_SCHEDULE_QUEUE,
-  async () =>
+  async (job) =>
     executeJob(
       cronNames.VENDOR_SCHEDULE_MAINTENANCE,
-      runVendorScheduleMaintenance,
+      () => {
+        const vendorProductId =
+          job.data?.vendor_product_id;
+
+        if (vendorProductId) {
+          return runVendorProductScheduleMaintenance(
+            vendorProductId,
+          );
+        }
+
+        return runVendorScheduleMaintenance();
+      },
     ),
   {
     connection,

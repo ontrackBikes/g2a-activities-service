@@ -13,9 +13,15 @@ const {
   updateVendorScheduleSchema,
   updateVendorScheduleSlotSchema,
   bulkUpdateVendorScheduleSlotsSchema,
+  createVendorScheduleSlotsForDatesSchema,
 } = require("../schemas/vendorSchedule.schema");
 
-const moment = require("moment");
+const moment = require("moment-timezone");
+const {
+  queueVendorProductScheduleSync,
+} = require(
+  "../queues/vendorSchedule/vendorSchedule.queue"
+);
 
 const createVendorSchedules = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -267,6 +273,303 @@ const updateVendorSchedule = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+const createVendorScheduleSlotsForDates = async (
+  req,
+  res,
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { error, value } =
+      createVendorScheduleSlotsForDatesSchema.validate(
+        req.body,
+      );
+
+    if (error) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const vendorProduct =
+      await VendorProduct.findOne({
+        where: {
+          id: req.params.id,
+          active: true,
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+    if (!vendorProduct) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "Active vendor product not found",
+      });
+    }
+
+    const templateSlot =
+      await VendorProductSlot.findOne({
+        where: {
+          id: value.vendor_product_slot_id,
+          vendor_product_id:
+            vendorProduct.id,
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+    if (!templateSlot) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "Vendor product slot template not found",
+      });
+    }
+
+    if (templateSlot.active) {
+      await transaction.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Date-specific slots require an inactive template. Active templates are synchronized to every inventory date.",
+      });
+    }
+
+    const appTimezone =
+      process.env.APP_TIMEZONE ||
+      "Asia/Kolkata";
+    const today = moment()
+      .tz(appTimezone)
+      .startOf("day");
+    const invalidDate = value.dates.find(
+      (date) => {
+        const parsedDate = moment.tz(
+          date,
+          "YYYY-MM-DD",
+          true,
+          appTimezone,
+        );
+
+        return (
+          !parsedDate.isValid() ||
+          parsedDate.isBefore(today)
+        );
+      },
+    );
+
+    if (invalidDate) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          `Date ${invalidDate} is invalid or in the past`,
+      });
+    }
+
+    const schedules =
+      await VendorSchedule.findAll({
+        where: {
+          vendor_product_id:
+            vendorProduct.id,
+          schedule_date: {
+            [Op.in]: value.dates,
+          },
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+    const scheduleByDate = new Map(
+      schedules.map((schedule) => [
+        String(schedule.schedule_date),
+        schedule,
+      ]),
+    );
+    const missingDates = value.dates.filter(
+      (date) => !scheduleByDate.has(date),
+    );
+
+    if (missingDates.length) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "Schedules do not exist for one or more selected dates",
+        missing_dates: missingDates,
+      });
+    }
+
+    const unavailableSchedules =
+      schedules.filter(
+        (schedule) =>
+          schedule.status !== "OPEN",
+      );
+
+    if (unavailableSchedules.length) {
+      await transaction.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "One or more selected schedules are not open",
+        unavailable_dates:
+          unavailableSchedules.map(
+            (schedule) => ({
+              date: String(
+                schedule.schedule_date,
+              ),
+              status: schedule.status,
+            }),
+          ),
+      });
+    }
+
+    const scheduleIds = schedules.map(
+      (schedule) => schedule.id,
+    );
+    const existingSlots =
+      await VendorScheduleSlot.findAll({
+        attributes: [
+          "id",
+          "vendor_schedule_id",
+        ],
+        where: {
+          vendor_schedule_id: {
+            [Op.in]: scheduleIds,
+          },
+          vendor_product_slot_id:
+            templateSlot.id,
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+    if (existingSlots.length) {
+      const dateByScheduleId = new Map(
+        schedules.map((schedule) => [
+          Number(schedule.id),
+          String(schedule.schedule_date),
+        ]),
+      );
+      const existingDates = existingSlots.map(
+        (slot) =>
+          dateByScheduleId.get(
+            Number(slot.vendor_schedule_id),
+          ),
+      );
+
+      await transaction.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Slot already exists for one or more selected dates",
+        existing_dates: existingDates,
+      });
+    }
+
+    const capacity =
+      value.capacity ??
+      Number(templateSlot.default_capacity);
+    const available =
+      value.available ?? capacity;
+
+    if (available > capacity) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "available cannot exceed capacity",
+      });
+    }
+
+    const templateMaxBookable =
+      Number(
+        templateSlot.max_bookable_per_booking,
+      ) ||
+      Number(
+        vendorProduct.max_bookable_per_booking,
+      );
+    const maxBookablePerBooking =
+      value.max_bookable_per_booking ??
+      templateMaxBookable;
+    const startTime =
+      value.start_time !== undefined
+        ? value.start_time
+        : templateSlot.start_time;
+    const endTime =
+      value.end_time !== undefined
+        ? value.end_time
+        : templateSlot.end_time;
+    const price =
+      value.price ??
+      templateSlot.default_price;
+
+    const createdSlots =
+      await VendorScheduleSlot.bulkCreate(
+        schedules.map((schedule) => ({
+          vendor_schedule_id: schedule.id,
+          vendor_product_slot_id:
+            templateSlot.id,
+          slot_name: templateSlot.slot_name,
+          start_time: startTime,
+          end_time: endTime,
+          price,
+          capacity,
+          booked: 0,
+          available,
+          max_bookable_per_booking:
+            maxBookablePerBooking,
+          status: value.status,
+          allow_sync_updates: false,
+        })),
+        {
+          transaction,
+        },
+      );
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Date-specific schedule slots created successfully",
+      data: {
+        slots_created: createdSlots.length,
+        dates: value.dates,
+        slots: createdSlots,
+      },
+    });
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
+    console.error(
+      "[VendorScheduleController] createVendorScheduleSlotsForDates",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to create date-specific schedule slots",
     });
   }
 };
@@ -722,8 +1025,61 @@ const getVendorProductCalendar = async (req, res) => {
   }
 };
 
+const syncVendorProductSchedules = async (
+  req,
+  res,
+) => {
+  try {
+    const vendorProduct =
+      await VendorProduct.findOne({
+        attributes: ["id"],
+        where: {
+          id: req.params.id,
+          active: true,
+        },
+      });
+
+    if (!vendorProduct) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Active vendor product not found",
+      });
+    }
+
+    const job =
+      await queueVendorProductScheduleSync({
+        vendorProductId: vendorProduct.id,
+        trigger: "manual",
+      });
+
+    return res.status(202).json({
+      success: true,
+      message:
+        "Vendor product schedule sync queued",
+      data: {
+        vendor_product_id:
+          vendorProduct.id,
+        job_id: job.id,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[VendorScheduleController] syncVendorProductSchedules",
+      error,
+    );
+
+    return res.status(503).json({
+      success: false,
+      message:
+        "Unable to queue vendor product schedule sync",
+    });
+  }
+};
+
 module.exports = {
   createVendorSchedules,
+  createVendorScheduleSlotsForDates,
   getVendorSchedules,
   getVendorSchedule,
   updateVendorSchedule,
@@ -731,4 +1087,5 @@ module.exports = {
   bulkUpdateVendorScheduleSlots,
   deleteVendorSchedule,
   getVendorProductCalendar,
+  syncVendorProductSchedules,
 };

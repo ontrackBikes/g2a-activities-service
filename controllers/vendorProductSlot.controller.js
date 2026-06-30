@@ -7,6 +7,42 @@ const {
   createVendorProductSlotSchema,
   updateVendorProductSlotSchema,
 } = require("../schemas/vendorProductSlot.schema");
+const {
+  queueVendorProductScheduleSync,
+} = require(
+  "../queues/vendorSchedule/vendorSchedule.queue"
+);
+
+const queueScheduleSync = async ({
+  vendorProductId,
+  vendorProductSlotId,
+  trigger,
+}) => {
+  try {
+    const job =
+      await queueVendorProductScheduleSync({
+        vendorProductId,
+        vendorProductSlotId,
+        trigger,
+      });
+
+    return {
+      queued: true,
+      job_id: job.id,
+    };
+  } catch (error) {
+    console.error(
+      "[VendorProductSlotController] queueScheduleSync",
+      error,
+    );
+
+    return {
+      queued: false,
+      message:
+        "Slot saved, but schedule sync could not be queued. Use manual sync to retry.",
+    };
+  }
+};
 
 const createVendorProductSlot = async (
   req,
@@ -80,12 +116,18 @@ const createVendorProductSlot = async (
         active:
           value.active ?? true,
       });
+    const scheduleSync = await queueScheduleSync({
+      vendorProductId: vendorProduct.id,
+      vendorProductSlotId: slot.id,
+      trigger: "vendor-product-slot-created",
+    });
 
     return res.status(201).json({
       success: true,
       message:
         "Vendor Product Slot created successfully",
       data: slot,
+      schedule_sync: scheduleSync,
     });
   } catch (error) {
     console.error(
@@ -208,12 +250,20 @@ const updateVendorProductSlot =
       }
 
       await slot.update(value);
+      const scheduleSync =
+        await queueScheduleSync({
+          vendorProductId: req.params.id,
+          vendorProductSlotId: slot.id,
+          trigger:
+            "vendor-product-slot-updated",
+        });
 
       return res.json({
         success: true,
         message:
           "Vendor Product Slot updated successfully",
         data: slot,
+        schedule_sync: scheduleSync,
       });
     } catch (error) {
       console.error(
@@ -251,11 +301,19 @@ const deleteVendorProductSlot =
       await slot.update({
         active: false,
       });
+      const scheduleSync =
+        await queueScheduleSync({
+          vendorProductId: req.params.id,
+          vendorProductSlotId: slot.id,
+          trigger:
+            "vendor-product-slot-deactivated",
+        });
 
       return res.json({
         success: true,
         message:
           "Vendor Product Slot deleted successfully",
+        schedule_sync: scheduleSync,
       });
     } catch (error) {
       console.error(

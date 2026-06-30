@@ -51,6 +51,8 @@ const maintainVendorProductSchedules = async (
             default_price: vendorProduct.base_price,
             default_capacity:
               vendorProduct.base_capacity,
+            max_bookable_per_booking:
+              vendorProduct.max_bookable_per_booking,
             sort_order: 0,
             active: true,
           },
@@ -62,6 +64,8 @@ const maintainVendorProductSchedules = async (
           default_price: vendorProduct.base_price,
           default_capacity:
             vendorProduct.base_capacity,
+          max_bookable_per_booking:
+            vendorProduct.max_bookable_per_booking,
           active: true,
         },
         {
@@ -91,12 +95,14 @@ const maintainVendorProductSchedules = async (
             "id",
             "vendor_product_slot_id",
             "booked",
+            "status",
             "allow_sync_updates",
           ],
           required: false,
         },
       ],
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     const scheduleByDate = new Map(
@@ -109,6 +115,12 @@ const maintainVendorProductSchedules = async (
     let schedulesCreated = 0;
     let slotsCreated = 0;
     let slotsUpdated = 0;
+    let slotsClosed = 0;
+    const activeTemplateSlotIds = new Set(
+      templateSlots.map((slot) =>
+        Number(slot.id),
+      ),
+    );
 
     for (const scheduleDate of dates) {
       let schedule = scheduleByDate.get(scheduleDate);
@@ -135,10 +147,9 @@ const maintainVendorProductSchedules = async (
       }
 
       if (
-        !templateSlots.length ||
-        (!created &&
-          (schedule.status !== "OPEN" ||
-            !schedule.allow_sync_updates))
+        !created &&
+        (schedule.status !== "OPEN" ||
+          !schedule.allow_sync_updates)
       ) {
         continue;
       }
@@ -160,12 +171,17 @@ const maintainVendorProductSchedules = async (
         slot_name: slot.slot_name,
         start_time: slot.start_time,
         end_time: slot.end_time,
-        price: vendorProduct.base_price,
-        capacity: vendorProduct.base_capacity,
+        price: slot.default_price,
+        capacity: Number(slot.default_capacity),
         booked: 0,
-        available: vendorProduct.base_capacity,
+        available: Number(slot.default_capacity),
         max_bookable_per_booking:
-          vendorProduct.max_bookable_per_booking,
+          Number(
+            slot.max_bookable_per_booking,
+          ) ||
+          Number(
+            vendorProduct.max_bookable_per_booking,
+          ),
         status: "OPEN",
         allow_sync_updates: true,
       }));
@@ -192,24 +208,33 @@ const maintainVendorProductSchedules = async (
         }
 
         const booked = Number(existingSlot.booked);
-        const baseCapacity = Number(
-          vendorProduct.base_capacity,
+        const defaultCapacity = Number(
+          templateSlot.default_capacity,
         );
         const capacity = Math.max(
-          baseCapacity,
+          defaultCapacity,
           booked,
         );
 
         await VendorScheduleSlot.update(
           {
-            price: vendorProduct.base_price,
+            slot_name: templateSlot.slot_name,
+            start_time: templateSlot.start_time,
+            end_time: templateSlot.end_time,
+            price: templateSlot.default_price,
             capacity,
             available: Math.max(
               capacity - booked,
               0,
             ),
             max_bookable_per_booking:
-              vendorProduct.max_bookable_per_booking,
+              Number(
+                templateSlot.max_bookable_per_booking,
+              ) ||
+              Number(
+                vendorProduct.max_bookable_per_booking,
+              ),
+            status: "OPEN",
           },
           {
             where: {
@@ -221,15 +246,143 @@ const maintainVendorProductSchedules = async (
 
         slotsUpdated += 1;
       }
+
+      for (const existingSlot of schedule.slots || []) {
+        if (
+          activeTemplateSlotIds.has(
+            Number(
+              existingSlot.vendor_product_slot_id,
+            ),
+          ) ||
+          !existingSlot.allow_sync_updates ||
+          existingSlot.status === "CLOSED"
+        ) {
+          continue;
+        }
+
+        await existingSlot.update(
+          {
+            status: "CLOSED",
+          },
+          {
+            transaction,
+          },
+        );
+
+        slotsClosed += 1;
+      }
+
+      await schedule.update(
+        {
+          sync_last_run_at: new Date(),
+        },
+        {
+          transaction,
+        },
+      );
     }
 
     return {
       schedulesCreated,
       slotsCreated,
       slotsUpdated,
+      slotsClosed,
       hasTemplateSlots: templateSlots.length > 0,
     };
   });
+};
+
+const getVendorProductForMaintenance = (
+  vendorProductId,
+) =>
+  VendorProduct.findOne({
+    where: {
+      id: vendorProductId,
+      active: true,
+    },
+    include: [
+      {
+        model: VendorProductSlot,
+        as: "slots",
+        required: false,
+        where: {
+          active: true,
+        },
+      },
+    ],
+  });
+
+const createSummary = (vendorProductsChecked = 0) => ({
+  vendor_products_checked: vendorProductsChecked,
+  schedules_created: 0,
+  slots_created: 0,
+  slots_updated: 0,
+  slots_closed: 0,
+  vendor_products_without_slots: 0,
+});
+
+const addResultToSummary = (summary, result) => {
+  summary.schedules_created +=
+    result.schedulesCreated;
+  summary.slots_created += result.slotsCreated;
+  summary.slots_updated += result.slotsUpdated;
+  summary.slots_closed += result.slotsClosed;
+
+  if (!result.hasTemplateSlots) {
+    summary.vendor_products_without_slots += 1;
+  }
+};
+
+const runVendorProductScheduleMaintenance = async (
+  vendorProductId,
+) => {
+  const normalizedVendorProductId = Number(
+    vendorProductId,
+  );
+
+  if (
+    !Number.isInteger(normalizedVendorProductId) ||
+    normalizedVendorProductId <= 0
+  ) {
+    throw new Error(
+      "A valid vendor product id is required",
+    );
+  }
+
+  const vendorProduct =
+    await getVendorProductForMaintenance(
+      normalizedVendorProductId,
+    );
+  const summary = createSummary(
+    vendorProduct ? 1 : 0,
+  );
+
+  if (!vendorProduct) {
+    return {
+      ...summary,
+      skipped: true,
+      reason:
+        "Active vendor product not found",
+    };
+  }
+
+  const result =
+    await maintainVendorProductSchedules(
+      vendorProduct,
+    );
+
+  addResultToSummary(summary, result);
+
+  console.info(
+    "[VendorProductScheduleMaintenance]",
+    {
+      vendor_product_id:
+        normalizedVendorProductId,
+      ...summary,
+    },
+  );
+
+  return summary;
 };
 
 const runVendorScheduleMaintenance = async () => {
@@ -250,25 +403,15 @@ const runVendorScheduleMaintenance = async () => {
     order: [["id", "ASC"]],
   });
 
-  const summary = {
-    vendor_products_checked: vendorProducts.length,
-    schedules_created: 0,
-    slots_created: 0,
-    slots_updated: 0,
-    vendor_products_without_slots: 0,
-  };
+  const summary = createSummary(
+    vendorProducts.length,
+  );
 
   for (const vendorProduct of vendorProducts) {
     const result =
       await maintainVendorProductSchedules(vendorProduct);
 
-    summary.schedules_created += result.schedulesCreated;
-    summary.slots_created += result.slotsCreated;
-    summary.slots_updated += result.slotsUpdated;
-
-    if (!result.hasTemplateSlots) {
-      summary.vendor_products_without_slots += 1;
-    }
+    addResultToSummary(summary, result);
   }
 
   console.info(
@@ -280,5 +423,6 @@ const runVendorScheduleMaintenance = async () => {
 };
 
 module.exports = {
+  runVendorProductScheduleMaintenance,
   runVendorScheduleMaintenance,
 };

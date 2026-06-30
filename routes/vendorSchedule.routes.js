@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   createVendorSchedules,
+  createVendorScheduleSlotsForDates,
   getVendorSchedules,
   getVendorSchedule,
   updateVendorSchedule,
@@ -9,6 +10,7 @@ const {
   bulkUpdateVendorScheduleSlots,
   deleteVendorSchedule,
   getVendorProductCalendar,
+  syncVendorProductSchedules,
 } = require("../controllers/vendorSchedule.controller");
 
 const router = express.Router({
@@ -18,6 +20,16 @@ const router = express.Router({
 router.post(
   "/schedules",
   createVendorSchedules
+);
+
+router.post(
+  "/schedules/sync",
+  syncVendorProductSchedules
+);
+
+router.post(
+  "/schedules/slots",
+  createVendorScheduleSlotsForDates
 );
 
 router.get(

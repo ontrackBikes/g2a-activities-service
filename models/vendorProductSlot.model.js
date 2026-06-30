@@ -61,6 +61,16 @@ VendorProductSlot.init(
       },
     },
 
+    max_bookable_per_booking: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      comment: "Maximum units allowed per booking",
+      validate: {
+        min: 1,
+      },
+    },
+
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,

@@ -134,9 +134,54 @@ const bulkUpdateVendorScheduleSlotsSchema =
       .required(),
   });
 
+const createVendorScheduleSlotsForDatesSchema =
+  Joi.object({
+    dates: Joi.array()
+      .items(
+        Joi.string()
+          .pattern(/^\d{4}-\d{2}-\d{2}$/)
+          .required(),
+      )
+      .min(1)
+      .max(90)
+      .unique()
+      .required(),
+
+    vendor_product_slot_id:
+      Joi.number()
+        .integer()
+        .positive()
+        .required(),
+
+    start_time: timeSchema,
+
+    end_time: timeSchema,
+
+    price: Joi.number()
+      .min(0),
+
+    capacity: Joi.number()
+      .integer()
+      .min(0),
+
+    available: Joi.number()
+      .integer()
+      .min(0),
+
+    max_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1),
+
+    status: Joi.string()
+      .valid("OPEN", "CLOSED")
+      .default("OPEN"),
+  });
+
 module.exports = {
   createVendorSchedulesSchema,
   updateVendorScheduleSchema,
   updateVendorScheduleSlotSchema,
   bulkUpdateVendorScheduleSlotsSchema,
+  createVendorScheduleSlotsForDatesSchema,
 };
