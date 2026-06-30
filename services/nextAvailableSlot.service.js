@@ -31,7 +31,7 @@ const getNextAvailableSlotsForProducts = async ({
   productIds,
   locationIds = [],
   locationSlugs = [],
-  pax = 1,
+  guests = 1,
 }) => {
   const normalizedProductIds = normalizeIds(productIds);
 
@@ -42,8 +42,8 @@ const getNextAvailableSlotsForProducts = async ({
   const normalizedLocationIds = normalizeIds(locationIds);
   const normalizedLocationSlugs =
     normalizeSlugs(locationSlugs);
-  const requestedPax = Math.max(
-    Number.parseInt(pax, 10) || 1,
+  const requestedGuests = Math.max(
+    Number.parseInt(guests, 10) || 1,
     1,
   );
   const now = moment().tz(APP_TIMEZONE);
@@ -54,7 +54,7 @@ const getNextAvailableSlotsForProducts = async ({
     productIds: normalizedProductIds,
     today,
     currentTime,
-    pax: requestedPax,
+    guests: requestedGuests,
   };
 
   if (normalizedLocationIds.length) {
@@ -78,8 +78,8 @@ const getNextAvailableSlotsForProducts = async ({
       `${scheduleAlias}.status = 'OPEN'`,
       `${scheduleAlias}.schedule_date >= :today`,
       `${slotAlias}.status = 'OPEN'`,
-      `${slotAlias}.available >= :pax`,
-      `${slotAlias}.max_bookable_per_booking >= :pax`,
+      `${slotAlias}.available >= :guests`,
+      `${slotAlias}.max_bookable_per_booking >= :guests`,
       `(
         ${scheduleAlias}.schedule_date > :today
         OR ${slotAlias}.start_time IS NULL
@@ -192,7 +192,7 @@ const getNextAvailableSlotForProduct = async ({
   locationIds = [],
   locationSlug,
   locationSlugs = [],
-  pax = 1,
+  guests = 1,
 }) => {
   const results =
     await getNextAvailableSlotsForProducts({
@@ -205,7 +205,7 @@ const getNextAvailableSlotForProduct = async ({
         locationSlug,
         ...locationSlugs,
       ],
-      pax,
+      guests,
     });
 
   return results.get(Number(productId)) || null;

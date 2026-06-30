@@ -1,5 +1,5 @@
 module.exports = {
-  TRAVEL_DATE: "travel_date",
+  DATE: "date",
   SLOT: "slot",
   GUESTS: "guests",
 
@@ -16,4 +16,5 @@ module.exports = {
   VEHICLE: "vehicle",
 
   PROMO_CODE: "promo_code",
+  
 };

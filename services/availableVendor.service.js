@@ -21,7 +21,7 @@ const getToday = () =>
 const getAvailableSchedule = async ({
   vendorProduct,
   date,
-  pax,
+  guests,
 }) => {
   const scheduleWhere = {
     vendor_product_id: vendorProduct.id,
@@ -41,10 +41,10 @@ const getAvailableSchedule = async ({
         where: {
           status: "OPEN",
           available: {
-            [Op.gte]: pax,
+            [Op.gte]: guests,
           },
           max_bookable_per_booking: {
-            [Op.gte]: pax,
+            [Op.gte]: guests,
           },
         },
       },
@@ -76,7 +76,7 @@ const getAvailableVendorForProduct = async ({
   locationSlug,
   locationSlugs = [],
   date,
-  pax = 1,
+  guests = 1,
 }) => {
   const vendorWhere = {
     product_id: productId,
@@ -135,7 +135,7 @@ const getAvailableVendorForProduct = async ({
         const schedule = await getAvailableSchedule({
           vendorProduct,
           date,
-          pax,
+          guests,
         });
 
         if (!schedule) {
@@ -190,7 +190,7 @@ const getAvailableVendorsForProducts = async ({
   locationIds = [],
   locationSlugs = [],
   date,
-  pax = 1,
+  guests = 1,
   concurrency = 5,
 }) => {
   const results = new Map();
@@ -209,7 +209,7 @@ const getAvailableVendorsForProducts = async ({
           locationIds,
           locationSlugs,
           date,
-          pax,
+          guests,
         });
 
       results.set(productId, availableVendor);

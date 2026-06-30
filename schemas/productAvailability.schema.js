@@ -15,7 +15,7 @@ const checkProductAvailabilitySchema = Joi.object({
         "date must be in YYYY-MM-DD format",
     }),
 
-  pax: Joi.number()
+  guests: Joi.number()
     .integer()
     .min(1)
     .required(),
@@ -29,26 +29,26 @@ const checkBikeRentalAvailabilitySchema =
       .max(100)
       .required(),
 
-    start_date: Joi.string()
+    pickup_date: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
       .required()
       .messages({
         "string.pattern.base":
-          "start_date must be in YYYY-MM-DD format",
+          "pickup_date must be in YYYY-MM-DD format",
       }),
 
-    end_date: Joi.string()
+    return_date: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
       .required()
       .messages({
         "string.pattern.base":
-          "end_date must be in YYYY-MM-DD format",
+          "return_date must be in YYYY-MM-DD format",
       }),
 
-    quantity: Joi.number()
+    guests: Joi.number()
       .integer()
       .min(1)
-      .required(),
+      .default(1),
   });
 
 module.exports = {

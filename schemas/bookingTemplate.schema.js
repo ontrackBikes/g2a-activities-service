@@ -14,6 +14,9 @@ const fieldSchema = Joi.object({
   default_value: Joi.any(),
 
   config: Joi.object().default({}),
+  
+  visible: Joi.boolean().default(true),
+
 });
 
 const sectionSchema = Joi.object({
@@ -22,8 +25,10 @@ const sectionSchema = Joi.object({
   title: Joi.string().allow("", null),
 
   required: Joi.boolean().default(false),
+  enabled: Joi.boolean().default(false),
 
   config: Joi.object().default({}),
+  sort_order: Joi.number()
 });
 
 const createBookingTemplateSchema = Joi.object({

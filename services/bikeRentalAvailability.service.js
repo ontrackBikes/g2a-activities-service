@@ -67,18 +67,18 @@ const parseDate = (value, fieldName) => {
 };
 
 const buildRentalDates = ({
-  startDate,
-  endDate,
+  pickupDate,
+  returnDate,
 }) => {
-  const start = parseDate(startDate, "startDate");
-  const end = parseDate(endDate, "endDate");
+  const start = parseDate(pickupDate, "pickupDate");
+  const end = parseDate(returnDate, "returnDate");
   const today = moment()
     .tz(APP_TIMEZONE)
     .startOf("day");
 
   if (start.isBefore(today)) {
     throw new BikeRentalAvailabilityError(
-      "startDate cannot be in the past",
+      "pickupDate cannot be in the past",
       "START_DATE_IN_PAST",
     );
   }
@@ -87,7 +87,7 @@ const buildRentalDates = ({
 
   if (rentalDays <= 0) {
     throw new BikeRentalAvailabilityError(
-      "endDate must be after startDate",
+      "returnDate must be after pickupDate",
       "INVALID_DATE_RANGE",
     );
   }
@@ -137,7 +137,7 @@ const selectLowestPricedSlot = (slots) =>
 const buildVendorCandidate = ({
   vendorProduct,
   requiredDates,
-  quantity,
+  guests,
 }) => {
   const scheduleByDate = new Map(
     (vendorProduct.schedules || []).map(
@@ -181,11 +181,11 @@ const buildVendorCandidate = ({
 
   return {
     vendorProduct,
-    quantity,
+    guests,
     rental_days: requiredDates.length,
     unit_price_total: unitPriceTotal,
     rental_total: roundMoney(
-      unitPriceTotal * quantity,
+      unitPriceTotal * guests,
     ),
     daily_pricing: dailyPricing,
   };
@@ -194,9 +194,9 @@ const buildVendorCandidate = ({
 const getAvailableBikeRentalVendor = async ({
   productId,
   locationId,
-  startDate,
-  endDate,
-  quantity,
+  pickupDate,
+  returnDate,
+  guests,
 }) => {
   const resolvedProductId = parsePositiveInteger(
     productId,
@@ -206,16 +206,16 @@ const getAvailableBikeRentalVendor = async ({
     locationId,
     "locationId",
   );
-  const resolvedQuantity = parsePositiveInteger(
-    quantity,
-    "quantity",
+  const resolvedGuests = parsePositiveInteger(
+    guests,
+    "guests",
   );
   const {
     dates,
     rentalDays,
   } = buildRentalDates({
-    startDate,
-    endDate,
+    pickupDate,
+    returnDate,
   });
 
   const vendorProducts = await VendorProduct.findAll({
@@ -285,10 +285,10 @@ const getAvailableBikeRentalVendor = async ({
             where: {
               status: "OPEN",
               available: {
-                [Op.gte]: resolvedQuantity,
+                [Op.gte]: resolvedGuests,
               },
               max_bookable_per_booking: {
-                [Op.gte]: resolvedQuantity,
+                [Op.gte]: resolvedGuests,
               },
             },
           },
@@ -325,7 +325,7 @@ const getAvailableBikeRentalVendor = async ({
       buildVendorCandidate({
         vendorProduct,
         requiredDates: dates,
-        quantity: resolvedQuantity,
+        guests: resolvedGuests,
       }),
     )
     .filter(Boolean);
@@ -361,7 +361,7 @@ const getAvailableBikeRentalVendor = async ({
   return {
     ...selectedVendor,
     start_date: dates[0],
-    end_date: endDate,
+    end_date: returnDate,
     rental_days: rentalDays,
   };
 };

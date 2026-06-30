@@ -201,7 +201,7 @@ const getCollectionsWithProducts = async (req, res) => {
       entity_slug,
       location_slug,
       date,
-      pax = 1,
+      guests = 1,
     } = req.query;
 
     const where = {
@@ -359,8 +359,8 @@ const getCollectionsWithProducts = async (req, res) => {
       ),
     ];
 
-    const requestedPax = Math.max(
-      Number.parseInt(pax, 10) || 1,
+    const requestedGuests = Math.max(
+      Number.parseInt(guests, 10) || 1,
       1,
     );
     const selectedLocationSlugs = location_slug
@@ -376,12 +376,12 @@ const getCollectionsWithProducts = async (req, res) => {
         productIds,
         locationSlugs: selectedLocationSlugs,
         date,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
       getNextAvailableSlotsForProducts({
         productIds,
         locationSlugs: selectedLocationSlugs,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
       productIds.length
         ? VendorProduct.findAll({

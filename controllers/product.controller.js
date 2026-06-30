@@ -427,7 +427,7 @@ const getProductsListForApp = async (req, res) => {
       location_slugs,
       location_ids,
       date,
-      pax = 1,
+      guests = 1,
       min_price,
       max_price,
       sort = "recommended",
@@ -636,8 +636,8 @@ const getProductsListForApp = async (req, res) => {
     });
 
     const productIds = products.map((product) => product.id);
-    const requestedPax = Math.max(
-      Number.parseInt(pax, 10) || 1,
+    const requestedGuests = Math.max(
+      Number.parseInt(guests, 10) || 1,
       1,
     );
     const [
@@ -649,13 +649,13 @@ const getProductsListForApp = async (req, res) => {
         locationIds: selectedLocationIds,
         locationSlugs: selectedLocationSlugs,
         date,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
       getNextAvailableSlotsForProducts({
         productIds,
         locationIds: selectedLocationIds,
         locationSlugs: selectedLocationSlugs,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
     ]);
 
@@ -796,7 +796,7 @@ const getProductDetailsForApp = async (req, res) => {
     const {
       location_slug,
       date,
-      pax = 1,
+      guests = 1,
     } = req.query;
 
     const product = await Product.findOne({
@@ -926,8 +926,8 @@ const getProductDetailsForApp = async (req, res) => {
       }
     }
 
-    const requestedPax = Math.max(
-      Number.parseInt(pax, 10) || 1,
+    const requestedGuests = Math.max(
+      Number.parseInt(guests, 10) || 1,
       1,
     );
 
@@ -940,12 +940,12 @@ const getProductDetailsForApp = async (req, res) => {
         productId: product.id,
         locationSlug: location_slug,
         date,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
       getNextAvailableSlotForProduct({
         productId: product.id,
         locationSlug: location_slug,
-        pax: requestedPax,
+        guests: requestedGuests,
       }),
       Product.findAll({
         where: {
