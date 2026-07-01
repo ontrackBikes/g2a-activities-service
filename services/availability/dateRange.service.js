@@ -3,7 +3,7 @@ const moment = require("moment-timezone");
 const {
   getAvailableDateRangeVendor,
   DateRangeAvailabilityError,
-} = require("./dateRangeAvailability.service");
+} = require("./availableVendorDateRange.service");
 const buildBookingQuote = require("./buildBookingQuote");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";

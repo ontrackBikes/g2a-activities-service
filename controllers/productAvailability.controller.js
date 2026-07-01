@@ -11,7 +11,7 @@ const {
 const {
   DateRangeAvailabilityError,
   getAvailableDateRangeVendor,
-} = require("../services/availability/dateRangeAvailability.service.js");
+} = require("../services/availability/availableVendorDateRange.service.js");
 const {
   checkDateRange,
 } = require("../services/availability/dateRange.service.js");
