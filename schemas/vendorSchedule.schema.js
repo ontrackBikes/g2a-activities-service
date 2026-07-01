@@ -7,6 +7,10 @@ const timeSchema = Joi.string()
   .allow(null);
 
 const scheduleSlotUpdateFields = {
+  slot_name: Joi.string()
+    .trim()
+    .max(100),
+
   start_time: timeSchema,
 
   end_time: timeSchema,
@@ -25,7 +29,7 @@ const scheduleSlotUpdateFields = {
   max_bookable_per_booking:
     Joi.number()
       .integer()
-      .min(1),
+      .min(0),
 
   status: Joi.string().valid(
     "OPEN",
@@ -82,7 +86,7 @@ const createVendorSchedulesSchema =
           max_bookable_per_booking:
             Joi.number()
               .integer()
-              .min(1)
+              .min(0)
               .required(),
 
           allow_sync_updates:
@@ -171,7 +175,7 @@ const createVendorScheduleSlotsForDatesSchema =
     max_bookable_per_booking:
       Joi.number()
         .integer()
-        .min(1),
+        .min(0),
 
     status: Joi.string()
       .valid("OPEN", "CLOSED")

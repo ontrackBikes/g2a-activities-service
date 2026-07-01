@@ -148,8 +148,7 @@ const maintainVendorProductSchedules = async (
 
       if (
         !created &&
-        (schedule.status !== "OPEN" ||
-          !schedule.allow_sync_updates)
+        schedule.status !== "OPEN"
       ) {
         continue;
       }
@@ -160,10 +159,15 @@ const maintainVendorProductSchedules = async (
           slot,
         ]),
       );
-      const missingTemplateSlots = templateSlots.filter(
-        (slot) =>
-          !existingSlotByTemplateId.has(Number(slot.id)),
-      );
+      const missingTemplateSlots =
+        schedule.allow_sync_updates
+          ? templateSlots.filter(
+              (slot) =>
+                !existingSlotByTemplateId.has(
+                  Number(slot.id),
+                ),
+            )
+          : [];
 
       const scheduleSlots = missingTemplateSlots.map((slot) => ({
         vendor_schedule_id: schedule.id,
@@ -177,10 +181,8 @@ const maintainVendorProductSchedules = async (
         available: Number(slot.default_capacity),
         max_bookable_per_booking:
           Number(
-            slot.max_bookable_per_booking,
-          ) ||
-          Number(
-            vendorProduct.max_bookable_per_booking,
+            slot.max_bookable_per_booking ??
+              vendorProduct.max_bookable_per_booking,
           ),
         status: "OPEN",
         allow_sync_updates: true,
@@ -200,41 +202,20 @@ const maintainVendorProductSchedules = async (
             Number(templateSlot.id),
           );
 
-        if (
-          !existingSlot ||
-          !existingSlot.allow_sync_updates
-        ) {
+        if (!existingSlot) {
           continue;
         }
-
-        const booked = Number(existingSlot.booked);
-        const defaultCapacity = Number(
-          templateSlot.default_capacity,
-        );
-        const capacity = Math.max(
-          defaultCapacity,
-          booked,
-        );
 
         await VendorScheduleSlot.update(
           {
             slot_name: templateSlot.slot_name,
             start_time: templateSlot.start_time,
             end_time: templateSlot.end_time,
-            price: templateSlot.default_price,
-            capacity,
-            available: Math.max(
-              capacity - booked,
-              0,
-            ),
             max_bookable_per_booking:
               Number(
-                templateSlot.max_bookable_per_booking,
-              ) ||
-              Number(
-                vendorProduct.max_bookable_per_booking,
+                templateSlot.max_bookable_per_booking ??
+                  vendorProduct.max_bookable_per_booking,
               ),
-            status: "OPEN",
           },
           {
             where: {

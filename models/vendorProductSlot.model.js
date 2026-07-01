@@ -67,7 +67,7 @@ VendorProductSlot.init(
       defaultValue: 1,
       comment: "Maximum units allowed per booking",
       validate: {
-        min: 1,
+        min: 0,
       },
     },
 

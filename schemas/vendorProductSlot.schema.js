@@ -25,7 +25,7 @@ const createVendorProductSlotSchema =
     max_bookable_per_booking:
       Joi.number()
         .integer()
-        .min(1)
+        .min(0)
         .required(),
 
     active: Joi.boolean()
@@ -54,7 +54,7 @@ const updateVendorProductSlotSchema =
     max_bookable_per_booking:
       Joi.number()
         .integer()
-        .min(1),
+        .min(0),
 
     active: Joi.boolean(),
   }).min(1);
