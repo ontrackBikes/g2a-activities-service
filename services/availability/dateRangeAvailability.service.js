@@ -7,7 +7,7 @@ const {
   VendorProduct,
   VendorSchedule,
   VendorScheduleSlot,
-} = require("../models");
+} = require("../../models");
 
 const APP_TIMEZONE =
   process.env.APP_TIMEZONE || "Asia/Kolkata";
@@ -19,10 +19,10 @@ const MAX_RENTAL_DAYS = Math.max(
   1,
 );
 
-class BikeRentalAvailabilityError extends Error {
+class DateRangeAvailabilityError extends Error {
   constructor(message, code) {
     super(message);
-    this.name = "BikeRentalAvailabilityError";
+    this.name = "DateRangeAvailabilityError";
     this.code = code;
     this.statusCode = 400;
   }
@@ -39,7 +39,7 @@ const parsePositiveInteger = (value, fieldName) => {
     !Number.isInteger(parsedValue) ||
     parsedValue <= 0
   ) {
-    throw new BikeRentalAvailabilityError(
+    throw new DateRangeAvailabilityError(
       `${fieldName} must be a positive integer`,
       `INVALID_${fieldName.toUpperCase()}`,
     );
@@ -57,7 +57,7 @@ const parseDate = (value, fieldName) => {
   );
 
   if (!parsedDate.isValid()) {
-    throw new BikeRentalAvailabilityError(
+    throw new DateRangeAvailabilityError(
       `${fieldName} must be a valid date in YYYY-MM-DD format`,
       `INVALID_${fieldName.toUpperCase()}`,
     );
@@ -77,7 +77,7 @@ const buildRentalDates = ({
     .startOf("day");
 
   if (start.isBefore(today)) {
-    throw new BikeRentalAvailabilityError(
+    throw new DateRangeAvailabilityError(
       "pickupDate cannot be in the past",
       "START_DATE_IN_PAST",
     );
@@ -86,14 +86,14 @@ const buildRentalDates = ({
   const rentalDays = end.diff(start, "days");
 
   if (rentalDays <= 0) {
-    throw new BikeRentalAvailabilityError(
+    throw new DateRangeAvailabilityError(
       "returnDate must be after pickupDate",
       "INVALID_DATE_RANGE",
     );
   }
 
   if (rentalDays > MAX_RENTAL_DAYS) {
-    throw new BikeRentalAvailabilityError(
+    throw new DateRangeAvailabilityError(
       `Rental period cannot exceed ${MAX_RENTAL_DAYS} days`,
       "RENTAL_PERIOD_TOO_LONG",
     );
@@ -191,7 +191,7 @@ const buildVendorCandidate = ({
   };
 };
 
-const getAvailableBikeRentalVendor = async ({
+const getAvailableDateRangeVendor = async ({
   productId,
   locationId,
   pickupDate,
@@ -367,6 +367,6 @@ const getAvailableBikeRentalVendor = async ({
 };
 
 module.exports = {
-  BikeRentalAvailabilityError,
-  getAvailableBikeRentalVendor,
+  DateRangeAvailabilityError,
+  getAvailableDateRangeVendor,
 };

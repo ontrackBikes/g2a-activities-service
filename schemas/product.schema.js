@@ -19,6 +19,13 @@ const createProductSchema = Joi.object({
   thumbnail_url_sm: Joi.string().allow("", null),
 
   sort_order: Joi.number().integer().min(0).default(0),
+  booking_mode: Joi.string()
+  .valid(
+    "single_date",
+    "date_range",
+    "open",
+  )
+  .default("single_date"),
 
   active: Joi.boolean().default(true),
   booking_template_id: Joi.number().integer().positive().required(),
@@ -41,6 +48,11 @@ const updateProductSchema = Joi.object({
   thumbnail_url_sm: Joi.string().allow("", null),
 
   sort_order: Joi.number().integer().min(0),
+  booking_mode: Joi.string().valid(
+  "single_date",
+  "date_range",
+  "open",
+),
 
   active: Joi.boolean(),
 }).min(1);

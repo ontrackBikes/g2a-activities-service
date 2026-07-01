@@ -1,6 +1,6 @@
 const Joi = require("joi");
 
-const checkProductAvailabilitySchema = Joi.object({
+const checkSingleDateAvailabilitySchema = Joi.object({
   location_slug: Joi.string()
     .trim()
     .lowercase()
@@ -21,7 +21,7 @@ const checkProductAvailabilitySchema = Joi.object({
     .required(),
 });
 
-const checkBikeRentalAvailabilitySchema =
+const checkDateRangeAvailabilitySchema =
   Joi.object({
     location_slug: Joi.string()
       .trim()
@@ -51,7 +51,21 @@ const checkBikeRentalAvailabilitySchema =
       .default(1),
   });
 
+const checkOpenAvailabilitySchema = Joi.object({
+  location_slug: Joi.string()
+    .trim()
+    .lowercase()
+    .max(100)
+    .required(),
+
+  guests: Joi.number()
+    .integer()
+    .min(1)
+    .required(),
+});
+
 module.exports = {
-  checkProductAvailabilitySchema,
-  checkBikeRentalAvailabilitySchema,
+  checkSingleDateAvailabilitySchema,
+  checkDateRangeAvailabilitySchema,
+  checkOpenAvailabilitySchema
 };

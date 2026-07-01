@@ -93,6 +93,25 @@ Product.init(
     },
 
     /**
+     * Booking Duration Type
+     *
+     * single_date
+     *  - Travel Date
+     *
+     * date_range
+     *  - Pickup Date + Return Date
+     */
+    booking_mode: {
+      type: DataTypes.ENUM(
+        "single_date",
+        "date_range",
+        "open"
+      ),
+      allowNull: false,
+      defaultValue: "single_date",
+    },
+
+    /**
      * Featured on homepage
      */
     featured: {
@@ -203,5 +222,5 @@ Product.init(
     ],
   },
 );
-
+// Product.sync({alter: true})
 module.exports = Product;
