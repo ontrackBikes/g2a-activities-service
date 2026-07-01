@@ -811,6 +811,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "images",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id", "product_id"]
+          }
         },
 
         {
@@ -818,6 +821,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "faqs",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -825,6 +831,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "terms",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -832,6 +841,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "highlights",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -839,6 +851,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "inclusions",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -846,6 +861,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "exclusions",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -853,6 +871,9 @@ const getProductDetailsForApp = async (req, res) => {
           as: "thingsToKnow",
           required: false,
           separate: true,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
         {
@@ -862,12 +883,12 @@ const getProductDetailsForApp = async (req, res) => {
             attributes: [],
           },
           required: false,
+          attributes: {
+            exclude: ["id"]
+          }
         },
 
-        {
-          model: BookingTemplate,
-          as: "bookingTemplate",
-        },
+        
 
         {
           model: VendorProduct,
