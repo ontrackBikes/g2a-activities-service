@@ -96,7 +96,8 @@ VendorScheduleSlot.init(
     status: {
       type: DataTypes.ENUM(
         "OPEN",
-        "CLOSED"
+        "CLOSED",
+        "DELETED"
       ),
       allowNull: false,
       defaultValue: "OPEN",
@@ -148,5 +149,5 @@ VendorScheduleSlot.init(
     ],
   }
 );
-
+//VendorScheduleSlot.sync({alter: true})
 module.exports = VendorScheduleSlot;
