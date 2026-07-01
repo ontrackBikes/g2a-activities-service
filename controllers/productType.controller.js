@@ -82,7 +82,7 @@ const getProductTypes = async (req, res) => {
     const productTypes = await ProductType.findAll({
       where,
       attributes: {
-        exclude: ["id", "category_id"],
+        exclude: ["category_id"],
       },
       include: [
         {
