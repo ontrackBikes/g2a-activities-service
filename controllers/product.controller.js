@@ -825,6 +825,10 @@ const getProductDetailsForApp = async (req, res) => {
             exclude: ["id"]
           }
         },
+        {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+        },
 
         {
           model: ProductTerm,

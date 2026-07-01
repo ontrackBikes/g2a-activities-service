@@ -24,10 +24,6 @@ router.get("/", getProducts);
 
 router.get("/search", searchProducts);
 
-router.post(
-  "/:slug/check-available",
-  checkProductAvailability,
-);
 
 router.get(
   "/app/products-list",
@@ -36,6 +32,11 @@ router.get(
 router.get(
   "/app/products-list/:slug",
   getProductDetailsForApp
+);
+
+router.post(
+  "/app/:slug/check-available",
+  checkProductAvailability,
 );
 
 
