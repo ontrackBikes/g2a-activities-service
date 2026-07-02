@@ -698,7 +698,6 @@ const getProductsListForApp = async (req, res) => {
         }
 
         acc[vendorProduct.product_id].set(vendorProduct.location.id, {
-          id: vendorProduct.location.id,
           name: vendorProduct.location.name,
           slug: vendorProduct.location.slug,
         });
@@ -739,10 +738,6 @@ const getProductsListForApp = async (req, res) => {
           ? availability.pricing.display_price
           : null,
 
-        base_price: availability
-          ? availability.pricing.base_price
-          : null,
-
         price_type: availability
           ? availability.pricing.price_type
           : null,
@@ -755,7 +750,6 @@ const getProductsListForApp = async (req, res) => {
           ? {
               name: json.productType.name,
               slug: json.productType.slug,
-              category: json.productType.category
             }
           : null,
 
@@ -811,9 +805,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "images",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id", "product_id"]
-          }
+          attributes: [
+            "image_url",
+            "sort_order",
+          ],
         },
 
         {
@@ -821,9 +816,11 @@ const getProductDetailsForApp = async (req, res) => {
           as: "faqs",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "question",
+            "answer",
+            "sort_order",
+          ],
         },
         {
           model: BookingTemplate,
@@ -835,9 +832,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "terms",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "content",
+            "sort_order",
+          ],
         },
 
         {
@@ -845,9 +843,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "highlights",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "content",
+            "sort_order",
+          ],
         },
 
         {
@@ -855,9 +854,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "inclusions",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "content",
+            "sort_order",
+          ],
         },
 
         {
@@ -865,9 +865,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "exclusions",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "content",
+            "sort_order",
+          ],
         },
 
         {
@@ -875,9 +876,10 @@ const getProductDetailsForApp = async (req, res) => {
           as: "thingsToKnow",
           required: false,
           separate: true,
-          attributes: {
-            exclude: ["id"]
-          }
+          attributes: [
+            "content",
+            "sort_order",
+          ],
         },
 
         {
@@ -944,7 +946,6 @@ const getProductDetailsForApp = async (req, res) => {
     for (const vp of product.vendorProducts || []) {
       if (vp.location && !locationsMap.has(vp.location.id)) {
         locationsMap.set(vp.location.id, {
-          id: vp.location.id,
           name: vp.location.name,
           slug: vp.location.slug,
         });
@@ -991,13 +992,18 @@ const getProductDetailsForApp = async (req, res) => {
         ],
 
         attributes: [
-          "id",
           "slug",
           "name",
           "thumbnail_url",
         ],
       }),
     ]);
+
+    const formatContentItems = (items = []) =>
+      items.map((item) => ({
+        content: item.content,
+        sort_order: item.sort_order,
+      }));
 
     return res.json({
       success: true,
@@ -1025,35 +1031,59 @@ const getProductDetailsForApp = async (req, res) => {
           ? availability.pricing.display_price
           : null,
 
-        base_price: availability
-          ? availability.pricing.base_price
-          : null,
-
         price_type: availability
           ? availability.pricing.price_type
           : null,
 
         next_available_slot: nextAvailableSlot,
 
-        images: product.images || [],
+        images: (product.images || []).map(
+          (image) => ({
+            image_url: image.image_url,
+            sort_order: image.sort_order,
+          }),
+        ),
 
-        highlights: product.highlights || [],
+        highlights: formatContentItems(
+          product.highlights,
+        ),
 
-        thingsToKnow: product.thingsToKnow || [],
+        thingsToKnow: formatContentItems(
+          product.thingsToKnow,
+        ),
 
-        inclusions: product.inclusions || [],
+        inclusions: formatContentItems(
+          product.inclusions,
+        ),
 
-        exclusions: product.exclusions || [],
+        exclusions: formatContentItems(
+          product.exclusions,
+        ),
 
-        faqs: product.faqs || [],
+        faqs: (product.faqs || []).map(
+          (faq) => ({
+            question: faq.question,
+            answer: faq.answer,
+            sort_order: faq.sort_order,
+          }),
+        ),
 
-        terms: product.terms || [],
+        terms: formatContentItems(
+          product.terms,
+        ),
 
         tags: product.tags || [],
 
         locations: Array.from(locationsMap.values()),
 
-        related_products: relatedProducts,
+        related_products: relatedProducts.map(
+          (relatedProduct) => ({
+            slug: relatedProduct.slug,
+            name: relatedProduct.name,
+            thumbnail_url:
+              relatedProduct.thumbnail_url,
+          }),
+        ),
       },
     });
   } catch (error) {

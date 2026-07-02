@@ -1,7 +1,9 @@
 const {
   VendorProduct,
   VendorProductSlot,
+  VendorScheduleSlot,
 } = require("../models");
+const sequelize = require("../config/sequelize");
 
 const {
   createVendorProductSlotSchema,
@@ -281,16 +283,73 @@ const updateVendorProductSlot =
 const deleteVendorProductSlot =
   async (req, res) => {
     try {
-      const slot =
-        await VendorProductSlot.findOne({
-          where: {
-            id: req.params.slotId,
-            vendor_product_id:
-              req.params.id,
-          },
-        });
+      const result = await sequelize.transaction(
+        async (transaction) => {
+          const slot =
+            await VendorProductSlot.findOne({
+              where: {
+                id: req.params.slotId,
+                vendor_product_id:
+                  req.params.id,
+              },
+              transaction,
+              lock: transaction.LOCK.UPDATE,
+            });
 
-      if (!slot) {
+          if (!slot) {
+            return null;
+          }
+
+          const linkedDatedSlots =
+            await VendorScheduleSlot.findAll({
+              attributes: [
+                "id",
+                "booked",
+              ],
+              where: {
+                vendor_product_slot_id:
+                  slot.id,
+              },
+              transaction,
+              lock: transaction.LOCK.UPDATE,
+            });
+
+          const bookedDatedSlots =
+            linkedDatedSlots.filter(
+              (datedSlot) =>
+                Number(datedSlot.booked) > 0,
+            );
+
+          if (bookedDatedSlots.length) {
+            return {
+              blocked: true,
+              booked_dated_slots:
+                bookedDatedSlots.length,
+            };
+          }
+
+          const datedSlotsDeleted =
+            await VendorScheduleSlot.destroy({
+              where: {
+                vendor_product_slot_id:
+                  slot.id,
+              },
+              transaction,
+            });
+
+          await slot.destroy({
+            transaction,
+          });
+
+          return {
+            blocked: false,
+            dated_slots_deleted:
+              datedSlotsDeleted,
+          };
+        },
+      );
+
+      if (!result) {
         return res.status(404).json({
           success: false,
           message:
@@ -298,22 +357,21 @@ const deleteVendorProductSlot =
         });
       }
 
-      await slot.update({
-        active: false,
-      });
-      const scheduleSync =
-        await queueScheduleSync({
-          vendorProductId: req.params.id,
-          vendorProductSlotId: slot.id,
-          trigger:
-            "vendor-product-slot-deactivated",
+      if (result.blocked) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Vendor Product Slot cannot be deleted because bookings exist",
+          booked_dated_slots:
+            result.booked_dated_slots,
         });
+      }
 
       return res.json({
         success: true,
         message:
-          "Vendor Product Slot deleted successfully",
-        schedule_sync: scheduleSync,
+          "Vendor Product Slot permanently deleted successfully",
+        data: result,
       });
     } catch (error) {
       console.error(
