@@ -766,17 +766,23 @@ const getProductDetailsForApp = async (req, res) => {
     let productSlug = slug;
     let location_slug = null;
 
-    console.log("🚀 ~ getProductDetailsForApp ~ match:", match)
+    console.log("🚀 ~ getProductDetailsForApp ~ match:", match);
     if (match) {
       productSlug = match[1];
       location_slug = match[2];
     }
+     let selectedLocation = null
 
-    const {
-      date,
-      guests = 1,
-    } = req.query;
+    const { date, guests = 1 } = req.query;
+    if(location_slug) {
+      selectedLocation = await Location.findOne({
+        where:{
+          slug:  location_slug
+        }
+      })
 
+    }
+    
     const product = await Product.findOne({
       where: {
         slug: productSlug,
@@ -791,14 +797,10 @@ const getProductDetailsForApp = async (req, res) => {
           separate: true,
           where: [
             {
-              active: 1
-            }
+              active: 1,
+            },
           ],
-          attributes: [
-            "image_url",
-            "sort_order",
-            "alt_text"
-          ],
+          attributes: ["image_url", "sort_order", "alt_text"],
         },
 
         {
@@ -883,11 +885,6 @@ const getProductDetailsForApp = async (req, res) => {
               required: true,
               where: {
                 active: true,
-                ...(location_slug
-                  ? {
-                      slug: location_slug,
-                    }
-                  : {}),
               },
             },
           ],
@@ -911,7 +908,7 @@ const getProductDetailsForApp = async (req, res) => {
 
     const locationsMap = new Map();
 
-    for (const vp of product.vendorProducts || []) {
+    for (const vp of product.vendorProducts) {
       if (vp.location && !locationsMap.has(vp.location.id)) {
         locationsMap.set(vp.location.id, {
           name: vp.location.name,
@@ -957,6 +954,11 @@ const getProductDetailsForApp = async (req, res) => {
         }),
       ]);
 
+    const locations = Array.from(locationsMap.values()).map(location => ({
+      ...location,
+      selected: location.slug === location_slug,
+    }));
+
     const formatContentItems = (items = []) =>
       items.map((item) => ({
         content: item.content,
@@ -993,13 +995,11 @@ const getProductDetailsForApp = async (req, res) => {
 
         next_available_slot: nextAvailableSlot,
 
-        images: (product.images || []).map(
-          (image) => ({
-            image_url: image.image_url,
-            sort_order: image.sort_order,
-            alt_text: image.alt_text
-          }),
-        ),
+        images: (product.images || []).map((image) => ({
+          image_url: image.image_url,
+          sort_order: image.sort_order,
+          alt_text: image.alt_text,
+        })),
 
         highlights: formatContentItems(product.highlights),
 
@@ -1019,13 +1019,15 @@ const getProductDetailsForApp = async (req, res) => {
 
         tags: product.tags || [],
 
-        locations: Array.from(locationsMap.values()),
+        locations: locations,
 
         related_products: relatedProducts.map((relatedProduct) => ({
           slug: relatedProduct.slug,
           name: relatedProduct.name,
           thumbnail_url: relatedProduct.thumbnail_url,
         })),
+
+        selectedLocation,
       },
     });
   } catch (error) {
