@@ -2,40 +2,26 @@
 
 const moment = require("moment-timezone");
 
-const {
-  getAvailableVendorForProduct,
-} = require("./availableVendor.service");
+const { getAvailableVendorForProduct } = require("./availableVendor.service");
 
 const buildBookingQuote = require("./buildBookingQuote");
+const { createBookingEstimate } = require("./createBookingEstimate.service");
+const { randomUUID } = require("crypto");
 
-const APP_TIMEZONE =
-  process.env.APP_TIMEZONE || "Asia/Kolkata";
+const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
-const checkSingleDate = async ({
-  product,
-  location,
-  payload,
-}) => {
-  const today = moment()
-    .tz(APP_TIMEZONE)
-    .format("YYYY-MM-DD");
+const checkSingleDate = async ({ product, location, payload }) => {
+  const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
   /**
    * Validate Date
    */
 
-  if (
-    !moment(
-      payload.date,
-      "YYYY-MM-DD",
-      true,
-    ).isValid()
-  ) {
+  if (!moment(payload.date, "YYYY-MM-DD", true).isValid()) {
     return {
       status: 400,
       success: false,
-      message:
-        "date must be a valid calendar date",
+      message: "date must be a valid calendar date",
     };
   }
 
@@ -43,8 +29,7 @@ const checkSingleDate = async ({
     return {
       status: 400,
       success: false,
-      message:
-        "date cannot be in the past",
+      message: "date cannot be in the past",
     };
   }
 
@@ -52,13 +37,12 @@ const checkSingleDate = async ({
    * Availability
    */
 
-  const availability =
-    await getAvailableVendorForProduct({
-      productId: product.id,
-      locationId: location.id,
-      date: payload.date,
-      guests: payload.guests,
-    });
+  const availability = await getAvailableVendorForProduct({
+    productId: product.id,
+    locationId: location.id,
+    date: payload.date,
+    guests: payload.guests,
+  });
 
   /**
    * Not Available
@@ -92,16 +76,98 @@ const checkSingleDate = async ({
    * Pricing
    */
 
-  const unitPrice = Number(
-    availability.pricing.display_price,
-  );
+  const unitPrice = Number(availability.pricing.display_price);
 
-  const subtotal =
-    unitPrice * payload.guests;
+  const subtotal = unitPrice * payload.guests;
 
   /**
    * Available
    */
+
+  const slot_mapping = {};
+
+  const slots = availability.slots.map((slot) => {
+    const token = `slot_${randomUUID().replace(/-/g, "")}`;
+
+    slot_mapping[token] = slot.id;
+
+    return {
+      token,
+
+      name: slot.slot_name,
+
+      start_time: slot.start_time,
+
+      end_time: slot.end_time,
+
+      price: Number(slot.price),
+
+      available: slot.available,
+
+      max_bookable_per_booking: slot.max_bookable_per_booking,
+    };
+  });
+
+  const quotation = buildBookingQuote({
+    product,
+
+    location,
+
+    booking: {
+      travel_date: payload.date,
+      guests: payload.guests,
+    },
+
+    pricing: {
+      currency: "INR",
+
+      price_type: availability.pricing.price_type,
+
+      unit_price: unitPrice,
+
+      quantity: payload.guests,
+
+      subtotal,
+
+      discount: 0,
+
+      tax: 0,
+
+      grand_total: subtotal,
+    },
+
+    availability: {
+      vendor_product_id: availability.vendorProduct.id,
+
+      pricing_type: availability.vendorProduct.pricing_type,
+
+      slots,
+    },
+  });
+
+  const estimate = await createBookingEstimate({
+    product,
+
+    location,
+
+    vendorProduct: availability.vendorProduct,
+
+    vendorSchedule: availability.schedule,
+
+    requestData: payload,
+
+    bookingData: quotation.booking,
+
+    pricing: quotation.pricing,
+
+    quotation,
+
+    metadata: {
+      slot_mapping,
+    },
+  });
+
+  quotation.estimate_id = estimate.estimate_id;
 
   return {
     status: 200,
@@ -109,63 +175,8 @@ const checkSingleDate = async ({
     success: true,
 
     available: true,
-
-    data: buildBookingQuote({
-      product,
-
-      location,
-
-      booking: {
-        travel_date: payload.date,
-        guests: payload.guests,
-      },
-
-      pricing: {
-        currency: "INR",
-
-        price_type:
-          availability.pricing.price_type,
-
-        unit_price: unitPrice,
-
-        quantity: payload.guests,
-
-        subtotal,
-
-        discount: 0,
-
-        tax: 0,
-
-        grand_total: subtotal,
-      },
-
-      availability: {
-        vendor_product_id:
-          availability.vendorProduct.id,
-
-        pricing_type:
-          availability.vendorProduct.pricing_type,
-
-        slots: availability.slots.map(
-          (slot) => ({
-            id: slot.id,
-
-            name: slot.slot_name,
-
-            start_time: slot.start_time,
-
-            end_time: slot.end_time,
-
-            price: Number(slot.price),
-
-            available: slot.available,
-
-            max_bookable_per_booking:
-              slot.max_bookable_per_booking,
-          }),
-        ),
-      },
-    }),
+    estimate_id: estimate.estimate_id,
+    data: quotation,
   };
 };
 

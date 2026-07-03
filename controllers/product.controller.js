@@ -761,11 +761,25 @@ const getProductsListForApp = async (req, res) => {
 const getProductDetailsForApp = async (req, res) => {
   try {
     const { slug } = req.params;
-    const { location_slug, date, guests = 1 } = req.query;
+
+    const match = slug.match(/^(.*)-in-(.*)$/);
+    let productSlug = slug;
+    let location_slug = null;
+
+    console.log("🚀 ~ getProductDetailsForApp ~ match:", match)
+    if (match) {
+      productSlug = match[1];
+      location_slug = match[2];
+    }
+
+    const {
+      date,
+      guests = 1,
+    } = req.query;
 
     const product = await Product.findOne({
       where: {
-        slug,
+        slug: productSlug,
         active: true,
       },
 
@@ -775,7 +789,16 @@ const getProductDetailsForApp = async (req, res) => {
           as: "images",
           required: false,
           separate: true,
-          attributes: ["image_url", "sort_order"],
+          where: [
+            {
+              active: 1
+            }
+          ],
+          attributes: [
+            "image_url",
+            "sort_order",
+            "alt_text"
+          ],
         },
 
         {
@@ -970,10 +993,13 @@ const getProductDetailsForApp = async (req, res) => {
 
         next_available_slot: nextAvailableSlot,
 
-        images: (product.images || []).map((image) => ({
-          image_url: image.image_url,
-          sort_order: image.sort_order,
-        })),
+        images: (product.images || []).map(
+          (image) => ({
+            image_url: image.image_url,
+            sort_order: image.sort_order,
+            alt_text: image.alt_text
+          }),
+        ),
 
         highlights: formatContentItems(product.highlights),
 

@@ -31,6 +31,7 @@ const checkProductAvailability = async (req, res) => {
         "slug",
         "name",
         "booking_mode",
+        "thumbnail_url"
       ],
 
       where: {

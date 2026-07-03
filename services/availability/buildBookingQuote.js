@@ -9,14 +9,15 @@ const buildBookingQuote = ({
 }) => {
   return {
     product: {
-      id: product.id,
+      // id: product.id,
       slug: product.slug,
       name: product.name,
       booking_mode: product.booking_mode,
+      thumbnail_url: product.thumbnail_url,
     },
 
     location: {
-      id: location.id,
+      // id: location.id,
       slug: location.slug,
       name: location.name,
     },
@@ -43,8 +44,7 @@ const buildBookingQuote = ({
     },
 
     availability: {
-      vendor_product_id:
-        availability.vendor_product_id || null,
+      
 
       slots: availability.slots || [],
 
