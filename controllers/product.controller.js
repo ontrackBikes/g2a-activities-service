@@ -25,15 +25,11 @@ const {
 const {
   getAvailableVendorForProduct,
   getAvailableVendorsForProducts,
-} = require(
-  "../services/availableVendor.service"
-);
+} = require("../services/availableVendor.service");
 const {
   getNextAvailableSlotForProduct,
   getNextAvailableSlotsForProducts,
-} = require(
-  "../services/nextAvailableSlot.service"
-);
+} = require("../services/nextAvailableSlot.service");
 
 const createProduct = async (req, res) => {
   try {
@@ -129,7 +125,7 @@ const getProducts = async (req, res) => {
 
     const where = {};
 
-    if (active !== undefined) {
+    if (active !== undefined && active !== "") {
       where.active = active === "true";
     }
 
@@ -141,32 +137,32 @@ const getProducts = async (req, res) => {
       where.product_type_id = product_type_id;
     }
 
-    if (search) {
-      where[Op.or] = [
-        {
-          name: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-        {
-          slug: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-      ];
+    if (search && search.trim()) {
+      const term = search.trim();
+
+      // Only search columns that actually exist on the Product model.
+      // Prevents 500s if the schema changes (e.g. no `slug` column).
+      const searchableFields = ["name", "slug", "description"].filter(
+        (field) => Product.rawAttributes[field],
+      );
+
+      if (searchableFields.length) {
+        where[Op.or] = searchableFields.map((field) => ({
+          [field]: { [Op.like]: `%${term}%` },
+        }));
+      }
     }
 
     const products = await Product.findAll({
       where,
       include: [
+        { model: ProductGroup, as: "group" },
         {
-          model: ProductGroup,
-          as: "group",
+          model: ProductType,
+          as: "productType",
+          attributes: ["id", "name", "slug"],
         },
-        {
-          model: VendorProduct,
-          as: "vendorProducts",
-        },
+        { model: VendorProduct, as: "vendorProducts" },
       ],
       order: [
         ["sort_order", "ASC"],
@@ -174,18 +170,10 @@ const getProducts = async (req, res) => {
       ],
     });
 
-    return res.json({
-      success: true,
-      count: products.length,
-      data: products,
-    });
+    return res.json({ success: true, count: products.length, data: products });
   } catch (error) {
     console.error("[ProductController] getProducts", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -309,12 +297,7 @@ const searchProducts = async (req, res) => {
     const searchPattern = `%${query}%`;
 
     const products = await Product.findAll({
-      attributes: [
-        "name",
-        "slug",
-        "thumbnail_url",
-        "thumbnail_url_sm",
-      ],
+      attributes: ["name", "slug", "thumbnail_url", "thumbnail_url_sm"],
       where: {
         active: true,
         [Op.or]: [
@@ -636,14 +619,8 @@ const getProductsListForApp = async (req, res) => {
     });
 
     const productIds = products.map((product) => product.id);
-    const requestedGuests = Math.max(
-      Number.parseInt(guests, 10) || 1,
-      1,
-    );
-    const [
-      availabilityMap,
-      nextAvailableSlotMap,
-    ] = await Promise.all([
+    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
+    const [availabilityMap, nextAvailableSlotMap] = await Promise.all([
       getAvailableVendorsForProducts({
         productIds,
         locationIds: selectedLocationIds,
@@ -712,8 +689,7 @@ const getProductsListForApp = async (req, res) => {
       const locations = locationMap[product.id]
         ? Array.from(locationMap[product.id].values())
         : [];
-      const availability =
-        availabilityMap.get(product.id);
+      const availability = availabilityMap.get(product.id);
       const nextAvailableSlot =
         nextAvailableSlotMap.get(Number(product.id)) || null;
 
@@ -738,9 +714,7 @@ const getProductsListForApp = async (req, res) => {
           ? availability.pricing.display_price
           : null,
 
-        price_type: availability
-          ? availability.pricing.price_type
-          : null,
+        price_type: availability ? availability.pricing.price_type : null,
 
         next_available_slot: nextAvailableSlot,
 
@@ -787,11 +761,7 @@ const getProductsListForApp = async (req, res) => {
 const getProductDetailsForApp = async (req, res) => {
   try {
     const { slug } = req.params;
-    const {
-      location_slug,
-      date,
-      guests = 1,
-    } = req.query;
+    const { location_slug, date, guests = 1 } = req.query;
 
     const product = await Product.findOne({
       where: {
@@ -805,10 +775,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "images",
           required: false,
           separate: true,
-          attributes: [
-            "image_url",
-            "sort_order",
-          ],
+          attributes: ["image_url", "sort_order"],
         },
 
         {
@@ -816,11 +783,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "faqs",
           required: false,
           separate: true,
-          attributes: [
-            "question",
-            "answer",
-            "sort_order",
-          ],
+          attributes: ["question", "answer", "sort_order"],
         },
         {
           model: BookingTemplate,
@@ -832,10 +795,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "terms",
           required: false,
           separate: true,
-          attributes: [
-            "content",
-            "sort_order",
-          ],
+          attributes: ["content", "sort_order"],
         },
 
         {
@@ -843,10 +803,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "highlights",
           required: false,
           separate: true,
-          attributes: [
-            "content",
-            "sort_order",
-          ],
+          attributes: ["content", "sort_order"],
         },
 
         {
@@ -854,10 +811,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "inclusions",
           required: false,
           separate: true,
-          attributes: [
-            "content",
-            "sort_order",
-          ],
+          attributes: ["content", "sort_order"],
         },
 
         {
@@ -865,10 +819,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "exclusions",
           required: false,
           separate: true,
-          attributes: [
-            "content",
-            "sort_order",
-          ],
+          attributes: ["content", "sort_order"],
         },
 
         {
@@ -876,10 +827,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "thingsToKnow",
           required: false,
           separate: true,
-          attributes: [
-            "content",
-            "sort_order",
-          ],
+          attributes: ["content", "sort_order"],
         },
 
         {
@@ -890,11 +838,9 @@ const getProductDetailsForApp = async (req, res) => {
           },
           required: false,
           attributes: {
-            exclude: ["id"]
-          }
+            exclude: ["id"],
+          },
         },
-
-        
 
         {
           model: VendorProduct,
@@ -936,8 +882,7 @@ const getProductDetailsForApp = async (req, res) => {
     if (!product.vendorProducts?.length) {
       return res.status(404).json({
         success: false,
-        message:
-          "Product is not available from any vendor",
+        message: "Product is not available from any vendor",
       });
     }
 
@@ -952,52 +897,42 @@ const getProductDetailsForApp = async (req, res) => {
       }
     }
 
-    const requestedGuests = Math.max(
-      Number.parseInt(guests, 10) || 1,
-      1,
-    );
+    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
 
-    const [
-      availability,
-      nextAvailableSlot,
-      relatedProducts,
-    ] = await Promise.all([
-      getAvailableVendorForProduct({
-        productId: product.id,
-        locationSlug: location_slug,
-        date,
-        guests: requestedGuests,
-      }),
-      getNextAvailableSlotForProduct({
-        productId: product.id,
-        locationSlug: location_slug,
-        guests: requestedGuests,
-      }),
-      Product.findAll({
-        where: {
-          active: true,
+    const [availability, nextAvailableSlot, relatedProducts] =
+      await Promise.all([
+        getAvailableVendorForProduct({
+          productId: product.id,
+          locationSlug: location_slug,
+          date,
+          guests: requestedGuests,
+        }),
+        getNextAvailableSlotForProduct({
+          productId: product.id,
+          locationSlug: location_slug,
+          guests: requestedGuests,
+        }),
+        Product.findAll({
+          where: {
+            active: true,
 
-          product_type_id: product.product_type_id,
+            product_type_id: product.product_type_id,
 
-          id: {
-            [Op.ne]: product.id,
+            id: {
+              [Op.ne]: product.id,
+            },
           },
-        },
 
-        limit: 8,
+          limit: 8,
 
-        order: [
-          ["featured", "DESC"],
-          ["sort_order", "ASC"],
-        ],
+          order: [
+            ["featured", "DESC"],
+            ["sort_order", "ASC"],
+          ],
 
-        attributes: [
-          "slug",
-          "name",
-          "thumbnail_url",
-        ],
-      }),
-    ]);
+          attributes: ["slug", "name", "thumbnail_url"],
+        }),
+      ]);
 
     const formatContentItems = (items = []) =>
       items.map((item) => ({
@@ -1031,59 +966,40 @@ const getProductDetailsForApp = async (req, res) => {
           ? availability.pricing.display_price
           : null,
 
-        price_type: availability
-          ? availability.pricing.price_type
-          : null,
+        price_type: availability ? availability.pricing.price_type : null,
 
         next_available_slot: nextAvailableSlot,
 
-        images: (product.images || []).map(
-          (image) => ({
-            image_url: image.image_url,
-            sort_order: image.sort_order,
-          }),
-        ),
+        images: (product.images || []).map((image) => ({
+          image_url: image.image_url,
+          sort_order: image.sort_order,
+        })),
 
-        highlights: formatContentItems(
-          product.highlights,
-        ),
+        highlights: formatContentItems(product.highlights),
 
-        thingsToKnow: formatContentItems(
-          product.thingsToKnow,
-        ),
+        thingsToKnow: formatContentItems(product.thingsToKnow),
 
-        inclusions: formatContentItems(
-          product.inclusions,
-        ),
+        inclusions: formatContentItems(product.inclusions),
 
-        exclusions: formatContentItems(
-          product.exclusions,
-        ),
+        exclusions: formatContentItems(product.exclusions),
 
-        faqs: (product.faqs || []).map(
-          (faq) => ({
-            question: faq.question,
-            answer: faq.answer,
-            sort_order: faq.sort_order,
-          }),
-        ),
+        faqs: (product.faqs || []).map((faq) => ({
+          question: faq.question,
+          answer: faq.answer,
+          sort_order: faq.sort_order,
+        })),
 
-        terms: formatContentItems(
-          product.terms,
-        ),
+        terms: formatContentItems(product.terms),
 
         tags: product.tags || [],
 
         locations: Array.from(locationsMap.values()),
 
-        related_products: relatedProducts.map(
-          (relatedProduct) => ({
-            slug: relatedProduct.slug,
-            name: relatedProduct.name,
-            thumbnail_url:
-              relatedProduct.thumbnail_url,
-          }),
-        ),
+        related_products: relatedProducts.map((relatedProduct) => ({
+          slug: relatedProduct.slug,
+          name: relatedProduct.name,
+          thumbnail_url: relatedProduct.thumbnail_url,
+        })),
       },
     });
   } catch (error) {

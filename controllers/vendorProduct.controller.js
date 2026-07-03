@@ -12,7 +12,7 @@ const {
   VendorProductThingToKnow,
   VendorProductSlot,
 } = require("../models");
-
+const { Op } = require("sequelize");
 const {
   createVendorProductSchema,
   updateVendorProductSchema,
@@ -20,8 +20,7 @@ const {
 
 const createVendorProduct = async (req, res) => {
   try {
-    const { error, value } =
-      createVendorProductSchema.validate(req.body);
+    const { error, value } = createVendorProductSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -30,9 +29,7 @@ const createVendorProduct = async (req, res) => {
       });
     }
 
-    const vendor = await Vendor.findByPk(
-      value.vendor_id
-    );
+    const vendor = await Vendor.findByPk(value.vendor_id);
 
     if (!vendor) {
       return res.status(404).json({
@@ -41,9 +38,7 @@ const createVendorProduct = async (req, res) => {
       });
     }
 
-    const product = await Product.findByPk(
-      value.product_id
-    );
+    const product = await Product.findByPk(value.product_id);
 
     if (!product) {
       return res.status(404).json({
@@ -52,9 +47,7 @@ const createVendorProduct = async (req, res) => {
       });
     }
 
-    const location = await Location.findByPk(
-      value.location_id
-    );
+    const location = await Location.findByPk(value.location_id);
 
     if (!location) {
       return res.status(404).json({
@@ -63,30 +56,26 @@ const createVendorProduct = async (req, res) => {
       });
     }
 
-    const existing =
-      await VendorProduct.findOne({
-        where: {
-          vendor_id: value.vendor_id,
-          product_id: value.product_id,
-          location_id: value.location_id,
-        },
-      });
+    const existing = await VendorProduct.findOne({
+      where: {
+        vendor_id: value.vendor_id,
+        product_id: value.product_id,
+        location_id: value.location_id,
+      },
+    });
 
     if (existing) {
       return res.status(409).json({
         success: false,
-        message:
-          "Vendor Product already exists",
+        message: "Vendor Product already exists",
       });
     }
 
-    const vendorProduct =
-      await VendorProduct.create(value);
+    const vendorProduct = await VendorProduct.create(value);
 
     return res.status(201).json({
       success: true,
-      message:
-        "Vendor Product created successfully",
+      message: "Vendor Product created successfully",
       data: {
         ...vendorProduct.toJSON(),
         next_step:
@@ -96,10 +85,7 @@ const createVendorProduct = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
-      "[VendorProductController] createVendorProduct",
-      error
-    );
+    console.error("[VendorProductController] createVendorProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -108,17 +94,9 @@ const createVendorProduct = async (req, res) => {
   }
 };
 
-const getVendorProducts = async (
-  req,
-  res
-) => {
+const getVendorProducts = async (req, res) => {
   try {
-    const {
-      vendor_id,
-      product_id,
-      location_id,
-      active,
-    } = req.query;
+    const { vendor_id, product_id, location_id, active, search } = req.query;
 
     const where = {};
 
@@ -134,31 +112,47 @@ const getVendorProducts = async (
       where.location_id = location_id;
     }
 
-    if (active !== undefined) {
+    if (active !== undefined && active !== "") {
       where.active = active === "true";
     }
 
-    const vendorProducts =
-      await VendorProduct.findAll({
-        where,
+    if (search && search.trim()) {
+      const term = search.trim();
 
-        include: [
-          {
-            model: Vendor,
-            as: "vendor",
-          },
-          {
-            model: Product,
-            as: "product",
-          },
-          {
-            model: Location,
-            as: "location",
-          },
-        ],
+      // Vendor/product/location names live on associated models, so
+      // Sequelize needs the "$association.field$" syntax to search them.
+      where[Op.or] = [
+        { "$vendor.name$": { [Op.like]: `%${term}%` } },
+        { "$product.name$": { [Op.like]: `%${term}%` } },
+        { "$location.name$": { [Op.like]: `%${term}%` } },
+      ];
+    }
 
-        order: [["id", "DESC"]],
-      });
+    const vendorProducts = await VendorProduct.findAll({
+      where,
+
+      include: [
+        {
+          model: Vendor,
+          as: "vendor",
+        },
+        {
+          model: Product,
+          as: "product",
+        },
+        {
+          model: Location,
+          as: "location",
+        },
+      ],
+
+      // Required when filtering/searching on included model columns
+      // via $association.field$ — avoids duplicate-row issues from
+      // the implicit subquery Sequelize would otherwise generate.
+      subQuery: false,
+
+      order: [["id", "DESC"]],
+    });
 
     return res.json({
       success: true,
@@ -166,10 +160,7 @@ const getVendorProducts = async (
       data: vendorProducts,
     });
   } catch (error) {
-    console.error(
-      "[VendorProductController] getVendorProducts",
-      error
-    );
+    console.error("[VendorProductController] getVendorProducts", error);
 
     return res.status(500).json({
       success: false,
@@ -178,81 +169,69 @@ const getVendorProducts = async (
   }
 };
 
-const getVendorProduct = async (
-  req,
-  res
-) => {
+const getVendorProduct = async (req, res) => {
   try {
-    const vendorProduct =
-      await VendorProduct.findByPk(
-        req.params.id,
+    const vendorProduct = await VendorProduct.findByPk(req.params.id, {
+      include: [
         {
-          include: [
-            {
-              model: Vendor,
-              as: "vendor",
-            },
-            {
-              model: Product,
-              as: "product",
-            },
-            {
-              model: Location,
-              as: "location",
-            },
+          model: Vendor,
+          as: "vendor",
+        },
+        {
+          model: Product,
+          as: "product",
+        },
+        {
+          model: Location,
+          as: "location",
+        },
 
-            {
-              model: VendorProductImage,
-              as: "images",
-            },
+        {
+          model: VendorProductImage,
+          as: "images",
+        },
 
-            {
-              model: VendorProductFaq,
-              as: "faqs",
-            },
+        {
+          model: VendorProductFaq,
+          as: "faqs",
+        },
 
-            {
-              model: VendorProductTerm,
-              as: "terms",
-            },
+        {
+          model: VendorProductTerm,
+          as: "terms",
+        },
 
-            {
-              model:
-                VendorProductHighlight,
-              as: "highlights",
-            },
+        {
+          model: VendorProductHighlight,
+          as: "highlights",
+        },
 
-            {
-              model:
-                VendorProductInclusion,
-              as: "inclusions",
-            },
+        {
+          model: VendorProductInclusion,
+          as: "inclusions",
+        },
 
-            {
-              model:
-                VendorProductExclusion,
-              as: "exclusions",
-            },
+        {
+          model: VendorProductExclusion,
+          as: "exclusions",
+        },
 
-            {
-              model:
-                VendorProductThingToKnow,
-              as: "thingsToKnow",
-            },
+        {
+          model: VendorProductThingToKnow,
+          as: "thingsToKnow",
+        },
 
-            {
-              model: VendorProductSlot,
-              as: "slots",
-            },
-          ],
-        }
-      );
+        {
+          model: VendorProductSlot,
+          as: "slots",
+        },
+      ],
+    });
 
     if (!vendorProduct) {
       return res.status(404).json({
         success: false,
-        message:
-          "Vendor Product not found",
+        message: "Vendor Product not found",
       });
     }
 
@@ -261,10 +240,7 @@ const getVendorProduct = async (
       data: vendorProduct,
     });
   } catch (error) {
-    console.error(
-      "[VendorProductController] getVendorProduct",
-      error
-    );
+    console.error("[VendorProductController] getVendorProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -273,15 +249,9 @@ const getVendorProduct = async (
   }
 };
 
-const updateVendorProduct = async (
-  req,
-  res
-) => {
+const updateVendorProduct = async (req, res) => {
   try {
-    const { error, value } =
-      updateVendorProductSchema.validate(
-        req.body
-      );
+    const { error, value } = updateVendorProductSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -290,16 +260,12 @@ const updateVendorProduct = async (
       });
     }
 
-    const vendorProduct =
-      await VendorProduct.findByPk(
-        req.params.id
-      );
+    const vendorProduct = await VendorProduct.findByPk(req.params.id);
 
     if (!vendorProduct) {
       return res.status(404).json({
         success: false,
-        message:
-          "Vendor Product not found",
+        message: "Vendor Product not found",
       });
     }
 
@@ -307,15 +273,11 @@ const updateVendorProduct = async (
 
     return res.json({
       success: true,
-      message:
-        "Vendor Product updated successfully",
+      message: "Vendor Product updated successfully",
       data: vendorProduct,
     });
   } catch (error) {
-    console.error(
-      "[VendorProductController] updateVendorProduct",
-      error
-    );
+    console.error("[VendorProductController] updateVendorProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -324,21 +286,14 @@ const updateVendorProduct = async (
   }
 };
 
-const deleteVendorProduct = async (
-  req,
-  res
-) => {
+const deleteVendorProduct = async (req, res) => {
   try {
-    const vendorProduct =
-      await VendorProduct.findByPk(
-        req.params.id
-      );
+    const vendorProduct = await VendorProduct.findByPk(req.params.id);
 
     if (!vendorProduct) {
       return res.status(404).json({
         success: false,
-        message:
-          "Vendor Product not found",
+        message: "Vendor Product not found",
       });
     }
 
@@ -348,14 +303,10 @@ const deleteVendorProduct = async (
 
     return res.json({
       success: true,
-      message:
-        "Vendor Product deleted successfully",
+      message: "Vendor Product deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "[VendorProductController] deleteVendorProduct",
-      error
-    );
+    console.error("[VendorProductController] deleteVendorProduct", error);
 
     return res.status(500).json({
       success: false,
