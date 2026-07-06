@@ -27,6 +27,7 @@ const productTypeRoutes = require("./productType.routes");
 const productTagRoutes = require("./productTag.routes");
 const bookingTemplate = require("./bookingTemplate.routes");
 const bookingEstimate = require("./bookingEstimate.routes");
+const order = require("./order.routes");
 
 
 const productCollectionRoutes =
@@ -107,4 +108,10 @@ router.use(
   bookingEstimate,
 );
 
+
+
+router.use(
+  "/orders",
+  order,
+);
 module.exports = router;

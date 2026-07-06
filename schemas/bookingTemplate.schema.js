@@ -14,9 +14,8 @@ const fieldSchema = Joi.object({
   default_value: Joi.any(),
 
   config: Joi.object().default({}),
-  
-  visible: Joi.boolean().default(true),
 
+  visible: Joi.boolean().default(true),
 });
 
 const sectionSchema = Joi.object({
@@ -28,59 +27,44 @@ const sectionSchema = Joi.object({
   enabled: Joi.boolean().default(false),
 
   config: Joi.object().default({}),
-  sort_order: Joi.number()
+  sort_order: Joi.number(),
 });
 
 const createBookingTemplateSchema = Joi.object({
-  name: Joi.string()
-    .max(150)
-    .required(),
+  name: Joi.string().max(150).required(),
 
-  slug: Joi.string()
-    .lowercase()
-    .trim()
-    .max(150)
-    .required(),
+  slug: Joi.string().lowercase().trim().max(150).required(),
 
-  description: Joi.string()
-    .allow("", null),
+  description: Joi.string().allow("", null),
 
   product_page_schema: Joi.object({
-    fields: Joi.array()
-      .items(fieldSchema)
-      .default([]),
+    fields: Joi.array().items(fieldSchema).default([]),
   }).required(),
 
   booking_page_schema: Joi.object({
-    sections: Joi.array()
-      .items(sectionSchema)
-      .default([]),
+    sections: Joi.array().items(sectionSchema).default([]),
   }).required(),
 
   active: Joi.boolean().default(true),
 });
 
-const updateBookingTemplateSchema =
-  Joi.object({
-    name: Joi.string().max(150),
+const updateBookingTemplateSchema = Joi.object({
+  name: Joi.string().max(150),
 
-    slug: Joi.string()
-      .lowercase()
-      .trim()
-      .max(150),
+  slug: Joi.string().lowercase().trim().max(150),
 
-    description: Joi.string().allow("", null),
+  description: Joi.string().allow("", null),
 
-    product_page_schema: Joi.object({
-      fields: Joi.array().items(fieldSchema),
-    }),
+  product_page_schema: Joi.object({
+    fields: Joi.array().items(fieldSchema),
+  }),
 
-    booking_page_schema: Joi.object({
-      sections: Joi.array().items(sectionSchema),
-    }),
+  booking_page_schema: Joi.object({
+    sections: Joi.array().items(sectionSchema),
+  }),
 
-    active: Joi.boolean(),
-  }).min(1);
+  active: Joi.boolean(),
+}).min(1);
 
 module.exports = {
   createBookingTemplateSchema,

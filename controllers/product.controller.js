@@ -891,17 +891,20 @@ const getProductDetailsForApp = async (req, res) => {
 
     const [availability, nextAvailableSlot, relatedProducts] =
       await Promise.all([
+        
         getAvailableVendorForProduct({
           productId: product.id,
           locationSlug: location_slug,
           date,
           guests: requestedGuests,
         }),
+
         getNextAvailableSlotForProduct({
           productId: product.id,
           locationSlug: location_slug,
           guests: requestedGuests,
         }),
+
         Product.findAll({
           where: {
             active: true,
@@ -923,12 +926,15 @@ const getProductDetailsForApp = async (req, res) => {
           attributes: ["slug", "name", "thumbnail_url"],
         }),
       ]);
+   
 
     const locations = Array.from(locationsMap.values()).map(location => ({
       ...location,
       selected: location.slug === location_slug,
     }));
 
+    const max_bookable_per_booking = availability?.vendorProduct?.max_bookable_per_booking || 10
+    
     const formatContentItems = (items = []) =>
       items.map((item) => ({
         content: item.content,
@@ -939,7 +945,7 @@ const getProductDetailsForApp = async (req, res) => {
       success: true,
 
       data: {
-        bookingTemplate: product.bookingTemplate,
+       
 
         slug: product.slug,
 
@@ -962,6 +968,8 @@ const getProductDetailsForApp = async (req, res) => {
           : null,
 
         price_type: availability ? availability.pricing.price_type : null,
+
+        max_bookable_per_booking,
 
         next_available_slot: nextAvailableSlot,
 
@@ -998,6 +1006,8 @@ const getProductDetailsForApp = async (req, res) => {
         })),
 
         selectedLocation,
+
+         bookingTemplate: product.bookingTemplate,
       },
     });
   } catch (error) {

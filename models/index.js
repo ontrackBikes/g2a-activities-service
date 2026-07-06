@@ -28,6 +28,10 @@ const Category = require("./category.model");
 const ProductCollection = require("./productCollection.model");
 const ProductCollectionProduct = require("./productCollectionProduct.model");
 const BookingTemplate = require("./bookingTemplates.model");
+const Order = require("./orders.model");
+const OrderItem = require("./orderItem.model");
+const Customer = require("./customer.model");
+const OrderParticipant = require("./orderParticipant.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -376,6 +380,50 @@ Product.belongsTo(BookingTemplate, {
   as: "bookingTemplate",
 });
 
+
+Order.hasMany(OrderItem, {
+  foreignKey: "order_id",
+  as: "items",
+  onDelete: "CASCADE",
+});
+
+OrderItem.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Order.belongsTo(Customer, {
+  foreignKey: "customer_id",
+  as: "customer",
+});
+
+Customer.hasMany(Order, {
+  foreignKey: "customer_id",
+  as: "orders",
+});
+
+Order.hasMany(OrderParticipant, {
+  foreignKey: "order_id",
+  as: "participants",
+  onDelete: "CASCADE",
+});
+
+OrderParticipant.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+OrderItem.hasMany(OrderParticipant, {
+  foreignKey: "order_item_id",
+  as: "participants",
+  onDelete: "CASCADE",
+});
+
+OrderParticipant.belongsTo(OrderItem, {
+  foreignKey: "order_item_id",
+  as: "orderItem",
+});
+
 module.exports = {
   Product,
   ProductGroup,
@@ -406,5 +454,9 @@ module.exports = {
   Category,
   ProductCollection,
   ProductCollectionProduct,
-  BookingTemplate
+  BookingTemplate,
+  Order,
+  OrderItem,
+  OrderParticipant,
+  Customer
 };
