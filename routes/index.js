@@ -108,8 +108,6 @@ router.use(
   bookingEstimate,
 );
 
-
-
 router.use(
   "/orders",
   order,

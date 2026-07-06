@@ -9,6 +9,8 @@ const {
   Order,
   OrderItem,
   OrderParticipant,
+  Customer,
+  Payment,
 } = require("../models");
 
 
@@ -219,9 +221,8 @@ const createBikeRentalOrder = async (req, res) => {
   }
 };
 
-
-
-const createOrder = async ({ estimateId, payload }) => {
+const createOrderService = async ({ estimateId, payload }) => {
+  
   const transaction = await sequelize.transaction();
 
   try {
@@ -229,12 +230,13 @@ const createOrder = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     | Estimate
     |--------------------------------------------------------------------------
-    */
+    */  
+   
 
     const estimate = await BookingEstimate.findOne({
       where: {
         estimate_id: estimateId,
-        status: "draft",
+        //status: "draft", should be able to retry
       },
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -253,12 +255,12 @@ const createOrder = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     */
 
-    if (new Date() > estimate.expires_at) {
-      throw {
-        status: 410,
-        message: "Estimate has expired.",
-      };
-    }
+    // if (new Date() > estimate.expires_at) {
+    //   throw {
+    //     status: 410,
+    //     message: "Estimate has expired.",
+    //   };
+    // }
 
     /*
     |--------------------------------------------------------------------------
@@ -333,7 +335,7 @@ const createOrder = async ({ estimateId, payload }) => {
 
     let customer = await Customer.findOne({
       where: {
-        mobile: payload.customer_details.phone,
+        mobile: payload.customer_details.mobile,
       },
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -348,7 +350,7 @@ const createOrder = async ({ estimateId, payload }) => {
 
           email: payload.customer_details.email,
 
-          mobile: payload.customer_details.phone,
+          mobile: payload.customer_details.mobile,
 
           country: payload.customer_details.country,
         },
@@ -578,7 +580,483 @@ const createOrder = async ({ estimateId, payload }) => {
   }
 };
 
+const createOrder = async (req, res) => {
+  try {
+    const { estimate_id } = req.params;
+
+    const result = await createOrderService({
+      estimateId: estimate_id,
+      payload: req.body,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Order created successfully.",
+      data: {
+        order_id: result.order.order_id,
+        payment_status: result.order.payment_status,
+        order_status: result.order.order_status,
+        grand_total: result.order.grand_total,
+      },
+    });
+  } catch (error) {
+    console.error("[createOrder]", error);
+
+    return res.status(error.status || 500).json({
+      success: false,
+      message:
+        error.message || "Failed to create order.",
+      errors: error.errors || undefined,
+    });
+  }
+};
+
+const getOrder = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+
+    const order = await Order.findOne({
+      where: {
+        order_id,
+      },
+
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+        },
+
+        {
+          model: OrderItem,
+          as: "items",
+
+          include: [
+            {
+              model: OrderParticipant,
+              as: "participants",
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    console.error("[getOrder]", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch order.",
+    });
+  }
+};
+
+const createOrderPayment = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+
+    const order = await Order.findOne({
+      where: {
+        order_id,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    /**
+     * Already paid
+     */
+
+    if (order.payment_status === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Order is already paid.",
+      });
+    }
+
+    /**
+     * Existing pending payment
+     */
+
+    let payment = await Payment.findOne({
+      where: {
+        order_id: order.id,
+        gateway: "razorpay",
+        status: "pending",
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    /**
+     * Reuse payment
+     */
+
+    if (
+      payment &&
+      payment.gateway_order_id &&
+      Number(payment.amount) ===
+        Number(order.grand_total) &&
+      (!payment.expires_at ||
+        payment.expires_at > new Date())
+    ) {
+      return res.json({
+        success: true,
+
+        reused: true,
+
+        data: {
+          key: process.env.RAZORPAY_KEY_ID,
+
+          payment_id: payment.payment_id,
+
+          order_id: order.order_id,
+
+          razorpay_order_id:
+            payment.gateway_order_id,
+
+          amount:
+            Number(payment.amount) * 100,
+
+          currency: payment.currency,
+
+          customer: {
+            name:
+              `${order.customer_details.first_name} ${order.customer_details.last_name}`,
+
+            email: order.customer_details.email,
+
+            contact:
+              order.customer_details.phone,
+          },
+        },
+      });
+    }
+
+    /**
+     * Create Razorpay Order
+     */
+
+    const paymentResult =
+      await razorpayService.createRazorpayOrder({
+        orderId: order.order_id,
+
+        totalPrice: Number(
+          order.grand_total,
+        ),
+
+        currency: order.currency,
+
+        notes: {
+          order_id: order.order_id,
+          estimate_id:
+            order.estimate_id,
+        },
+      });
+
+    if (!paymentResult.success) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to initiate payment.",
+      });
+    }
+
+    const razorpayOrder =
+      paymentResult.data;
+
+    /**
+     * Expire previous payment
+     */
+
+    if (payment) {
+      payment.status = "expired";
+      await payment.save();
+    }
+
+    /**
+     * Create payment
+     */
+
+    payment = await Payment.create({
+      order_id: order.id,
+
+      gateway: "razorpay",
+
+      gateway_order_id:
+        razorpayOrder.id,
+
+      amount: order.grand_total,
+
+      currency: order.currency,
+
+      gateway_response:
+        razorpayOrder,
+
+      status: "pending",
+
+      expires_at: new Date(
+        Date.now() +
+          15 * 60 * 1000,
+      ),
+    });
+
+    return res.json({
+      success: true,
+
+      reused: false,
+
+      data: {
+        key: process.env.RAZORPAY_KEY_ID,
+
+        payment_id: payment.payment_id,
+
+        order_id: order.order_id,
+
+        razorpay_order_id:
+          razorpayOrder.id,
+
+        amount: razorpayOrder.amount,
+
+        currency:
+          razorpayOrder.currency,
+
+        customer: {
+          name:
+            `${order.customer_details.first_name} ${order.customer_details.last_name}`,
+
+          email:
+            order.customer_details.email,
+
+          contact:
+            order.customer_details.phone,
+        },
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[createOrderPayment]",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to create payment.",
+    });
+  }
+};
+
+const verifyOrderPayment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { order_id } = req.params;
+
+    /**
+     * Order
+     */
+
+    const order = await Order.findOne({
+      where: {
+        order_id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!order) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    /**
+     * Already paid
+     */
+
+    if (order.payment_status === "paid") {
+      await transaction.commit();
+
+      return res.json({
+        success: true,
+        data: {
+          payment_status: order.payment_status,
+          order_status: order.order_status,
+        },
+      });
+    }
+
+    /**
+     * Latest payment
+     */
+
+    const payment = await Payment.findOne({
+      where: {
+        order_id: order.id,
+      },
+      order: [["created_at", "DESC"]],
+      transaction,
+    });
+
+    console.log("🚀 ~ verifyOrderPayment ~ payment:", payment)
+    if (!payment) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "No payment found.",
+      });
+    }
+
+    /**
+     * Sync with Razorpay
+     */
+    console.log(payment.gateway_order_id)
+    const paymentResult =
+      await razorpayService.fetchPaymentByOrderId(
+        payment.gateway_order_id,
+      );
+
+    if (!paymentResult.success) {
+      await transaction.rollback();
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to verify payment.",
+      });
+    }
+
+    /**
+     * Pending
+     */
+
+    if (paymentResult.status === "pending") {
+      await transaction.commit();
+
+      return res.json({
+        success: true,
+        data: {
+          payment_status: "pending",
+          order_status: order.order_status,
+        },
+      });
+    }
+
+    /**
+     * Failed
+     */
+
+    if (paymentResult.status === "failed") {
+      payment.status = "failed";
+      payment.failure_reason =
+        paymentResult.data?.reason || null;
+
+      await payment.save({
+        transaction,
+      });
+
+      order.payment_status = "failed";
+
+      await order.save({
+        transaction,
+      });
+
+      await transaction.commit();
+
+      return res.json({
+        success: true,
+        data: {
+          payment_status: "failed",
+          order_status: order.order_status,
+        },
+      });
+    }
+
+    /**
+     * Success
+     */
+
+    payment.status = "captured";
+
+    payment.razorpay_payment_id =
+      paymentResult.data.payment_id;
+
+    payment.amount = paymentResult.data.amount;
+
+    payment.method = paymentResult.data.method;
+
+    payment.currency = paymentResult.data.currency;
+
+    payment.paid_at = new Date(paymentResult.data.created_at);
+
+    await payment.save({
+      transaction,
+    });
+
+    order.payment_status = "paid";
+    order.order_status = "confirmed";
+
+    await order.save({
+      transaction,
+    });
+
+    await OrderItem.update(
+      {
+        status: "confirmed",
+      },
+      {
+        where: {
+          order_id: order.id,
+        },
+        transaction,
+      },
+    );
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      data: {
+        payment_status: "paid",
+        order_status: "confirmed",
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error("[verifyOrderPayment]", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify payment.",
+    });
+  }
+};
+
+
+
 module.exports = {
   createBikeRentalOrder,
   createOrder,
+  getOrder,
+  createOrderPayment,
+  verifyOrderPayment
 };

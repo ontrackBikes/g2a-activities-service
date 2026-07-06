@@ -32,6 +32,7 @@ const Order = require("./orders.model");
 const OrderItem = require("./orderItem.model");
 const Customer = require("./customer.model");
 const OrderParticipant = require("./orderParticipant.model");
+const Payment = require("./payment.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -424,6 +425,16 @@ OrderParticipant.belongsTo(OrderItem, {
   as: "orderItem",
 });
 
+Order.hasMany(Payment, {
+  foreignKey: "order_id",
+  as: "payments",
+});
+
+Payment.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
 module.exports = {
   Product,
   ProductGroup,
@@ -458,5 +469,6 @@ module.exports = {
   Order,
   OrderItem,
   OrderParticipant,
-  Customer
+  Customer,
+  Payment
 };
