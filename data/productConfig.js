@@ -66,7 +66,7 @@ module.exports = {
       paymentModes: [
         {
           paymentType: "full",
-          amount: 600,
+          amount: 500,
           label: "Pay Full",
           enabled: true,
           description: "",
@@ -169,7 +169,7 @@ module.exports = {
       paymentModes: [
         {
           paymentType: "full",
-          amount: 700,
+          amount: 500,
           label: "Pay Full",
           enabled: true,
           description:
@@ -267,7 +267,7 @@ module.exports = {
       paymentModes: [
         {
           paymentType: "full",
-          amount: 600,
+          amount: 500,
           label: "Pay Full",
           enabled: true,
           description:
