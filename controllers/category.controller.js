@@ -28,6 +28,13 @@ const createCategory = async (req, res) => {
       data: category,
     });
   } catch (err) {
+    if (err.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: "Category already exists",
+      });
+    }
+
     console.error("[createCategory]", err);
 
     return res.status(500).json({

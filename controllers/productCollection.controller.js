@@ -293,24 +293,52 @@ const getCollectionsWithProducts = async (req, res) => {
               where: {
                 active: true,
               },
+              attributes: {
+                exclude: [
+                  "group_id",
+                  "createdAt",
+                  "updatedAt",
+                ],
+              },
 
               include: [
                 {
                   model: ProductType,
                   as: "productType",
+                  attributes: {
+                    exclude: [
+                      "id",
+                      "category_id",
+                      "createdAt",
+                      "updatedAt",
+                    ],
+                  },
                   include: [
                     {
                       model: Category,
                       as: "category",
                       attributes: {
-                        exclude: ["id"]
-                      }
+                        exclude: [
+                          "id",
+                          "createdAt",
+                          "updatedAt",
+                        ],
+                      },
                     },
-                  ]
+                  ],
                 },
                 {
                   model: ProductImage,
                   as: "images",
+                  attributes: {
+                    exclude: [
+                      "id",
+                      "product_id",
+                      "active",
+                      "created_at",
+                      "updated_at",
+                    ],
+                  },
                   required: false,
                   where: {
                     active: true,
@@ -422,7 +450,6 @@ const getCollectionsWithProducts = async (req, res) => {
         }
 
         acc.get(productId).set(location.id, {
-          id: location.id,
           name: location.name,
           slug: location.slug,
         });
@@ -453,16 +480,45 @@ const getCollectionsWithProducts = async (req, res) => {
               locationMap.get(productId).values(),
             )
           : [];
+        const product = mapping.product.toJSON();
+        const {
+          productType,
+          images,
+          group_id,
+          createdAt,
+          updatedAt,
+          ...productFields
+        } = product;
+        const {
+          category,
+          id: productTypeId,
+          category_id: categoryId,
+          createdAt: productTypeCreatedAt,
+          updatedAt: productTypeUpdatedAt,
+          ...productTypeFields
+        } = productType || {};
+        const sanitizedImages = (images || []).map(
+          ({
+            id,
+            product_id,
+            active,
+            created_at,
+            updated_at,
+            ...image
+          }) => image,
+        );
 
         return {
-          ...mapping.product.toJSON(),
+          ...productFields,
+          productType: productType
+            ? productTypeFields
+            : null,
+          category: category || null,
+          images: sanitizedImages,
           available: Boolean(availability),
           out_of_stock: !availability,
           starting_price: availability
             ? availability.pricing.display_price
-            : null,
-          base_price: availability
-            ? availability.pricing.base_price
             : null,
           price_type: availability
             ? availability.pricing.price_type
