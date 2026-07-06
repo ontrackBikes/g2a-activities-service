@@ -264,19 +264,19 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Slot Required
+    | Slot Required if the product type is slot based and no slots found
     |--------------------------------------------------------------------------
     */
 
-    if (
-      estimate.booking_mode === "single_date" &&
-      !estimate.vendor_schedule_slot_id
-    ) {
-      throw {
-        status: 400,
-        message: "Please select a slot.",
-      };
-    }
+    // if (
+    //   estimate.booking_mode === "single_date" &&
+    //   !estimate.vendor_schedule_slot_id
+    // ) {
+    //   throw {
+    //     status: 400,
+    //     message: "Please select a slot.",
+    //   };
+    // }
 
     /*
     |--------------------------------------------------------------------------
