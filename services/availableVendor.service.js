@@ -18,18 +18,44 @@ const APP_TIMEZONE =
 const getToday = () =>
   moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
+const getCurrentTime = () =>
+  moment().tz(APP_TIMEZONE).format("HH:mm:ss");
+
 const getAvailableSchedule = async ({
   vendorProduct,
   date,
   guests,
 }) => {
+  const today = getToday();
   const scheduleWhere = {
     vendor_product_id: vendorProduct.id,
     status: "OPEN",
     schedule_date: date || {
-      [Op.gte]: getToday(),
+      [Op.gte]: today,
     },
   };
+  const slotWhere = {
+    status: "OPEN",
+    available: {
+      [Op.gte]: guests,
+    },
+    max_bookable_per_booking: {
+      [Op.gte]: guests,
+    },
+  };
+
+  if (!date || date === today) {
+    slotWhere[Op.or] = [
+      {
+        start_time: null,
+      },
+      {
+        start_time: {
+          [Op.gt]: getCurrentTime(),
+        },
+      },
+    ];
+  }
 
   const schedule = await VendorSchedule.findOne({
     where: scheduleWhere,
@@ -38,15 +64,7 @@ const getAvailableSchedule = async ({
         model: VendorScheduleSlot,
         as: "slots",
         required: true,
-        where: {
-          status: "OPEN",
-          available: {
-            [Op.gte]: guests,
-          },
-          max_bookable_per_booking: {
-            [Op.gte]: guests,
-          },
-        },
+        where: slotWhere,
       },
     ],
     order: [
@@ -228,7 +246,65 @@ const getAvailableVendorsForProducts = async ({
   return results;
 };
 
+const getAvailableVendorsForProductLocations = async ({
+  productLocations,
+  date,
+  guests = 1,
+  concurrency = 8,
+}) => {
+  const results = new Map();
+  const queue = [
+    ...new Map(
+      productLocations.map(({ productId, locationId }) => [
+        `${Number(productId)}:${Number(locationId)}`,
+        {
+          productId: Number(productId),
+          locationId: Number(locationId),
+        },
+      ]),
+    ).values(),
+  ].filter(
+    ({ productId, locationId }) =>
+      Number.isInteger(productId) &&
+      productId > 0 &&
+      Number.isInteger(locationId) &&
+      locationId > 0,
+  );
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < queue.length) {
+      const currentIndex = cursor;
+      cursor += 1;
+      const { productId, locationId } =
+        queue[currentIndex];
+      const key = `${productId}:${locationId}`;
+      const availableVendor =
+        await getAvailableVendorForProduct({
+          productId,
+          locationId,
+          date,
+          guests,
+        });
+
+      results.set(key, availableVendor);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.min(concurrency, queue.length),
+      },
+      () => worker(),
+    ),
+  );
+
+  return results;
+};
+
 module.exports = {
   getAvailableVendorForProduct,
   getAvailableVendorsForProducts,
+  getAvailableVendorsForProductLocations,
 };

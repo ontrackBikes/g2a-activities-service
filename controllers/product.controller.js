@@ -24,11 +24,11 @@ const {
 } = require("../schemas/product.schema");
 const {
   getAvailableVendorForProduct,
-  getAvailableVendorsForProducts,
+  getAvailableVendorsForProductLocations,
 } = require("../services/availableVendor.service");
 const {
   getNextAvailableSlotForProduct,
-  getNextAvailableSlotsForProducts,
+  getNextAvailableSlotsForProductLocations,
 } = require("../services/nextAvailableSlot.service");
 
 const createProduct = async (req, res) => {
@@ -280,128 +280,23 @@ const deleteProduct = async (req, res) => {
 };
 
 const searchProducts = async (req, res) => {
-  try {
-    const query = String(req.query.q || "").trim();
+  const query = String(req.query.q || "").trim();
 
-    if (query.length < 2 || query.length > 100) {
-      return res.status(400).json({
-        success: false,
-        message: "Search query must be between 2 and 100 characters",
-      });
-    }
-
-    const requestedLimit = Number.parseInt(req.query.limit, 10);
-    const limit = Number.isInteger(requestedLimit)
-      ? Math.min(Math.max(requestedLimit, 1), 20)
-      : 10;
-    const searchPattern = `%${query}%`;
-
-    const products = await Product.findAll({
-      attributes: ["name", "slug", "thumbnail_url", "thumbnail_url_sm"],
-      where: {
-        active: true,
-        [Op.or]: [
-          {
-            name: {
-              [Op.like]: searchPattern,
-            },
-          },
-          {
-            slug: {
-              [Op.like]: searchPattern,
-            },
-          },
-          {
-            "$productType.name$": {
-              [Op.like]: searchPattern,
-            },
-          },
-          {
-            "$productType.slug$": {
-              [Op.like]: searchPattern,
-            },
-          },
-          {
-            "$productType.category.name$": {
-              [Op.like]: searchPattern,
-            },
-          },
-          {
-            "$productType.category.slug$": {
-              [Op.like]: searchPattern,
-            },
-          },
-        ],
-      },
-      include: [
-        {
-          model: ProductType,
-          as: "productType",
-          attributes: ["name", "slug"],
-          required: true,
-          where: {
-            active: true,
-          },
-          include: [
-            {
-              model: Category,
-              as: "category",
-              attributes: ["name", "slug"],
-              required: true,
-              where: {
-                active: true,
-              },
-            },
-          ],
-        },
-        {
-          model: VendorProduct,
-          as: "vendorProducts",
-          attributes: [],
-          where: {
-            active: true,
-          },
-          required: true,
-        },
-      ],
-      order: [["name", "ASC"]],
-      limit,
-      subQuery: false,
-    });
-
-    const data = products.map((product) => ({
-      name: product.name,
-      slug: product.slug,
-      image: product.thumbnail_url_sm || product.thumbnail_url,
-      product_type: {
-        name: product.productType.name,
-        slug: product.productType.slug,
-      },
-      category: {
-        name: product.productType.category.name,
-        slug: product.productType.category.slug,
-      },
-    }));
-
-    return res.status(200).json({
-      success: true,
-      count: data.length,
-      data,
-    });
-  } catch (error) {
-    console.error("[ProductController] searchProducts", error);
-
-    return res.status(500).json({
+  if (query.length < 2 || query.length > 100) {
+    return res.status(400).json({
       success: false,
-      message: "Failed to search products",
+      message: "Search query must be between 2 and 100 characters",
     });
   }
+
+  return getProductsListForApp(req, res);
 };
 
 const getProductsListForApp = async (req, res) => {
   try {
     const {
-      search,
+      search: searchQuery,
+      q,
       featured,
       category_slug,
       product_type_slug,
@@ -417,6 +312,7 @@ const getProductsListForApp = async (req, res) => {
       page = 1,
       limit = 20,
     } = req.query;
+    const search = String(searchQuery || q || "").trim();
 
     const where = {
       active: true,
@@ -427,15 +323,42 @@ const getProductsListForApp = async (req, res) => {
     }
 
     if (search) {
+      const searchPattern = `%${search}%`;
+
       where[Op.or] = [
         {
           name: {
-            [Op.like]: `%${search}%`,
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          slug: {
+            [Op.like]: searchPattern,
           },
         },
         {
           short_description: {
-            [Op.like]: `%${search}%`,
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.name$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.slug$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.category.name$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.category.slug$": {
+            [Op.like]: searchPattern,
           },
         },
       ];
@@ -620,21 +543,6 @@ const getProductsListForApp = async (req, res) => {
 
     const productIds = products.map((product) => product.id);
     const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
-    const [availabilityMap, nextAvailableSlotMap] = await Promise.all([
-      getAvailableVendorsForProducts({
-        productIds,
-        locationIds: selectedLocationIds,
-        locationSlugs: selectedLocationSlugs,
-        date,
-        guests: requestedGuests,
-      }),
-      getNextAvailableSlotsForProducts({
-        productIds,
-        locationIds: selectedLocationIds,
-        locationSlugs: selectedLocationSlugs,
-        guests: requestedGuests,
-      }),
-    ]);
 
     let locationMap = {};
 
@@ -675,6 +583,7 @@ const getProductsListForApp = async (req, res) => {
         }
 
         acc[vendorProduct.product_id].set(vendorProduct.location.id, {
+          id: vendorProduct.location.id,
           name: vendorProduct.location.name,
           slug: vendorProduct.location.slug,
         });
@@ -683,15 +592,76 @@ const getProductsListForApp = async (req, res) => {
       }, {});
     }
 
+    const productLocationPairs = Object.entries(locationMap).flatMap(
+      ([productId, locations]) =>
+        Array.from(locations.values()).map((location) => ({
+          productId: Number(productId),
+          locationId: Number(location.id),
+        })),
+    );
+    const availableLocationIds = [
+      ...new Set(
+        productLocationPairs.map(({ locationId }) => locationId),
+      ),
+    ];
+    const [locationAvailabilityMap, locationNextAvailableSlotMap] =
+      await Promise.all([
+        getAvailableVendorsForProductLocations({
+          productLocations: productLocationPairs,
+          date,
+          guests: requestedGuests,
+        }),
+        getNextAvailableSlotsForProductLocations({
+          productIds,
+          locationIds: availableLocationIds,
+          locationSlugs: selectedLocationSlugs,
+          guests: requestedGuests,
+        }),
+      ]);
+
     const data = products.map((product) => {
       const json = product.toJSON();
 
-      const locations = locationMap[product.id]
+      const locationsForProduct = locationMap[product.id]
         ? Array.from(locationMap[product.id].values())
         : [];
-      const availability = availabilityMap.get(product.id);
+      const locationResults = locationsForProduct.map((location) => {
+        const key = `${Number(product.id)}:${Number(location.id)}`;
+
+        return {
+          location,
+          availability: locationAvailabilityMap.get(key) || null,
+          nextAvailableSlot:
+            locationNextAvailableSlotMap.get(key) || null,
+        };
+      });
+      const availableLocationResults = locationResults
+        .filter(({ availability }) => Boolean(availability))
+        .sort(
+          (first, second) =>
+            first.availability.pricing.display_price -
+            second.availability.pricing.display_price,
+        );
+      const availability =
+        availableLocationResults[0]?.availability || null;
       const nextAvailableSlot =
-        nextAvailableSlotMap.get(Number(product.id)) || null;
+        locationResults
+          .map(({ nextAvailableSlot: slotDate }) => slotDate)
+          .filter(Boolean)
+          .sort()[0] || null;
+      const locations = locationResults.map(
+        ({
+          location,
+          availability: locationAvailability,
+        }) => ({
+          name: location.name,
+          slug: location.slug,
+          available: Boolean(locationAvailability),
+          starting_price: locationAvailability
+            ? locationAvailability.pricing.display_price
+            : null,
+        }),
+      );
 
       return {
         slug: json.slug,

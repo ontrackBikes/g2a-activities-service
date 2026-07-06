@@ -32,6 +32,7 @@ const getNextAvailableSlotsForProducts = async ({
   locationIds = [],
   locationSlugs = [],
   guests = 1,
+  groupByLocation = false,
 }) => {
   const normalizedProductIds = normalizeIds(productIds);
 
@@ -114,11 +115,21 @@ const getNextAvailableSlotsForProducts = async ({
     scheduleAlias: "candidate_vs",
     slotAlias: "candidate_vss",
   });
+  const candidateLocationSelect = groupByLocation
+    ? "candidate_vp.location_id,"
+    : "";
+  const candidateLocationGroup = groupByLocation
+    ? ", candidate_vp.location_id"
+    : "";
+  const candidateLocationJoin = groupByLocation
+    ? "AND next_schedule.location_id = vp.location_id"
+    : "";
 
   const rows = await sequelize.query(
     `
       SELECT
         vp.product_id,
+        vp.location_id,
         vp.pricing_type,
         l.name AS location_name,
         l.slug AS location_slug,
@@ -138,6 +149,7 @@ const getNextAvailableSlotsForProducts = async ({
       INNER JOIN (
         SELECT
           candidate_vp.product_id,
+          ${candidateLocationSelect}
           MIN(candidate_vs.schedule_date) AS schedule_date
         FROM vendor_products AS candidate_vp
         INNER JOIN locations AS candidate_l
@@ -147,9 +159,12 @@ const getNextAvailableSlotsForProducts = async ({
         INNER JOIN vendor_schedule_slots AS candidate_vss
           ON candidate_vss.vendor_schedule_id = candidate_vs.id
         WHERE ${candidateConditions.join("\n          AND ")}
-        GROUP BY candidate_vp.product_id
+        GROUP BY
+          candidate_vp.product_id
+          ${candidateLocationGroup}
       ) AS next_schedule
         ON next_schedule.product_id = vp.product_id
+        ${candidateLocationJoin}
         AND next_schedule.schedule_date = vs.schedule_date
       WHERE ${conditions.join("\n        AND ")}
       ORDER BY
@@ -174,10 +189,13 @@ const getNextAvailableSlotsForProducts = async ({
 
   for (const row of rows) {
     const productId = Number(row.product_id);
+    const resultKey = groupByLocation
+      ? `${productId}:${Number(row.location_id)}`
+      : productId;
 
-    if (!results.has(productId)) {
+    if (!results.has(resultKey)) {
       results.set(
-        productId,
+        resultKey,
         formatNextAvailableSlot(row),
       );
     }
@@ -185,6 +203,20 @@ const getNextAvailableSlotsForProducts = async ({
 
   return results;
 };
+
+const getNextAvailableSlotsForProductLocations = async ({
+  productIds,
+  locationIds = [],
+  locationSlugs = [],
+  guests = 1,
+}) =>
+  getNextAvailableSlotsForProducts({
+    productIds,
+    locationIds,
+    locationSlugs,
+    guests,
+    groupByLocation: true,
+  });
 
 const getNextAvailableSlotForProduct = async ({
   productId,
@@ -214,4 +246,5 @@ const getNextAvailableSlotForProduct = async ({
 module.exports = {
   getNextAvailableSlotForProduct,
   getNextAvailableSlotsForProducts,
+  getNextAvailableSlotsForProductLocations,
 };
