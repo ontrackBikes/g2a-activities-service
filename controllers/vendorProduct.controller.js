@@ -347,9 +347,24 @@ const getVendorProduct = async (req, res) => {
       });
     }
 
+    const data = vendorProduct.toJSON();
+
+    if (data.pricing_type === "FIXED") {
+      const defaultSlot =
+        data.slots.find(
+          (slot) =>
+            slot.slot_name === "Default",
+        ) || null;
+
+      data.default_slot = defaultSlot;
+      data.slots = data.slots.filter(
+        (slot) => slot.id !== defaultSlot?.id,
+      );
+    }
+
     return res.json({
       success: true,
-      data: vendorProduct,
+      data,
     });
   } catch (error) {
     console.error("[VendorProductController] getVendorProduct", error);
