@@ -2,7 +2,7 @@ module.exports = {
   DATE: "date",
   SLOT: "slot",
   GUESTS: "guests",
-
+  QUANTITY: "quantity",
   PICKUP_LOCATION: "pickup_location",
   DROP_LOCATION: "drop_location",
 
@@ -16,5 +16,4 @@ module.exports = {
   VEHICLE: "vehicle",
 
   PROMO_CODE: "promo_code",
-  
 };

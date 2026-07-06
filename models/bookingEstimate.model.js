@@ -77,6 +77,16 @@ BookingEstimate.init(
       allowNull: true,
     },
 
+    order_public_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
+    converted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
     /**
      * Internal Slot
      *
