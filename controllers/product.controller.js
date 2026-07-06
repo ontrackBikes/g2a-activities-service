@@ -161,6 +161,13 @@ const getProducts = async (req, res) => {
           model: ProductType,
           as: "productType",
           attributes: ["id", "name", "slug"],
+          include: [
+            {
+              model: Category,
+              as: "category",
+              attributes: ["id", "name"],
+            },
+          ],
         },
         { model: VendorProduct, as: "vendorProducts" },
       ],
@@ -170,7 +177,27 @@ const getProducts = async (req, res) => {
       ],
     });
 
-    return res.json({ success: true, count: products.length, data: products });
+    const data = products.map((product) => {
+      const productData = product.toJSON();
+      const category =
+        productData.productType?.category ||
+        null;
+
+      if (productData.productType) {
+        delete productData.productType.category;
+      }
+
+      return {
+        ...productData,
+        category,
+      };
+    });
+
+    return res.json({
+      success: true,
+      count: data.length,
+      data,
+    });
   } catch (error) {
     console.error("[ProductController] getProducts", error);
     return res.status(500).json({ success: false, message: error.message });
