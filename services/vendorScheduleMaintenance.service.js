@@ -46,8 +46,8 @@ const maintainVendorProductSchedules = async (
             slot_name: "Default",
           },
           defaults: {
-            start_time: null,
-            end_time: null,
+            start_time: "09:00:00",
+            end_time: "18:00:00",
             default_price: vendorProduct.base_price,
             default_capacity:
               vendorProduct.base_capacity,

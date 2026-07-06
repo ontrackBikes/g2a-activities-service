@@ -13,10 +13,47 @@ const {
   VendorProductSlot,
 } = require("../models");
 const { Op } = require("sequelize");
+const sequelize = require("../config/sequelize");
 const {
   createVendorProductSchema,
   updateVendorProductSchema,
 } = require("../schemas/vendorProduct.schema");
+const {
+  queueVendorProductScheduleSync,
+} = require(
+  "../queues/vendorSchedule/vendorSchedule.queue"
+);
+
+const queueScheduleSync = async ({
+  vendorProductId,
+  vendorProductSlotId = null,
+  trigger,
+}) => {
+  try {
+    const job =
+      await queueVendorProductScheduleSync({
+        vendorProductId,
+        vendorProductSlotId,
+        trigger,
+      });
+
+    return {
+      queued: true,
+      job_id: job.id,
+    };
+  } catch (error) {
+    console.error(
+      "[VendorProductController] queueScheduleSync",
+      error,
+    );
+
+    return {
+      queued: false,
+      message:
+        "Vendor product saved, but schedule sync could not be queued. Use manual sync to retry.",
+    };
+  }
+};
 
 const createVendorProduct = async (req, res) => {
   try {
@@ -71,7 +108,69 @@ const createVendorProduct = async (req, res) => {
       });
     }
 
-    const vendorProduct = await VendorProduct.create(value);
+    const {
+      start_time: startTime,
+      end_time: endTime,
+      ...vendorProductData
+    } = value;
+    const hasCustomFixedTiming =
+      startTime !== undefined &&
+      endTime !== undefined;
+
+    const { vendorProduct, defaultSlot } =
+      await sequelize.transaction(
+        async (transaction) => {
+          const createdVendorProduct =
+            await VendorProduct.create(
+              vendorProductData,
+              {
+                transaction,
+              },
+            );
+          let createdDefaultSlot = null;
+
+          if (
+            value.pricing_type === "FIXED" &&
+            hasCustomFixedTiming
+          ) {
+            createdDefaultSlot =
+              await VendorProductSlot.create(
+                {
+                  vendor_product_id:
+                    createdVendorProduct.id,
+                  slot_name: "Default",
+                  start_time: startTime,
+                  end_time: endTime,
+                  default_price:
+                    createdVendorProduct.base_price,
+                  default_capacity:
+                    createdVendorProduct.base_capacity,
+                  max_bookable_per_booking:
+                    createdVendorProduct.max_bookable_per_booking,
+                  sort_order: 0,
+                  active: true,
+                },
+                {
+                  transaction,
+                },
+              );
+          }
+
+          return {
+            vendorProduct: createdVendorProduct,
+            defaultSlot: createdDefaultSlot,
+          };
+        },
+      );
+    const scheduleSync =
+      value.pricing_type !== "SLOT"
+        ? await queueScheduleSync({
+            vendorProductId: vendorProduct.id,
+            vendorProductSlotId:
+              defaultSlot?.id || null,
+            trigger: "vendor-product-created",
+          })
+        : null;
 
     return res.status(201).json({
       success: true,
@@ -82,9 +181,22 @@ const createVendorProduct = async (req, res) => {
           value.pricing_type === "SLOT"
             ? "CONFIGURE_SLOTS"
             : "GENERATE_INVENTORY",
+        default_slot: defaultSlot,
       },
+      schedule_sync: scheduleSync,
     });
   } catch (error) {
+    if (
+      error.name ===
+      "SequelizeUniqueConstraintError"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Vendor Product already exists",
+      });
+    }
+
     console.error("[VendorProductController] createVendorProduct", error);
 
     return res.status(500).json({
@@ -260,21 +372,127 @@ const updateVendorProduct = async (req, res) => {
       });
     }
 
-    const vendorProduct = await VendorProduct.findByPk(req.params.id);
+    const {
+      start_time: startTime,
+      end_time: endTime,
+      ...vendorProductUpdates
+    } = value;
+    const hasCustomFixedTiming =
+      startTime !== undefined &&
+      endTime !== undefined;
+    const updateResult =
+      await sequelize.transaction(
+        async (transaction) => {
+          const vendorProduct =
+            await VendorProduct.findByPk(
+              req.params.id,
+              {
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+              },
+            );
 
-    if (!vendorProduct) {
+          if (!vendorProduct) {
+            return null;
+          }
+
+          const effectivePricingType =
+            vendorProductUpdates.pricing_type ||
+            vendorProduct.pricing_type;
+
+          if (
+            hasCustomFixedTiming &&
+            effectivePricingType !== "FIXED"
+          ) {
+            return {
+              invalidTiming: true,
+            };
+          }
+
+          await vendorProduct.update(
+            vendorProductUpdates,
+            {
+              transaction,
+            },
+          );
+
+          let defaultSlot = null;
+
+          if (hasCustomFixedTiming) {
+            [defaultSlot] =
+              await VendorProductSlot.findOrCreate({
+                where: {
+                  vendor_product_id:
+                    vendorProduct.id,
+                  slot_name: "Default",
+                },
+                defaults: {
+                  start_time: startTime,
+                  end_time: endTime,
+                  default_price:
+                    vendorProduct.base_price,
+                  default_capacity:
+                    vendorProduct.base_capacity,
+                  max_bookable_per_booking:
+                    vendorProduct.max_bookable_per_booking,
+                  sort_order: 0,
+                  active: true,
+                },
+                transaction,
+              });
+
+            await defaultSlot.update(
+              {
+                start_time: startTime,
+                end_time: endTime,
+                active: true,
+              },
+              {
+                transaction,
+              },
+            );
+          }
+
+          return {
+            vendorProduct,
+            defaultSlot,
+          };
+        },
+      );
+
+    if (!updateResult) {
       return res.status(404).json({
         success: false,
         message: "Vendor Product not found",
       });
     }
 
-    await vendorProduct.update(value);
+    if (updateResult.invalidTiming) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "start_time and end_time are only allowed for FIXED pricing",
+      });
+    }
+
+    const { vendorProduct, defaultSlot } =
+      updateResult;
+    const scheduleSync =
+      await queueScheduleSync({
+        vendorProductId: vendorProduct.id,
+        vendorProductSlotId:
+          defaultSlot?.id || null,
+        trigger: "vendor-product-updated",
+      });
 
     return res.json({
       success: true,
       message: "Vendor Product updated successfully",
-      data: vendorProduct,
+      data: {
+        ...vendorProduct.toJSON(),
+        default_slot: defaultSlot,
+      },
+      schedule_sync: scheduleSync,
     });
   } catch (error) {
     console.error("[VendorProductController] updateVendorProduct", error);

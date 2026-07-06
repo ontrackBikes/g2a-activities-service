@@ -6,6 +6,27 @@ const PRICING_TYPES = [
   "KM_BASED",
 ];
 
+const timeSchema = Joi.string()
+  .pattern(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/)
+  .messages({
+    "string.pattern.base":
+      "Time must use HH:mm:ss format",
+  });
+
+const validateTimeRange = (value, helpers) => {
+  if (
+    value.start_time &&
+    value.end_time &&
+    value.start_time >= value.end_time
+  ) {
+    return helpers.message(
+      "end_time must be later than start_time",
+    );
+  }
+
+  return value;
+};
+
 const createVendorProductSchema = Joi.object({
   vendor_id: Joi.number()
     .integer()
@@ -45,9 +66,27 @@ const createVendorProductSchema = Joi.object({
     .min(1)
     .default(90),
 
+  start_time: Joi.when("pricing_type", {
+    is: "FIXED",
+    then: timeSchema.optional(),
+    otherwise: Joi.forbidden(),
+  }),
+
+  end_time: Joi.when("pricing_type", {
+    is: "FIXED",
+    then: timeSchema.optional(),
+    otherwise: Joi.forbidden(),
+  }),
+
   active: Joi.boolean()
     .default(true),
-});
+})
+  .and("start_time", "end_time")
+  .custom(validateTimeRange)
+  .messages({
+    "object.and":
+      "start_time and end_time must be provided together",
+  });
 
 const updateVendorProductSchema =
   Joi.object({
@@ -72,8 +111,19 @@ const updateVendorProductSchema =
         .integer()
         .min(1),
 
+    start_time: timeSchema,
+
+    end_time: timeSchema,
+
     active: Joi.boolean(),
-  }).min(1);
+  })
+    .and("start_time", "end_time")
+    .custom(validateTimeRange)
+    .min(1)
+    .messages({
+      "object.and":
+        "start_time and end_time must be provided together",
+    });
 
 module.exports = {
   createVendorProductSchema,
