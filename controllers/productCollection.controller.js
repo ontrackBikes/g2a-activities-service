@@ -474,6 +474,7 @@ const getCollectionsWithProducts = async (req, res) => {
           availabilityMap.get(mapping.product.id);
         const productId = Number(mapping.product.id);
         const nextAvailableSlot =
+          availability?.schedule?.schedule_date ||
           nextAvailableSlotMap.get(productId) || null;
         const locations = locationMap.has(productId)
           ? Array.from(

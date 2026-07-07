@@ -672,6 +672,8 @@ const getProductsListForApp = async (req, res) => {
           location,
           availability: locationAvailabilityMap.get(key) || null,
           nextAvailableSlot:
+            locationAvailabilityMap.get(key)?.schedule
+              ?.schedule_date ||
             locationNextAvailableSlotMap.get(key) || null,
         };
       });
@@ -726,7 +728,9 @@ const getProductsListForApp = async (req, res) => {
 
         price_type: availability ? availability.pricing.price_type : null,
 
-        next_available_slot: nextAvailableSlot,
+        next_available_slot:
+          availability?.schedule?.schedule_date ||
+          nextAvailableSlot,
 
         category: json.productType?.category
           ? {
@@ -1025,7 +1029,9 @@ const getProductDetailsForApp = async (req, res) => {
 
         max_bookable_per_booking,
 
-        next_available_slot: nextAvailableSlot,
+        next_available_slot:
+          availability?.schedule?.schedule_date ||
+          nextAvailableSlot,
 
         images: (product.images || []).map((image) => ({
           image_url: image.image_url,

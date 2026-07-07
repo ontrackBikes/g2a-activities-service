@@ -27,12 +27,11 @@ const getAvailableSchedule = async ({
   guests,
 }) => {
   const today = getToday();
+  const currentTime = getCurrentTime();
   const scheduleWhere = {
     vendor_product_id: vendorProduct.id,
     status: "OPEN",
-    schedule_date: date || {
-      [Op.gte]: today,
-    },
+    schedule_date: date || today,
   };
   const slotWhere = {
     status: "OPEN",
@@ -44,20 +43,20 @@ const getAvailableSchedule = async ({
     },
   };
 
-  if (!date || date === today) {
+  if (date === today || !date) {
     slotWhere[Op.or] = [
       {
         start_time: null,
       },
       {
         start_time: {
-          [Op.gt]: getCurrentTime(),
+          [Op.gt]: currentTime,
         },
       },
     ];
   }
 
-  const schedule = await VendorSchedule.findOne({
+  let schedule = await VendorSchedule.findOne({
     where: scheduleWhere,
     include: [
       {
@@ -79,6 +78,47 @@ const getAvailableSchedule = async ({
       ],
     ],
   });
+
+  if (!schedule && !date) {
+    const futureSlotWhere = {
+      status: "OPEN",
+      available: {
+        [Op.gte]: guests,
+      },
+      max_bookable_per_booking: {
+        [Op.gte]: guests,
+      },
+    };
+
+    schedule = await VendorSchedule.findOne({
+      where: {
+        vendor_product_id: vendorProduct.id,
+        status: "OPEN",
+        schedule_date: {
+          [Op.gt]: today,
+        },
+      },
+      include: [
+        {
+          model: VendorScheduleSlot,
+          as: "slots",
+          required: true,
+          where: futureSlotWhere,
+        },
+      ],
+      order: [
+        ["schedule_date", "ASC"],
+        [
+          {
+            model: VendorScheduleSlot,
+            as: "slots",
+          },
+          "price",
+          "ASC",
+        ],
+      ],
+    });
+  }
 
   if (!schedule) {
     return null;
