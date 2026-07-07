@@ -84,29 +84,39 @@ const checkSingleDate = async ({ product, location, payload }) => {
    * Available
    */
 
+  const isSlotPricing =
+    availability.vendorProduct.pricing_type === "SLOT";
+
   const slot_mapping = {};
 
-  const slots = availability.slots.map((slot) => {
-    const token = `slot_${randomUUID().replace(/-/g, "")}`;
+  const slots = isSlotPricing
+    ? availability.slots.map((slot) => {
+        const token = `slot_${randomUUID().replace(/-/g, "")}`;
 
-    slot_mapping[token] = slot.id;
+        slot_mapping[token] = slot.id;
 
-    return {
-      token,
+        return {
+          token,
 
-      name: slot.slot_name,
+          name: slot.slot_name,
 
-      start_time: slot.start_time,
+          start_time: slot.start_time,
 
-      end_time: slot.end_time,
+          end_time: slot.end_time,
 
-      price: Number(slot.price),
+          price: Number(slot.price),
 
-      available: slot.available,
+          available: slot.available,
 
-      max_bookable_per_booking: slot.max_bookable_per_booking,
-    };
-  });
+          max_bookable_per_booking:
+            slot.max_bookable_per_booking,
+        };
+      })
+    : [];
+
+  const fixedScheduleSlot = !isSlotPricing
+    ? availability.slots[0]
+    : null;
 
   const quotation = buildBookingQuote({
     product,
@@ -121,7 +131,7 @@ const checkSingleDate = async ({ product, location, payload }) => {
     pricing: {
       currency: "INR",
 
-      price_type: availability.pricing.price_type,
+      pricing_type: availability.pricing.price_type,
 
       unit_price: unitPrice,
 
@@ -137,11 +147,17 @@ const checkSingleDate = async ({ product, location, payload }) => {
     },
 
     availability: {
-      vendor_product_id: availability.vendorProduct.id,
-
       pricing_type: availability.vendorProduct.pricing_type,
 
       slots,
+
+      inventory: fixedScheduleSlot
+        ? {
+            available: fixedScheduleSlot.available,
+            max_bookable_per_booking:
+              fixedScheduleSlot.max_bookable_per_booking,
+          }
+        : null,
     },
   });
 
@@ -153,6 +169,8 @@ const checkSingleDate = async ({ product, location, payload }) => {
     vendorProduct: availability.vendorProduct,
 
     vendorSchedule: availability.schedule,
+
+    vendorScheduleSlot: fixedScheduleSlot,
 
     requestData: payload,
 

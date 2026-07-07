@@ -376,15 +376,22 @@ const createOrderService = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     */
 
-    // if (
-    //   estimate.booking_mode === "single_date" &&
-    //   !estimate.vendor_schedule_slot_id
-    // ) {
-    //   throw {
-    //     status: 400,
-    //     message: "Please select a slot.",
-    //   };
-    // }
+    const requiresSlotSelection =
+      estimate.booking_mode === "single_date" &&
+      Array.isArray(
+        estimate.quotation?.availability?.slots,
+      ) &&
+      estimate.quotation.availability.slots.length > 0;
+
+    if (
+      requiresSlotSelection &&
+      !estimate.vendor_schedule_slot_id
+    ) {
+      throw {
+        status: 400,
+        message: "Please select a slot.",
+      };
+    }
 
     /*
     |--------------------------------------------------------------------------

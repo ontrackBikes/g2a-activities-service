@@ -460,13 +460,11 @@ const getCollectionsWithProducts = async (req, res) => {
     );
 
     const data = collections.map((collection) => ({
-      id: collection.id,
       name: collection.name,
       slug: collection.slug,
       description: collection.description,
       banner_url: collection.banner_url,
       entity_type: collection.entity_type,
-      entity_id: collection.entity_id,
       sort_order: collection.sort_order,
 
       products: collection.productMappings.map((mapping) => {
@@ -483,6 +481,7 @@ const getCollectionsWithProducts = async (req, res) => {
           : [];
         const product = mapping.product.toJSON();
         const {
+          id,
           productType,
           images,
           group_id,

@@ -152,7 +152,7 @@ module.exports.selectEstimateSlot = async (req, res) => {
       slot_token;
 
     estimate.vendor_schedule_slot_id =
-      slot.vendor_schedule_slot_id;
+      slot.id;
 
     estimate.vendor_schedule_id =
       slot.vendor_schedule_id;
@@ -183,7 +183,7 @@ module.exports.selectEstimateSlot = async (req, res) => {
       selected_slot: {
         token: slot_token,
 
-        name: slot.name,
+        name: slot.slot_name,
 
         start_time: slot.start_time,
 
