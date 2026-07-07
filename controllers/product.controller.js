@@ -121,7 +121,13 @@ const createProduct = async (req, res) => {
 
 const getProducts = async (req, res) => {
   try {
-    const { active, group_id, product_type_id, search } = req.query;
+    const {
+      active,
+      group_id,
+      product_type_id,
+      category_id,
+      search,
+    } = req.query;
 
     const where = {};
 
@@ -161,6 +167,13 @@ const getProducts = async (req, res) => {
           model: ProductType,
           as: "productType",
           attributes: ["id", "name", "slug"],
+          ...(category_id
+            ? {
+                where: {
+                  category_id,
+                },
+              }
+            : {}),
           include: [
             {
               model: Category,
