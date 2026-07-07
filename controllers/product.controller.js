@@ -728,7 +728,12 @@ const getProductsListForApp = async (req, res) => {
 
         next_available_slot: nextAvailableSlot,
 
-        category: json.productType?.category || null,
+        category: json.productType?.category
+          ? {
+              name: json.productType.category.name,
+              slug: json.productType.category.slug,
+            }
+          : null,
 
         product_type: json.productType
           ? {
@@ -823,6 +828,15 @@ const getProductDetailsForApp = async (req, res) => {
         {
           model: BookingTemplate,
           as: "bookingTemplate",
+          attributes: [
+            "name",
+            "slug",
+            "description",
+            "product_page_schema",
+            "booking_page_schema",
+            "version",
+            "active",
+          ],
         },
 
         {

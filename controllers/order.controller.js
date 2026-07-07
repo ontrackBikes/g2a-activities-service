@@ -4,6 +4,10 @@ const bikeRentalService = require("../services/bikeRentals.service");
 const razorpayService = require("../services/razorpay.service");
 const BookingEstimate = require("../models/bookingEstimate.model");
 const {
+  Op,
+} = require("sequelize");
+
+const {
   Product,
   BookingTemplate,
   Order,
@@ -16,6 +20,110 @@ const {
 
 const { validateBookingPayload } = require("../schemas/bookingPayload.schema");
 const sequelize = require("../config/sequelize");
+
+const parsePositiveInteger = (value, defaultValue, maxValue = null) => {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return defaultValue;
+  }
+
+  return maxValue ? Math.min(parsed, maxValue) : parsed;
+};
+
+const buildDateRangeFilter = ({ dateFrom, dateTo }) => {
+  if (!dateFrom && !dateTo) {
+    return null;
+  }
+
+  const range = {};
+
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+
+    if (!Number.isNaN(from.getTime())) {
+      from.setHours(0, 0, 0, 0);
+      range[Op.gte] = from;
+    }
+  }
+
+  if (dateTo) {
+    const to = new Date(dateTo);
+
+    if (!Number.isNaN(to.getTime())) {
+      to.setHours(23, 59, 59, 999);
+      range[Op.lte] = to;
+    }
+  }
+
+  return Object.keys(range).length ? range : null;
+};
+
+const formatOrderListItem = (order) => {
+  const plainOrder = order.toJSON();
+  const items = plainOrder.items || [];
+  const payments = plainOrder.payments || [];
+  const firstItem = items[0] || null;
+  const latestPayment = payments[0] || null;
+
+  return {
+    order_id: plainOrder.order_id,
+    estimate_id: plainOrder.estimate_id,
+    order_status: plainOrder.order_status,
+    payment_status: plainOrder.payment_status,
+    currency: plainOrder.currency,
+    subtotal: Number(plainOrder.subtotal),
+    discount: Number(plainOrder.discount),
+    tax: Number(plainOrder.tax),
+    grand_total: Number(plainOrder.grand_total),
+    created_at: plainOrder.created_at,
+    updated_at: plainOrder.updated_at,
+
+    customer: plainOrder.customer
+      ? {
+          customer_id: plainOrder.customer.customer_id,
+          first_name: plainOrder.customer.first_name,
+          last_name: plainOrder.customer.last_name,
+          email: plainOrder.customer.email,
+          mobile: plainOrder.customer.mobile,
+          country: plainOrder.customer.country,
+        }
+      : null,
+
+    item_count: items.length,
+
+    primary_item: firstItem
+      ? {
+          product_id: firstItem.product_id,
+          product_name: firstItem.product_name,
+          product_slug: firstItem.product_slug,
+          thumbnail_url: firstItem.thumbnail_url,
+          location_id: firstItem.location_id,
+          location_name: firstItem.location_name,
+          location_slug: firstItem.location_slug,
+          vendor_id: firstItem.vendor_id,
+          vendor_product_id: firstItem.vendor_product_id,
+          booking_mode: firstItem.booking_mode,
+          status: firstItem.status,
+        }
+      : null,
+
+    latest_payment: latestPayment
+      ? {
+          payment_id: latestPayment.payment_id,
+          gateway: latestPayment.gateway,
+          gateway_order_id: latestPayment.gateway_order_id,
+          gateway_payment_id: latestPayment.gateway_payment_id,
+          amount: Number(latestPayment.amount),
+          currency: latestPayment.currency,
+          status: latestPayment.status,
+          paid_at: latestPayment.paid_at,
+          expires_at: latestPayment.expires_at,
+          created_at: latestPayment.created_at,
+        }
+      : null,
+  };
+};
 
 const normalizePickupDropPayload = (payload) => {
   const clean = { ...payload };
@@ -611,6 +719,248 @@ const createOrder = async (req, res) => {
   }
 };
 
+const getOrders = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      order_status,
+      payment_status,
+      search,
+      order_id,
+      estimate_id,
+      customer_mobile,
+      customer_email,
+      product_id,
+      location_id,
+      vendor_id,
+      vendor_product_id,
+      booking_mode,
+      date_from,
+      date_to,
+      sort_by = "created_at",
+      sort_order = "DESC",
+    } = req.query;
+
+    const pageNumber = parsePositiveInteger(page, 1);
+    const pageSize = parsePositiveInteger(limit, 20, 100);
+    const offset = (pageNumber - 1) * pageSize;
+
+    const allowedSortColumns = new Set([
+      "created_at",
+      "updated_at",
+      "grand_total",
+      "order_status",
+      "payment_status",
+    ]);
+
+    const orderWhere = {};
+    const customerWhere = {};
+    const itemWhere = {};
+
+    if (order_status) {
+      orderWhere.order_status = order_status;
+    }
+
+    if (payment_status) {
+      orderWhere.payment_status = payment_status;
+    }
+
+    if (order_id) {
+      orderWhere.order_id = order_id;
+    }
+
+    if (estimate_id) {
+      orderWhere.estimate_id = estimate_id;
+    }
+
+    const createdAtFilter = buildDateRangeFilter({
+      dateFrom: date_from,
+      dateTo: date_to,
+    });
+
+    if (createdAtFilter) {
+      orderWhere.created_at = createdAtFilter;
+    }
+
+    if (customer_mobile) {
+      customerWhere.mobile = customer_mobile;
+    }
+
+    if (customer_email) {
+      customerWhere.email = customer_email;
+    }
+
+    if (product_id) {
+      itemWhere.product_id = product_id;
+    }
+
+    if (location_id) {
+      itemWhere.location_id = location_id;
+    }
+
+    if (vendor_id) {
+      itemWhere.vendor_id = vendor_id;
+    }
+
+    if (vendor_product_id) {
+      itemWhere.vendor_product_id = vendor_product_id;
+    }
+
+    if (booking_mode) {
+      itemWhere.booking_mode = booking_mode;
+    }
+
+    if (search && String(search).trim()) {
+      const searchTerm = String(search).trim();
+      const searchLike = {
+        [Op.like]: `%${searchTerm}%`,
+      };
+
+      orderWhere[Op.or] = [
+        {
+          order_id: searchLike,
+        },
+        {
+          estimate_id: searchLike,
+        },
+        {
+          "$customer.first_name$": searchLike,
+        },
+        {
+          "$customer.last_name$": searchLike,
+        },
+        {
+          "$customer.email$": searchLike,
+        },
+        {
+          "$customer.mobile$": searchLike,
+        },
+        {
+          "$items.product_name$": searchLike,
+        },
+        {
+          "$items.location_name$": searchLike,
+        },
+      ];
+    }
+
+    const sortColumn = allowedSortColumns.has(sort_by)
+      ? sort_by
+      : "created_at";
+    const sortDirection =
+      String(sort_order).toUpperCase() === "ASC"
+        ? "ASC"
+        : "DESC";
+
+    const orders = await Order.findAndCountAll({
+      where: orderWhere,
+      distinct: true,
+
+      attributes: [
+        "id",
+        "order_id",
+        "estimate_id",
+        "currency",
+        "subtotal",
+        "discount",
+        "tax",
+        "grand_total",
+        "payment_status",
+        "order_status",
+        "created_at",
+        "updated_at",
+      ],
+
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [
+            "customer_id",
+            "first_name",
+            "last_name",
+            "email",
+            "mobile",
+            "country",
+          ],
+          where: Object.keys(customerWhere).length
+            ? customerWhere
+            : undefined,
+          required:
+            Boolean(search && String(search).trim()) ||
+            Object.keys(customerWhere).length > 0,
+        },
+        {
+          model: OrderItem,
+          as: "items",
+          attributes: [
+            "product_id",
+            "product_name",
+            "product_slug",
+            "thumbnail_url",
+            "location_id",
+            "location_name",
+            "location_slug",
+            "vendor_id",
+            "vendor_product_id",
+            "booking_mode",
+            "status",
+          ],
+          where: Object.keys(itemWhere).length
+            ? itemWhere
+            : undefined,
+          required:
+            Boolean(search && String(search).trim()) ||
+            Object.keys(itemWhere).length > 0,
+        },
+        {
+          model: Payment,
+          as: "payments",
+          attributes: [
+            "payment_id",
+            "gateway",
+            "gateway_order_id",
+            "gateway_payment_id",
+            "amount",
+            "currency",
+            "status",
+            "paid_at",
+            "expires_at",
+            "created_at",
+          ],
+          required: false,
+          separate: true,
+          limit: 1,
+          order: [["created_at", "DESC"]],
+        },
+      ],
+
+      order: [[sortColumn, sortDirection]],
+      limit: pageSize,
+      offset,
+      subQuery: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      page: pageNumber,
+      limit: pageSize,
+      total: orders.count,
+      total_pages: Math.ceil(orders.count / pageSize),
+      count: orders.rows.length,
+      data: orders.rows.map(formatOrderListItem),
+    });
+  } catch (error) {
+    console.error("[getOrders]", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders.",
+    });
+  }
+};
+
 const getOrder = async (req, res) => {
   try {
     const { order_id } = req.params;
@@ -1056,6 +1406,7 @@ const verifyOrderPayment = async (req, res) => {
 module.exports = {
   createBikeRentalOrder,
   createOrder,
+  getOrders,
   getOrder,
   createOrderPayment,
   verifyOrderPayment

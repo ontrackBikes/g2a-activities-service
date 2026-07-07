@@ -485,6 +485,8 @@ const getCollectionsWithProducts = async (req, res) => {
           productType,
           images,
           group_id,
+          booking_template_id,
+          product_type_id,
           createdAt,
           updatedAt,
           ...productFields

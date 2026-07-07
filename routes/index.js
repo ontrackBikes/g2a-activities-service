@@ -28,6 +28,7 @@ const productTagRoutes = require("./productTag.routes");
 const bookingTemplate = require("./bookingTemplate.routes");
 const bookingEstimate = require("./bookingEstimate.routes");
 const order = require("./order.routes");
+const bikeRentalsRoutes = require("./bikeRentals.routes");
 
 
 const productCollectionRoutes =
@@ -111,5 +112,10 @@ router.use(
 router.use(
   "/orders",
   order,
+);
+
+router.use(
+  "/bike-rentals",
+  bikeRentalsRoutes,
 );
 module.exports = router;
