@@ -1,6 +1,7 @@
 // services/booking/availableVendor.service.js
 
 const { Op } = require("sequelize");
+const moment = require("moment-timezone");
 
 const {
   VendorProduct,
@@ -8,12 +9,41 @@ const {
   VendorScheduleSlot,
 } = require("../../models");
 
+const APP_TIMEZONE =
+  process.env.APP_TIMEZONE || "Asia/Kolkata";
+
 const getAvailableVendorForProduct = async ({
   productId,
   locationId,
   date,
   guests,
 }) => {
+  const now = moment().tz(APP_TIMEZONE);
+  const today = now.format("YYYY-MM-DD");
+  const currentTime = now.format("HH:mm:ss");
+  const slotWhere = {
+    status: "OPEN",
+    available: {
+      [Op.gte]: guests,
+    },
+    max_bookable_per_booking: {
+      [Op.gte]: guests,
+    },
+  };
+
+  if (date === today) {
+    slotWhere[Op.or] = [
+      {
+        start_time: null,
+      },
+      {
+        start_time: {
+          [Op.gt]: currentTime,
+        },
+      },
+    ];
+  }
+
   const schedules = await VendorSchedule.findAll({
     where: {
       schedule_date: date,
@@ -38,17 +68,9 @@ const getAvailableVendorForProduct = async ({
         model: VendorScheduleSlot,
         as: "slots",
 
-        required: false,
+        required: true,
 
-        where: {
-          status: "OPEN",
-          available: {
-            [Op.gte]: guests,
-          },
-          max_bookable_per_booking: {
-            [Op.gte]: guests,
-          },
-        },
+        where: slotWhere,
       },
     ],
 
@@ -98,7 +120,7 @@ const getAvailableVendorForProduct = async ({
           vendorProduct,
 
           pricing: {
-            pricing_type: "SLOT",
+            price_type: "SLOT",
             display_price: displayPrice,
           },
 
@@ -114,8 +136,13 @@ const getAvailableVendorForProduct = async ({
      */
 
     if (vendorProduct.pricing_type === "FIXED") {
+      if (!schedule.slots.length) {
+        continue;
+      }
+
       const displayPrice = Number(
-        vendorProduct.base_price,
+        schedule.slots[0].price ||
+          vendorProduct.base_price,
       );
 
       if (
@@ -126,11 +153,11 @@ const getAvailableVendorForProduct = async ({
           vendorProduct,
 
           pricing: {
-            pricing_type: "FIXED",
+            price_type: "FIXED",
             display_price: displayPrice,
           },
 
-          slots: [],
+          slots: schedule.slots,
         };
       }
     }
