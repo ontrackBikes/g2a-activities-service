@@ -443,7 +443,7 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     let customer = await Customer.findOne({
       where: {
-        mobile: payload.customer_details.mobile,
+        mobile: payload.customer_details.phone,
       },
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -458,7 +458,7 @@ const createOrderService = async ({ estimateId, payload }) => {
 
           email: payload.customer_details.email,
 
-          mobile: payload.customer_details.mobile,
+          mobile: payload.customer_details.phone,
 
           country: payload.customer_details.country,
         },
