@@ -2,7 +2,9 @@ const { randomUUID } = require("crypto");
 
 const BookingEstimate = require("../../models/bookingEstimate.model");
 
-const createBookingEstimate = async ({
+const saveBookingEstimate = async ({
+  estimateId = null,
+
   product,
   location,
 
@@ -20,49 +22,30 @@ const createBookingEstimate = async ({
 
   source = "website",
 }) => {
-  return BookingEstimate.create({
-    /**
-     * Public Estimate ID
-     */
-    estimate_id: randomUUID(),
-
+  const payload = {
     /**
      * Product
      */
     product_id: product.id,
-
     location_id: location.id,
 
     /**
      * Vendor
      */
-    vendor_product_id:
-      vendorProduct?.id || null,
-
-    vendor_id:
-      vendorProduct?.vendor_id || null,
-
-    vendor_schedule_id:
-      vendorSchedule?.id || null,
+    vendor_product_id: vendorProduct?.id || null,
+    vendor_id: vendorProduct?.vendor_id || null,
+    vendor_schedule_id: vendorSchedule?.id || null,
 
     /**
      * Slot
-     * Initially NULL.
-     * Updated after customer selects one.
      */
-    selected_slot_token: null,
-
-    vendor_schedule_slot_id:
-      vendorScheduleSlot?.id || null,
+    vendor_schedule_slot_id: vendorScheduleSlot?.id || null,
 
     /**
      * Booking
      */
-    booking_mode:
-      product.booking_mode,
-
+    booking_mode: product.booking_mode,
     request_data: requestData,
-
     booking_data: bookingData,
 
     /**
@@ -71,19 +54,13 @@ const createBookingEstimate = async ({
     pricing,
 
     /**
-     * Snapshot returned to customer
+     * Snapshot
      */
     quotation,
-
     quotation_version: 1,
 
     /**
-     * Internal metadata
-     *
-     * Example:
-     * {
-     *   slot_mapping: {}
-     * }
+     * Metadata
      */
     metadata,
 
@@ -93,16 +70,45 @@ const createBookingEstimate = async ({
     source,
 
     /**
-     * Estimate
+     * Status
      */
     status: "draft",
 
-    expires_at: new Date(
-      Date.now() + 15 * 60 * 1000,
-    ),
+    /**
+     * Extend expiry on every update
+     */
+    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+  };
+
+  /**
+   * Update existing estimate
+   */
+  if (estimateId) {
+    const estimate = await BookingEstimate.findOne({
+      where: {
+        estimate_id: estimateId,
+        status: "draft",
+      },
+    });
+
+    if (estimate) {
+      await estimate.update(payload);
+      return estimate;
+    }
+  }
+
+  /**
+   * Create new estimate
+   */
+  return BookingEstimate.create({
+    estimate_id: randomUUID(),
+
+    selected_slot_token: null,
+
+    ...payload,
   });
 };
 
 module.exports = {
-  createBookingEstimate,
+  saveBookingEstimate,
 };

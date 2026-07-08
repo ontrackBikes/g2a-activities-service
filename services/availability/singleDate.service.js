@@ -5,12 +5,12 @@ const moment = require("moment-timezone");
 const { getAvailableVendorForProduct } = require("./availableVendor.service");
 
 const buildBookingQuote = require("./buildBookingQuote");
-const { createBookingEstimate } = require("./createBookingEstimate.service");
 const { randomUUID } = require("crypto");
+const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
-const checkSingleDate = async ({ product, location, payload }) => {
+const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
   /**
@@ -37,12 +37,14 @@ const checkSingleDate = async ({ product, location, payload }) => {
    * Availability
    */
 
-  const availability = await getAvailableVendorForProduct({
+  const availabilityPayload = {
     productId: product.id,
     locationId: location.id,
     date: payload.date,
     guests: payload.guests,
-  });
+  };
+
+  const availability = await getAvailableVendorForProduct(availabilityPayload);
 
   /**
    * Not Available
@@ -84,8 +86,7 @@ const checkSingleDate = async ({ product, location, payload }) => {
    * Available
    */
 
-  const isSlotPricing =
-    availability.vendorProduct.pricing_type === "SLOT";
+  const isSlotPricing = availability.vendorProduct.pricing_type === "SLOT";
 
   const slot_mapping = {};
 
@@ -108,15 +109,13 @@ const checkSingleDate = async ({ product, location, payload }) => {
 
           available: slot.available,
 
-          max_bookable_per_booking:
-            slot.max_bookable_per_booking,
+          max_bookable_per_booking: slot.max_bookable_per_booking,
         };
       })
     : [];
 
-  const fixedScheduleSlot = !isSlotPricing
-    ? availability.slots[0]
-    : null;
+  const selectedSlot = slots.length ? slots[0] : null;
+  const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
 
   const quotation = buildBookingQuote({
     product,
@@ -150,7 +149,12 @@ const checkSingleDate = async ({ product, location, payload }) => {
       pricing_type: availability.vendorProduct.pricing_type,
 
       slots,
-
+      selected_slot: selectedSlot
+        ? {
+            token: selectedSlot.token,
+            slot_id: slot_mapping[selectedSlot.token],
+          }
+        : null,
       inventory: fixedScheduleSlot
         ? {
             available: fixedScheduleSlot.available,
@@ -161,19 +165,17 @@ const checkSingleDate = async ({ product, location, payload }) => {
     },
   });
 
-  const estimate = await createBookingEstimate({
-    product,
+  const estimate = await saveBookingEstimate({
+    estimateId,
 
+    product,
     location,
 
     vendorProduct: availability.vendorProduct,
-
     vendorSchedule: availability.schedule,
-
     vendorScheduleSlot: fixedScheduleSlot,
 
     requestData: payload,
-
     bookingData: quotation.booking,
 
     pricing: quotation.pricing,

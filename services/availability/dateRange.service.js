@@ -5,7 +5,7 @@ const {
   DateRangeAvailabilityError,
 } = require("./availableVendorDateRange.service");
 const buildBookingQuote = require("./buildBookingQuote");
-const { createBookingEstimate } = require("./createBookingEstimate.service");
+const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -13,18 +13,15 @@ module.exports.checkDateRange = async ({
   product,
   location,
   payload,
+  estimateId,
 }) => {
-  const today = moment()
-    .tz(APP_TIMEZONE)
-    .format("YYYY-MM-DD");
+  const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
   /**
    * Validate Dates
    */
 
-  if (
-    !moment(payload.pickup_date, "YYYY-MM-DD", true).isValid()
-  ) {
+  if (!moment(payload.pickup_date, "YYYY-MM-DD", true).isValid()) {
     return {
       status: 400,
       success: false,
@@ -32,9 +29,7 @@ module.exports.checkDateRange = async ({
     };
   }
 
-  if (
-    !moment(payload.return_date, "YYYY-MM-DD", true).isValid()
-  ) {
+  if (!moment(payload.return_date, "YYYY-MM-DD", true).isValid()) {
     return {
       status: 400,
       success: false,
@@ -62,14 +57,13 @@ module.exports.checkDateRange = async ({
    * Availability
    */
 
-  const availability =
-    await getAvailableDateRangeVendor({
-      productId: product.id,
-      locationId: location.id,
-      pickupDate: payload.pickup_date,
-      returnDate: payload.return_date,
-      guests: payload.guests,
-    });
+  const availability = await getAvailableDateRangeVendor({
+    productId: product.id,
+    locationId: location.id,
+    pickupDate: payload.pickup_date,
+    returnDate: payload.return_date,
+    guests: payload.guests,
+  });
 
   /**
    * Not Available
@@ -80,8 +74,7 @@ module.exports.checkDateRange = async ({
       status: 200,
       success: true,
       available: false,
-      message:
-        "Product is not available for the selected dates.",
+      message: "Product is not available for the selected dates.",
 
       data: buildBookingQuote({
         product,
@@ -95,6 +88,37 @@ module.exports.checkDateRange = async ({
       }),
     };
   }
+
+  const isSlotPricing = availability.vendorProduct.pricing_type === "SLOT";
+
+  const slot_mapping = {};
+
+  const slots = isSlotPricing
+    ? availability.slots.map((slot) => {
+        const token = `slot_${randomUUID().replace(/-/g, "")}`;
+
+        slot_mapping[token] = slot.id;
+
+        return {
+          token,
+
+          name: slot.slot_name,
+
+          start_time: slot.start_time,
+
+          end_time: slot.end_time,
+
+          price: Number(slot.price),
+
+          available: slot.available,
+
+          max_bookable_per_booking: slot.max_bookable_per_booking,
+        };
+      })
+    : [];
+
+  const selectedSlot = slots.length ? slots[0] : null;
+  const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
 
   /**
    * Build quotation
@@ -125,12 +149,10 @@ module.exports.checkDateRange = async ({
     },
 
     availability: {
-      daily_pricing: availability.daily_pricing.map(
-        (day) => ({
-          date: day.date,
-          unit_price: day.unit_price,
-        }),
-      ),
+      daily_pricing: availability.daily_pricing.map((day) => ({
+        date: day.date,
+        unit_price: day.unit_price,
+      })),
     },
   });
 
@@ -138,22 +160,26 @@ module.exports.checkDateRange = async ({
    * Create Estimate
    */
 
-  const estimate = await createBookingEstimate({
-    product,
+  const estimate = await saveBookingEstimate({
+    estimateId,
 
+    product,
     location,
 
     vendorProduct: availability.vendorProduct,
+    vendorSchedule: availability.schedule,
+    vendorScheduleSlot: fixedScheduleSlot,
 
     requestData: payload,
-
     bookingData: quotation.booking,
 
     pricing: quotation.pricing,
 
     quotation,
 
-    metadata: {},
+    metadata: {
+      slot_mapping,
+    },
   });
 
   quotation.estimate_id = estimate.estimate_id;

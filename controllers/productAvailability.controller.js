@@ -1,6 +1,12 @@
 const moment = require("moment-timezone");
 
-const { Product, ProductType, Location, Category } = require("../models");
+const {
+  Product,
+  ProductType,
+  Location,
+  Category,
+  BookingTemplate,
+} = require("../models");
 const {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
@@ -15,13 +21,36 @@ const {
 const {
   checkDateRange,
 } = require("../services/availability/dateRange.service.js");
-const { checkSingleDate } = require("../services/availability/singleDate.service.js");
+const {
+  checkSingleDate,
+} = require("../services/availability/singleDate.service.js");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
-
 const checkProductAvailability = async (req, res) => {
   try {
+    const { slug } = req.params;
+
+    // Default travel date
+    const payload = {
+      ...req.body,
+      date: req.body.date || moment().format("YYYY-MM-DD"),
+    };
+
+    // Parse "<product>-in-<location>"
+    const match = slug.match(/^(.*)-in-(.*)$/);
+
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product URL.",
+      });
+    }
+
+    const [, productSlug, locationSlug] = match;
+
+    payload.location_slug = locationSlug;
+
     /**
      * Product
      */
@@ -31,27 +60,29 @@ const checkProductAvailability = async (req, res) => {
         "slug",
         "name",
         "booking_mode",
-        "thumbnail_url"
+        "thumbnail_url",
       ],
 
       where: {
-        slug: req.params.slug,
+        slug: productSlug,
         active: true,
       },
 
       include: [
         {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+          attributes: {
+            exclude: ["id"],
+            include: ["product_page_schema"],
+          },
+        },
+        {
           model: ProductType,
           as: "productType",
-
           attributes: ["slug"],
-
           required: true,
-
-          where: {
-            active: true,
-          },
-
+          where: { active: true },
           include: [
             {
               model: Category,
@@ -65,36 +96,31 @@ const checkProductAvailability = async (req, res) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: "Product not found.",
       });
     }
 
     /**
-     * Validation
+     * Validate request
      */
-
-    const validationSchemas = {
+    const schemaMap = {
       single_date: checkSingleDateAvailabilitySchema,
       date_range: checkDateRangeAvailabilitySchema,
     };
 
-    const schema =
-      validationSchemas[product.booking_mode];
+    const schema = schemaMap[product.booking_mode];
 
     if (!schema) {
       return res.status(400).json({
         success: false,
-        message: `Unsupported booking mode '${product.booking_mode}'`,
+        message: `Unsupported booking mode '${product.booking_mode}'.`,
       });
     }
 
-    const { error, value } = schema.validate(
-      req.body,
-      {
-        abortEarly: true,
-        stripUnknown: true,
-      },
-    );
+    const { error, value } = schema.validate(payload, {
+      abortEarly: true,
+      stripUnknown: true,
+    });
 
     if (error) {
       return res.status(400).json({
@@ -106,14 +132,8 @@ const checkProductAvailability = async (req, res) => {
     /**
      * Location
      */
-
     const location = await Location.findOne({
-      attributes: [
-        "id",
-        "slug",
-        "name",
-      ],
-
+      attributes: ["id", "slug", "name"],
       where: {
         slug: value.location_slug,
         active: true,
@@ -123,66 +143,41 @@ const checkProductAvailability = async (req, res) => {
     if (!location) {
       return res.status(404).json({
         success: false,
-        message: "Location not found",
+        message: "Location not found.",
       });
     }
 
     /**
-     * Dispatch
+     * Booking Mode Dispatcher
      */
+    const handlers = {
+      single_date: checkSingleDate,
+      date_range: checkDateRange,
+    };
 
-    let result;
+    const handler = handlers[product.booking_mode];
 
-    switch (product.booking_mode) {
-      case "single_date":
-        result = await checkSingleDate({
-          product,
-          location,
-          payload: value,
-        });
-        break;
+    const result = await handler({
+      product,
+      location,
+      payload: value,
+      estimateId: value.estimate_id,
+    });
 
-      case "date_range":
-        result = await checkDateRange({
-          product,
-          location,
-          payload: value,
-        });
-        break;
-
-      case "open":
-        return res.status(501).json({
-          success: false,
-          message:
-            "Open booking not implemented yet.",
-        });
-
-      default:
-        return res.status(400).json({
-          success: false,
-          message:
-            "Unsupported booking mode.",
-        });
-    }
-
-    /**
-     * Send service response
-     */
-
-    return res
-      .status(result.status || 200)
-      .json(result);
-
+    return res.status(result.status || 200).json({
+      ...result,
+      bookingTemplate: product.bookingTemplate,
+      selectedLocation: location,
+    });
   } catch (error) {
     console.error(
       "[ProductAvailabilityController] checkProductAvailability",
-      error,
+      error
     );
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to check product availability",
+      message: "Failed to check product availability.",
     });
   }
 };

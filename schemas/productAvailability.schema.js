@@ -19,6 +19,9 @@ const checkSingleDateAvailabilitySchema = Joi.object({
     .integer()
     .min(1)
     .required(),
+
+  estimate_id: Joi.string(),
+   selected_slot_token: Joi.string(),
 });
 
 const checkDateRangeAvailabilitySchema =
@@ -49,6 +52,9 @@ const checkDateRangeAvailabilitySchema =
       .integer()
       .min(1)
       .default(1),
+    
+    estimate_id: Joi.string(),
+    selected_slot_token: Joi.string(),
   });
 
 const checkOpenAvailabilitySchema = Joi.object({

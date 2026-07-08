@@ -7,15 +7,16 @@ const buildBookingQuote = ({
   pricing = {},
   availability = {},
 }) => {
+  delete product.id;
   return {
-    product: {
-      // id: product.id,
-      slug: product.slug,
-      name: product.name,
-      booking_mode: product.booking_mode,
-      thumbnail_url: product.thumbnail_url,
-    },
+    // product: {
 
+    //   slug: product.slug,
+    //   name: product.name,
+    //   booking_mode: product.booking_mode,
+    //   thumbnail_url: product.thumbnail_url,
+    // },
+    product,
     location: {
       // id: location.id,
       slug: location.slug,
@@ -44,18 +45,15 @@ const buildBookingQuote = ({
     },
 
     availability: {
-      
-
       slots: availability.slots || [],
 
-      daily_pricing:
-        availability.daily_pricing || [],
+      selected_slot: availability.selected_slot || null,
 
-      inventory:
-        availability.inventory || null,
+      daily_pricing: availability.daily_pricing || [],
 
-      next_available_date:
-        availability.next_available_date || null,
+      inventory: availability.inventory || null,
+
+      next_available_date: availability.next_available_date || null,
     },
   };
 };

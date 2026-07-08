@@ -784,8 +784,6 @@ const getProductDetailsForApp = async (req, res) => {
     const match = slug.match(/^(.*)-in-(.*)$/);
     let productSlug = slug;
     let location_slug = null;
-
-    console.log("🚀 ~ getProductDetailsForApp ~ match:", match);
     if (match) {
       productSlug = match[1];
       location_slug = match[2];
