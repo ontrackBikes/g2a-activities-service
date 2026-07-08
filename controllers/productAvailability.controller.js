@@ -10,6 +10,7 @@ const {
 const {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
+  availableDatesQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
   getAvailableVendorForProduct,
@@ -24,6 +25,10 @@ const {
 const {
   checkSingleDate,
 } = require("../services/availability/singleDate.service.js");
+const {
+  AvailableDatesError,
+  getAvailableDates,
+} = require("../services/availability/availableDates.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -182,6 +187,70 @@ const checkProductAvailability = async (req, res) => {
   }
 };
 
+const getProductAvailableDates = async (req, res) => {
+  try {
+    const { error, value } =
+      availableDatesQuerySchema.validate(
+        req.query,
+        {
+          abortEarly: true,
+          stripUnknown: true,
+        },
+      );
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const result = await getAvailableDates({
+      productSlug: req.params.slug,
+      locationSlug: value.location_slug || null,
+      fromDate: value.from_date || null,
+      toDate: value.to_date || null,
+      guests: value.guests,
+    });
+
+    const product = result.product;
+
+    return res.status(200).json({
+      success: true,
+      from_date: result.from_date,
+      to_date: result.to_date,
+      guests: result.guests,
+      product: {
+        slug: product.slug,
+        name: product.name,
+        booking_mode: product.booking_mode,
+        product_type: product.product_type,
+        category: product.category,
+      },
+      locations: product.locations,
+    });
+  } catch (error) {
+    if (error instanceof AvailableDatesError) {
+      return res.status(error.status).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error(
+      "[ProductAvailabilityController] getProductAvailableDates",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch product available dates",
+    });
+  }
+};
+
 module.exports = {
   checkProductAvailability,
+  getProductAvailableDates,
 };
