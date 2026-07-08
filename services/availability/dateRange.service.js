@@ -89,33 +89,37 @@ module.exports.checkDateRange = async ({
     };
   }
 
-  const isSlotPricing = availability.vendorProduct.pricing_type === "SLOT";
+  const isSlotPricing =
+  availability.vendorProduct.pricing_type === "SLOT";
+
+  const availableSlots = Array.isArray(availability.slots)
+  ? availability.slots
+  : [];
 
   const slot_mapping = {};
 
   const slots = isSlotPricing
-    ? availability.slots.map((slot) => {
-        const token = `slot_${randomUUID().replace(/-/g, "")}`;
+  ? availableSlots.map((slot) => {
+      const token = `slot_${crypto
+        .createHash("sha1")
+        .update(String(slot.id))
+        .digest("hex")
+        .substring(0, 16)}`;
 
-        slot_mapping[token] = slot.id;
+      slot_mapping[token] = slot.id;
 
-        return {
-          token,
-
-          name: slot.slot_name,
-
-          start_time: slot.start_time,
-
-          end_time: slot.end_time,
-
-          price: Number(slot.price),
-
-          available: slot.available,
-
-          max_bookable_per_booking: slot.max_bookable_per_booking,
-        };
-      })
-    : [];
+      return {
+        token,
+        name: slot.slot_name,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        price: Number(slot.price),
+        available: slot.available,
+        max_bookable_per_booking:
+          slot.max_bookable_per_booking,
+      };
+    })
+  : [];
 
   const selectedSlot = slots.length ? slots[0] : null;
   const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;

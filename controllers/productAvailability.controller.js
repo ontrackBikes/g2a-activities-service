@@ -6,6 +6,7 @@ const {
   Location,
   Category,
   BookingTemplate,
+  ProductTerm,
 } = require("../models");
 const {
   checkSingleDateAvailabilitySchema,
@@ -40,6 +41,8 @@ const checkProductAvailability = async (req, res) => {
     const payload = {
       ...req.body,
       date: req.body.date || moment().format("YYYY-MM-DD"),
+      pickup_date: req.body.pickup_date || moment().format("YYYY-MM-DD"),
+      return_date: req.body.return_date || moment(req.body.pickup_date).add(1, 'd').format("YYYY-MM-DD"),
     };
 
     // Parse "<product>-in-<location>"
@@ -52,7 +55,7 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
-    const [productSlug, locationSlug] = match;
+    const [, productSlug, locationSlug] = match;
 
     payload.location_slug = locationSlug;
 
@@ -95,6 +98,10 @@ const checkProductAvailability = async (req, res) => {
             },
           ],
         },
+        {
+          model: ProductTerm,
+          as: "terms",
+        }
       ],
     });
 
