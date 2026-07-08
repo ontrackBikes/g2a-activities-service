@@ -5,11 +5,10 @@ const moment = require("moment-timezone");
 const { getAvailableVendorForProduct } = require("./availableVendor.service");
 
 const buildBookingQuote = require("./buildBookingQuote");
-const { randomUUID } = require("crypto");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
-
+const crypto = require("crypto");
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
@@ -75,14 +74,6 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   }
 
   /**
-   * Pricing
-   */
-
-  const unitPrice = Number(availability.pricing.display_price);
-
-  const subtotal = unitPrice * payload.guests;
-
-  /**
    * Available
    */
 
@@ -92,7 +83,11 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
   const slots = isSlotPricing
     ? availability.slots.map((slot) => {
-        const token = `slot_${randomUUID().replace(/-/g, "")}`;
+        const token = `slot_${crypto
+          .createHash("sha1")
+          .update(String(slot.id))
+          .digest("hex")
+          .substring(0, 16)}`;
 
         slot_mapping[token] = slot.id;
 
@@ -114,7 +109,34 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       })
     : [];
 
-  const selectedSlot = slots.length ? slots[0] : null;
+  let selectedSlot = slots.length ? slots[0] : null;
+
+  if (isSlotPricing && payload.selected_slot_token) {
+    const found = slots.find(
+      (slot) => slot.token === payload.selected_slot_token,
+    );
+
+    if (found) {
+      selectedSlot = found;
+    }
+  }
+
+  const selectedVendorSlot = isSlotPricing
+    ? availability.slots.find(
+        (slot) => slot.id === slot_mapping[selectedSlot.token],
+      )
+    : availability.slots[0];
+
+  /**
+   * Pricing
+   */
+
+  const unitPrice = isSlotPricing
+    ? Number(selectedVendorSlot.price)
+    : Number(availability.pricing.display_price);
+
+  const subtotal = unitPrice * payload.guests;
+
   const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
 
   const quotation = buildBookingQuote({
@@ -149,12 +171,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       pricing_type: availability.vendorProduct.pricing_type,
 
       slots,
-      selected_slot: selectedSlot
-        ? {
-            token: selectedSlot.token,
-            slot_id: slot_mapping[selectedSlot.token],
-          }
-        : null,
+      selected_slot: selectedSlot,
       inventory: fixedScheduleSlot
         ? {
             available: fixedScheduleSlot.available,
@@ -173,7 +190,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
     vendorProduct: availability.vendorProduct,
     vendorSchedule: availability.schedule,
-    vendorScheduleSlot: fixedScheduleSlot,
+    vendorScheduleSlot: selectedVendorSlot,
+    selectedSlotToken: selectedSlot?.token,
 
     requestData: payload,
     bookingData: quotation.booking,
@@ -184,6 +202,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
     metadata: {
       slot_mapping,
+      selected_slot_token: selectedSlot?.token || null,
     },
   });
 

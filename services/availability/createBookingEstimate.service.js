@@ -21,6 +21,7 @@ const saveBookingEstimate = async ({
   metadata = {},
 
   source = "website",
+  selectedSlotToken = null
 }) => {
   const payload = {
     /**
@@ -40,6 +41,7 @@ const saveBookingEstimate = async ({
      * Slot
      */
     vendor_schedule_slot_id: vendorScheduleSlot?.id || null,
+    selected_slot_token: selectedSlotToken,
 
     /**
      * Booking

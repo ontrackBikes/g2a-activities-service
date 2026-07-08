@@ -52,7 +52,7 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
-    const [, productSlug, locationSlug] = match;
+    const [productSlug, locationSlug] = match;
 
     payload.location_slug = locationSlug;
 

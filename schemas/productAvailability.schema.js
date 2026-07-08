@@ -1,5 +1,19 @@
 const Joi = require("joi");
 
+const estimateId = Joi.string()
+  .guid({
+    version: ["uuidv4", "uuidv5"],
+  })
+  .optional();
+
+const slotToken = Joi.string()
+  .pattern(/^slot_[a-f0-9]{16}$/)
+  .allow(null, "")
+  .messages({
+    "string.pattern.base": "Invalid slot token.",
+  })
+  .optional();
+
 const checkSingleDateAvailabilitySchema = Joi.object({
   location_slug: Joi.string()
     .trim()
@@ -20,42 +34,43 @@ const checkSingleDateAvailabilitySchema = Joi.object({
     .min(1)
     .required(),
 
-  estimate_id: Joi.string(),
-   selected_slot_token: Joi.string(),
+  estimate_id: estimateId,
+
+  selected_slot_token: slotToken,
 });
 
-const checkDateRangeAvailabilitySchema =
-  Joi.object({
-    location_slug: Joi.string()
-      .trim()
-      .lowercase()
-      .max(100)
-      .required(),
+const checkDateRangeAvailabilitySchema = Joi.object({
+  location_slug: Joi.string()
+    .trim()
+    .lowercase()
+    .max(100)
+    .required(),
 
-    pickup_date: Joi.string()
-      .pattern(/^\d{4}-\d{2}-\d{2}$/)
-      .required()
-      .messages({
-        "string.pattern.base":
-          "pickup_date must be in YYYY-MM-DD format",
-      }),
+  pickup_date: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .messages({
+      "string.pattern.base":
+        "pickup_date must be in YYYY-MM-DD format",
+    }),
 
-    return_date: Joi.string()
-      .pattern(/^\d{4}-\d{2}-\d{2}$/)
-      .required()
-      .messages({
-        "string.pattern.base":
-          "return_date must be in YYYY-MM-DD format",
-      }),
+  return_date: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
+    .messages({
+      "string.pattern.base":
+        "return_date must be in YYYY-MM-DD format",
+    }),
 
-    guests: Joi.number()
-      .integer()
-      .min(1)
-      .default(1),
-    
-    estimate_id: Joi.string(),
-    selected_slot_token: Joi.string(),
-  });
+  guests: Joi.number()
+    .integer()
+    .min(1)
+    .default(1),
+
+  estimate_id: estimateId,
+
+  selected_slot_token: slotToken,
+});
 
 const checkOpenAvailabilitySchema = Joi.object({
   location_slug: Joi.string()
@@ -68,6 +83,8 @@ const checkOpenAvailabilitySchema = Joi.object({
     .integer()
     .min(1)
     .required(),
+
+  estimate_id: estimateId,
 });
 
 const availableDatesQuerySchema = Joi.object({

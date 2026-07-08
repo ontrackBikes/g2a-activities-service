@@ -169,6 +169,7 @@ module.exports.checkDateRange = async ({
     vendorProduct: availability.vendorProduct,
     vendorSchedule: availability.schedule,
     vendorScheduleSlot: fixedScheduleSlot,
+    selectedSlotToken: selectedSlot?.token,
 
     requestData: payload,
     bookingData: quotation.booking,
