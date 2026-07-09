@@ -178,8 +178,7 @@ const checkProductAvailability = async (req, res) => {
 
     return res.status(result.status || 200).json({
       ...result,
-      bookingTemplate: product.bookingTemplate,
-      selectedLocation: location,
+      selected_location: location,
     });
   } catch (error) {
     console.error(
