@@ -121,6 +121,14 @@ Order.init(
       allowNull: false,
       defaultValue: {},
     },
+
+    /**
+     * Communication
+     */
+    email_confirmation_sent_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -139,6 +147,10 @@ Order.init(
       {
         unique: true,
         fields: ["order_id"],
+      },
+
+      {
+        fields: ["email_confirmation_sent_at"],
       },
 
       {

@@ -1,6 +1,15 @@
 const crypto = require("crypto");
 const googleSheetService = require("../services/googleSheet.service");
-const { fetchPaymentByOrderId } = require("../services/razorpay.service");
+const {
+  fetchPaymentByOrderId,
+  verifyWebhookSignature,
+} = require("../services/razorpay.service");
+const sequelize = require("../config/sequelize");
+const { Payment, Order } = require("../models");
+const { Op } = require("sequelize");
+const {
+  paymentSettlementQueue,
+} = require("../queues/payment/paymentSettlement.queue");
 
 const razorpayWebhook = async (req, res) => {
   console.log("🔔 Webhook received");
@@ -139,8 +148,75 @@ const getOrderInfo = async (req, res) => {
   }
 };
 
+const razorpayWebhookv1 = async (req, res) => {
+  try {
+    const signature = req.headers["x-razorpay-signature"];
+
+    const rawBody = req.body.toString();
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      return res.sendStatus(400);
+    }
+
+    const payload = JSON.parse(rawBody);
+
+    if (payload.event !== "payment.captured") {
+      return res.sendStatus(200);
+    }
+
+    const paymentEntity = payload.payload.payment.entity;
+
+    const [updatedRows] = await Payment.update(
+      {
+        status: "captured",
+
+        settlement_status: "pending",
+
+        gateway_payment_id: paymentEntity.id,
+
+        amount: paymentEntity.amount / 100,
+
+        currency: paymentEntity.currency,
+
+        gateway_response: paymentEntity,
+
+        paid_at: new Date(paymentEntity.created_at * 1000),
+      },
+      {
+        where: {
+          gateway_order_id: paymentEntity.order_id,
+
+          settlement_status: {
+            [Op.ne]: "completed",
+          },
+        },
+      },
+    );
+
+    if (!updatedRows) {
+      return res.sendStatus(200);
+    }
+
+    const payment = await Payment.findOne({
+      where: {
+        gateway_order_id: paymentEntity.order_id,
+      },
+    });
+
+    await paymentSettlementQueue.add("settle-payment", {
+      paymentId: payment.id,
+    });
+
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error("[RazorpayWebhook]", error);
+
+    return res.sendStatus(500);
+  }
+};
+
 module.exports = {
   razorpayWebhook,
   getOrderInfo,
+  razorpayWebhookv1,
 };
-

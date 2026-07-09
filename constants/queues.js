@@ -3,4 +3,5 @@ module.exports = {
   MEDIA_CLEANUP_QUEUE: "media-cleanup",
   VENDOR_SCHEDULE_QUEUE:
     "vendor-schedule-maintenance",
+  PAYMENT_SETTLEMENT_QUEUE: "payment-settlement"
 };

@@ -105,6 +105,20 @@ Payment.init(
     },
 
     /**
+     * Internal Settlement
+     */
+    settlement_status: {
+      type: DataTypes.ENUM(
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+      ),
+      allowNull: false,
+      defaultValue: "pending",
+    },
+
+    /**
      * Failure
      */
     failure_reason: {
