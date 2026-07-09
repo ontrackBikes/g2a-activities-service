@@ -198,6 +198,13 @@ module.exports.checkDateRange = async ({
 
     metadata: {
       slot_mapping,
+      inventory_slots: dailyPricing.map((day) => ({
+        date: day.date,
+        vendor_schedule_id:
+          day.schedule?.id || null,
+        vendor_schedule_slot_id:
+          day.slot?.id || null,
+      })),
     },
   });
 

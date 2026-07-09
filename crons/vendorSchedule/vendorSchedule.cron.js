@@ -14,6 +14,9 @@ module.exports = async () => {
   const inventoryDate = moment()
     .tz(APP_TIMEZONE)
     .format("YYYY-MM-DD");
+  const inventoryRun = moment()
+    .tz(APP_TIMEZONE)
+    .format("YYYY-MM-DD-HH");
 
   const job = await vendorScheduleQueue.add(
     JOBS.MAINTAIN_VENDOR_SCHEDULES,
@@ -21,7 +24,7 @@ module.exports = async () => {
       inventory_date: inventoryDate,
     },
     {
-      jobId: `vendor-schedule-${inventoryDate}`,
+      jobId: `vendor-schedule-${inventoryRun}`,
     },
   );
 

@@ -21,9 +21,9 @@ module.exports = () => {
     "[CRON] Media cleanup registered (every 6 hours)"
   );
 
-  // Every day at 00:05 in the business timezone.
+  // Every day at 02:00 and 14:00 in the business timezone.
   cron.schedule(
-    "5 0 * * *",
+    "0 2,14 * * *",
     vendorScheduleCron,
     {
       timezone:
@@ -33,7 +33,7 @@ module.exports = () => {
   );
 
   console.info(
-    "[CRON] Vendor schedule maintenance registered (daily at 00:05)",
+    "[CRON] Vendor schedule maintenance registered (daily at 02:00 and 14:00)",
   );
 
   vendorScheduleCron().catch((error) => {

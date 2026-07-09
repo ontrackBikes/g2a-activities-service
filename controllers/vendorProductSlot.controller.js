@@ -78,6 +78,14 @@ const createVendorProductSlot = async (
       });
     }
 
+    if (vendorProduct.pricing_type !== "SLOT") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Slots can only be created for SLOT pricing vendor products",
+      });
+    }
+
       const existingSlot =
       await VendorProductSlot.findOne({
         where: {
@@ -342,6 +350,7 @@ const deleteVendorProductSlot =
           });
 
           return {
+            slot_id: slot.id,
             blocked: false,
             dated_slots_deleted:
               datedSlotsDeleted,
@@ -367,11 +376,18 @@ const deleteVendorProductSlot =
         });
       }
 
+      const scheduleSync = await queueScheduleSync({
+        vendorProductId: req.params.id,
+        vendorProductSlotId: result.slot_id,
+        trigger: "vendor-product-slot-deleted",
+      });
+
       return res.json({
         success: true,
         message:
           "Vendor Product Slot permanently deleted successfully",
         data: result,
+        schedule_sync: scheduleSync,
       });
     } catch (error) {
       console.error(

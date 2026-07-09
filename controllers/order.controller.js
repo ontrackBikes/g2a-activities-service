@@ -15,6 +15,7 @@ const {
   OrderParticipant,
   Customer,
   Payment,
+  VendorScheduleSlot,
 } = require("../models");
 
 
@@ -57,6 +58,137 @@ const buildDateRangeFilter = ({ dateFrom, dateTo }) => {
   }
 
   return Object.keys(range).length ? range : null;
+};
+
+const getOrderItemQuantity = (orderItem) => {
+  const bookingData = orderItem.booking_data || {};
+  const pricing = orderItem.pricing || {};
+  const quantity =
+    Number(bookingData.guests) ||
+    Number(pricing.quantity) ||
+    1;
+
+  return Math.max(quantity, 1);
+};
+
+const getInventorySlotIdsForOrderItem = ({
+  orderItem,
+  estimate,
+}) => {
+  const inventorySlots =
+    estimate?.metadata?.inventory_slots;
+
+  if (
+    orderItem.booking_mode === "date_range" &&
+    Array.isArray(inventorySlots) &&
+    inventorySlots.length
+  ) {
+    return [
+      ...new Set(
+        inventorySlots
+          .map((slot) =>
+            Number(slot.vendor_schedule_slot_id),
+          )
+          .filter(
+            (slotId) =>
+              Number.isInteger(slotId) && slotId > 0,
+          ),
+      ),
+    ];
+  }
+
+  const slotId = Number(
+    orderItem.vendor_schedule_slot_id,
+  );
+
+  return Number.isInteger(slotId) && slotId > 0
+    ? [slotId]
+    : [];
+};
+
+const reserveInventoryForConfirmedOrder = async ({
+  order,
+  transaction,
+}) => {
+  const orderItems = await OrderItem.findAll({
+    where: {
+      order_id: order.id,
+    },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  const estimate = await BookingEstimate.findOne({
+    where: {
+      estimate_id: order.estimate_id,
+    },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  for (const orderItem of orderItems) {
+    const quantity =
+      getOrderItemQuantity(orderItem);
+    const inventorySlotIds =
+      getInventorySlotIdsForOrderItem({
+        orderItem,
+        estimate,
+      });
+
+    if (
+      ["single_date", "date_range"].includes(
+        orderItem.booking_mode,
+      ) &&
+      !inventorySlotIds.length
+    ) {
+      const error = new Error(
+        "Inventory information is missing for this order. Please create a fresh estimate.",
+      );
+      error.status = 409;
+      throw error;
+    }
+
+    for (const slotId of inventorySlotIds) {
+      const scheduleSlot =
+        await VendorScheduleSlot.findByPk(
+          slotId,
+          {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          },
+        );
+
+      if (!scheduleSlot) {
+        const error = new Error(
+          "Inventory slot not found for this order.",
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      const booked = Number(scheduleSlot.booked) || 0;
+      const available =
+        Number(scheduleSlot.available) || 0;
+
+      if (available < quantity) {
+        const error = new Error(
+          "Insufficient inventory for this order.",
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      await scheduleSlot.update(
+        {
+          booked: booked + quantity,
+          available: available - quantity,
+        },
+        {
+          transaction,
+        },
+      );
+    }
+  }
 };
 
 const formatOrderListItem = (order) => {
@@ -1365,6 +1497,11 @@ const verifyOrderPayment = async (req, res) => {
     payment.paid_at = new Date(paymentResult.data.created_at);
 
     await payment.save({
+      transaction,
+    });
+
+    await reserveInventoryForConfirmedOrder({
+      order,
       transaction,
     });
 
