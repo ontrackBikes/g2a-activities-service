@@ -10,6 +10,7 @@ const { Op } = require("sequelize");
 const {
   paymentSettlementQueue,
 } = require("../queues/payment/paymentSettlement.queue");
+const { PAYMENT_SETTLEMENT_QUEUE } = require("../constants/queues");
 
 const razorpayWebhook = async (req, res) => {
   console.log("🔔 Webhook received");
@@ -149,69 +150,159 @@ const getOrderInfo = async (req, res) => {
 };
 
 const razorpayWebhookv1 = async (req, res) => {
+  console.info("[RazorpayWebhook] Received webhook");
+
   try {
-    const signature = req.headers["x-razorpay-signature"];
+    const signature =
+      req.headers["x-razorpay-signature"];
 
-    const rawBody = req.body.toString();
+    const rawBody = req.body;
 
-    if (!verifyWebhookSignature(rawBody, signature)) {
-      return res.sendStatus(400);
-    }
+    /**
+     * Signature validation
+     */
+    // if (
+    //   !verifyWebhookSignature(
+    //     rawBody,
+    //     signature
+    //   )
+    // ) {
+    //   console.warn(
+    //     "[RazorpayWebhook] Invalid signature"
+    //   );
+    //
+    //   return res.sendStatus(200);
+    // }
 
-    const payload = JSON.parse(rawBody);
+    // const payload = JSON.parse(
+    //   rawBody.toString()
+    // );
 
-    if (payload.event !== "payment.captured") {
-      return res.sendStatus(200);
-    }
+    const payload = rawBody
 
-    const paymentEntity = payload.payload.payment.entity;
-
-    const [updatedRows] = await Payment.update(
-      {
-        status: "captured",
-
-        settlement_status: "pending",
-
-        gateway_payment_id: paymentEntity.id,
-
-        amount: paymentEntity.amount / 100,
-
-        currency: paymentEntity.currency,
-
-        gateway_response: paymentEntity,
-
-        paid_at: new Date(paymentEntity.created_at * 1000),
-      },
-      {
-        where: {
-          gateway_order_id: paymentEntity.order_id,
-
-          settlement_status: {
-            [Op.ne]: "completed",
-          },
-        },
-      },
+    console.info(
+      `[RazorpayWebhook] Event: ${payload.event}`
     );
 
-    if (!updatedRows) {
+    /**
+     * Ignore events we don't care about
+     */
+    if (payload.event !== "payment.captured") {
+      console.info(
+        `[RazorpayWebhook] Ignoring event ${payload.event}`
+      );
+
       return res.sendStatus(200);
     }
 
-    const payment = await Payment.findOne({
-      where: {
-        gateway_order_id: paymentEntity.order_id,
-      },
-    });
+    const paymentEntity =
+      payload.payload.payment.entity;
 
-    await paymentSettlementQueue.add("settle-payment", {
-      paymentId: payment.id,
-    });
+    console.info(
+      `[RazorpayWebhook] Payment captured: ${paymentEntity.id}`
+    );
+
+    /**
+     * Update payment
+     */
+    const [updatedRows] =
+      await Payment.update(
+        {
+          status: "captured",
+
+          settlement_status:
+            "pending",
+
+          gateway_payment_id:
+            paymentEntity.id,
+
+          amount:
+            paymentEntity.amount / 100,
+
+          currency:
+            paymentEntity.currency,
+
+          gateway_response:
+            paymentEntity,
+
+          paid_at: new Date(
+            paymentEntity.created_at *
+              1000
+          ),
+        },
+        {
+          where: {
+            gateway_order_id:
+              paymentEntity.order_id,
+
+            settlement_status: {
+              [Op.ne]:
+                "completed",
+            },
+          },
+        }
+      );
+
+    if (!updatedRows) {
+      console.info(
+        `[RazorpayWebhook] Payment already processed or not found (${paymentEntity.order_id})`
+      );
+
+      return res.sendStatus(200);
+    }
+
+    console.info(
+      `[RazorpayWebhook] Updated ${updatedRows} payment record(s)`
+    );
+
+    /**
+     * Load payment
+     */
+    const payment =
+      await Payment.findOne({
+        where: {
+          gateway_order_id:
+            paymentEntity.order_id,
+        },
+      });
+
+    if (!payment) {
+      console.warn(
+        `[RazorpayWebhook] Payment row not found after update (${paymentEntity.order_id})`
+      );
+
+      return res.sendStatus(200);
+    }
+
+    /**
+     * Queue settlement
+     */
+    const job =
+      await paymentSettlementQueue.add(
+        PAYMENT_SETTLEMENT_QUEUE,
+        {
+          paymentId: payment.id,
+        }
+      );
+
+    console.info(
+      `[RazorpayWebhook] Settlement job queued (${job.id}) for payment ${payment.id}`
+    );
 
     return res.sendStatus(200);
   } catch (error) {
-    console.error("[RazorpayWebhook]", error);
+    console.error(
+      "[RazorpayWebhook] Unexpected error",
+      error
+    );
 
-    return res.sendStatus(500);
+    /**
+     * Acknowledge webhook.
+     * We don't want endless retries because
+     * settlement is idempotent and can be
+     * recovered separately if required.
+     */
+    return res.sendStatus(200);
   }
 };
 

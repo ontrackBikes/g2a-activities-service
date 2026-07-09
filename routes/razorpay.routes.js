@@ -7,11 +7,8 @@ router.post("/razorpay/webhook", webhookController.razorpayWebhook);
 router.get("/razorpay/order-info", webhookController.getOrderInfo);
 
 
-app.post(
-  "/api/v1/webhooks/razorpay",
-  express.raw({
-    type: "application/json",
-  }),
+router.post(
+  "/webhook",
   webhookController.razorpayWebhookv1,
 );
 

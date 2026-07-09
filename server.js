@@ -18,6 +18,8 @@ app.use(
   }),
 );
 
+
+
 // JSON parser (for normal APIs)
 app.use(express.json());
 
@@ -31,6 +33,8 @@ app.use("/api/v1", routes);
 app.get("/health", (_, res) => {
   res.json({ status: "ok" });
 });
+
+
 
 /*
 |--------------------------------------------------------------------------

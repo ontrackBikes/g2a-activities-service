@@ -7,9 +7,7 @@ const {
   OrderItem,
 } = require("../models");
 
-const {
-  reserveInventoryForConfirmedOrder,
-} = require("./availability/reserveInventory.service");
+
 const { sendTemplateEmail } = require("./postmark.service");
 
 
@@ -240,6 +238,8 @@ async function sendNotifications({
 
 
 const settlePayment = async ({ paymentId }) => {
+
+  console.log("**** settlePayment worker triggered ****")
   const transaction = await sequelize.transaction();
 
   let payment = null;
