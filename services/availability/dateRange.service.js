@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const moment = require("moment-timezone");
 
 const {
@@ -90,39 +91,52 @@ module.exports.checkDateRange = async ({
   }
 
   const isSlotPricing =
-  availability.vendorProduct.pricing_type === "SLOT";
+    availability.vendorProduct.pricing_type === "SLOT";
+
+  const dailyPricing = Array.isArray(
+    availability.daily_pricing,
+  )
+    ? availability.daily_pricing
+    : [];
 
   const availableSlots = Array.isArray(availability.slots)
-  ? availability.slots
-  : [];
+    ? availability.slots
+    : dailyPricing
+        .map((day) => day.slot)
+        .filter(Boolean);
 
   const slot_mapping = {};
 
   const slots = isSlotPricing
-  ? availableSlots.map((slot) => {
-      const token = `slot_${crypto
-        .createHash("sha1")
-        .update(String(slot.id))
-        .digest("hex")
-        .substring(0, 16)}`;
+    ? availableSlots.map((slot) => {
+        const token = `slot_${crypto
+          .createHash("sha1")
+          .update(String(slot.id))
+          .digest("hex")
+          .substring(0, 16)}`;
 
-      slot_mapping[token] = slot.id;
+        slot_mapping[token] = slot.id;
 
-      return {
-        token,
-        name: slot.slot_name,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        price: Number(slot.price),
-        available: slot.available,
-        max_bookable_per_booking:
-          slot.max_bookable_per_booking,
-      };
-    })
-  : [];
+        return {
+          token,
+          name: slot.slot_name,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          price: Number(slot.price),
+          available: slot.available,
+          max_bookable_per_booking:
+            slot.max_bookable_per_booking,
+        };
+      })
+    : [];
 
   const selectedSlot = slots.length ? slots[0] : null;
-  const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
+  const firstDailyPricing = dailyPricing[0] || null;
+  const fixedScheduleSlot = !isSlotPricing
+    ? firstDailyPricing?.slot || null
+    : null;
+  const vendorSchedule =
+    firstDailyPricing?.schedule || null;
 
   /**
    * Build quotation
@@ -153,7 +167,7 @@ module.exports.checkDateRange = async ({
     },
 
     availability: {
-      daily_pricing: availability.daily_pricing.map((day) => ({
+      daily_pricing: dailyPricing.map((day) => ({
         date: day.date,
         unit_price: day.unit_price,
       })),
@@ -171,7 +185,7 @@ module.exports.checkDateRange = async ({
     location,
 
     vendorProduct: availability.vendorProduct,
-    vendorSchedule: availability.schedule,
+    vendorSchedule,
     vendorScheduleSlot: fixedScheduleSlot,
     selectedSlotToken: selectedSlot?.token,
 
