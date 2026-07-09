@@ -232,6 +232,7 @@ const getAvailableDateRangeVendor = async ({
       "pricing_type",
       "base_price",
       "base_capacity",
+      "max_bookable_per_booking"
     ],
     include: [
       {
@@ -353,6 +354,7 @@ const getAvailableDateRangeVendor = async ({
   });
 
   const selectedVendor = candidates[0] || null;
+
 
   if (!selectedVendor) {
     return null;

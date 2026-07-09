@@ -66,6 +66,7 @@ module.exports.checkDateRange = async ({
     guests: payload.guests,
   });
 
+
   /**
    * Not Available
    */
@@ -90,6 +91,7 @@ module.exports.checkDateRange = async ({
     };
   }
 
+  const max_bookable_per_booking = availability.vendorProduct.max_bookable_per_booking ?? 0
   const isSlotPricing =
     availability.vendorProduct.pricing_type === "SLOT";
 
@@ -124,8 +126,6 @@ module.exports.checkDateRange = async ({
           end_time: slot.end_time,
           price: Number(slot.price),
           available: slot.available,
-          max_bookable_per_booking:
-            slot.max_bookable_per_booking,
         };
       })
     : [];
@@ -164,6 +164,8 @@ module.exports.checkDateRange = async ({
       discount: 0,
       tax: 0,
       grand_total: availability.rental_total,
+
+      max_bookable_per_booking
     },
 
     availability: {

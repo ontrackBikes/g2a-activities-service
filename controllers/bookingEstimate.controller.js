@@ -107,8 +107,6 @@ module.exports.selectEstimateSlot = async (req, res) => {
       });
     }
 
-    console.log("🚀 ~ estimate:", estimate.metadata)
-
     /**
      * Metadata mapping
      */

@@ -1405,7 +1405,6 @@ const verifyOrderPayment = async (req, res) => {
       transaction,
     });
 
-    console.log("🚀 ~ verifyOrderPayment ~ payment:", payment)
     if (!payment) {
       await transaction.rollback();
 
@@ -1418,7 +1417,7 @@ const verifyOrderPayment = async (req, res) => {
     /**
      * Sync with Razorpay
      */
-    console.log(payment.gateway_order_id)
+
     const paymentResult =
       await razorpayService.fetchPaymentByOrderId(
         payment.gateway_order_id,

@@ -42,6 +42,8 @@ const buildBookingQuote = ({
       tax: Number(pricing.tax || 0),
 
       grand_total: Number(pricing.grand_total || 0),
+
+      max_bookable_per_booking: pricing.max_bookable_per_booking ?? 0
     },
 
     availability: {
