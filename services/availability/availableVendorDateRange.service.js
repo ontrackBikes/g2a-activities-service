@@ -11,6 +11,7 @@ const {
 
 const APP_TIMEZONE =
   process.env.APP_TIMEZONE || "Asia/Kolkata";
+const DEFAULT_PICKUP_TIME = "10:00";
 const MAX_RENTAL_DAYS = Math.max(
   Number.parseInt(
     process.env.BIKE_RENTAL_MAX_DAYS,
@@ -66,12 +67,32 @@ const parseDate = (value, fieldName) => {
   return parsedDate.startOf("day");
 };
 
+const normalizePickupTime = (value) => {
+  const pickupTime = value || DEFAULT_PICKUP_TIME;
+
+  if (
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(
+      pickupTime,
+    )
+  ) {
+    throw new DateRangeAvailabilityError(
+      "pickupTime must be in HH:mm format",
+      "INVALID_PICKUP_TIME",
+    );
+  }
+
+  return pickupTime;
+};
+
 const buildRentalDates = ({
   pickupDate,
   returnDate,
+  pickupTime = DEFAULT_PICKUP_TIME,
 }) => {
   const start = parseDate(pickupDate, "pickupDate");
   const end = parseDate(returnDate, "returnDate");
+  const normalizedPickupTime =
+    normalizePickupTime(pickupTime);
   const today = moment()
     .tz(APP_TIMEZONE)
     .startOf("day");
@@ -113,6 +134,8 @@ const buildRentalDates = ({
   return {
     dates,
     rentalDays,
+    pickupTime: normalizedPickupTime,
+    dropTime: normalizedPickupTime,
   };
 };
 
@@ -196,6 +219,7 @@ const getAvailableDateRangeVendor = async ({
   locationId,
   pickupDate,
   returnDate,
+  pickupTime = DEFAULT_PICKUP_TIME,
   guests,
 }) => {
   const resolvedProductId = parsePositiveInteger(
@@ -213,9 +237,12 @@ const getAvailableDateRangeVendor = async ({
   const {
     dates,
     rentalDays,
+    pickupTime: normalizedPickupTime,
+    dropTime,
   } = buildRentalDates({
     pickupDate,
     returnDate,
+    pickupTime,
   });
 
   const vendorProducts = await VendorProduct.findAll({
@@ -365,6 +392,8 @@ const getAvailableDateRangeVendor = async ({
     start_date: dates[0],
     end_date: returnDate,
     rental_days: rentalDays,
+    pickup_time: normalizedPickupTime,
+    drop_time: dropTime,
   };
 };
 

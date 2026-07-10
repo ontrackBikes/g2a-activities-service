@@ -14,6 +14,13 @@ const slotToken = Joi.string()
   })
   .optional();
 
+const time24Hour = Joi.string()
+  .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
+  .messages({
+    "string.pattern.base":
+      "pickup_time must be in HH:mm format",
+  });
+
 const checkSingleDateAvailabilitySchema = Joi.object({
   location_slug: Joi.string()
     .trim()
@@ -61,6 +68,18 @@ const checkDateRangeAvailabilitySchema = Joi.object({
       "string.pattern.base":
         "return_date must be in YYYY-MM-DD format",
     }),
+
+  pickup_time: time24Hour.default("10:00"),
+
+  drop_time: Joi.forbidden().messages({
+    "any.unknown":
+      "drop_time is not allowed. Drop time is calculated automatically from pickup_time.",
+  }),
+
+  return_time: Joi.forbidden().messages({
+    "any.unknown":
+      "return_time is not allowed. Drop time is calculated automatically from pickup_time.",
+  }),
 
   guests: Joi.number()
     .integer()

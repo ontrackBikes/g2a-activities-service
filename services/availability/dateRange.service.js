@@ -63,6 +63,7 @@ module.exports.checkDateRange = async ({
     locationId: location.id,
     pickupDate: payload.pickup_date,
     returnDate: payload.return_date,
+    pickupTime: payload.pickup_time,
     guests: payload.guests,
   });
 
@@ -84,7 +85,9 @@ module.exports.checkDateRange = async ({
 
         booking: {
           pickup_date: payload.pickup_date,
+          pickup_time: payload.pickup_time,
           return_date: payload.return_date,
+          drop_time: payload.pickup_time,
           guests: payload.guests,
         },
       }),
@@ -148,7 +151,9 @@ module.exports.checkDateRange = async ({
 
     booking: {
       pickup_date: availability.start_date,
+      pickup_time: availability.pickup_time,
       return_date: availability.end_date,
+      drop_time: availability.drop_time,
       rental_days: availability.rental_days,
       guests: availability.guests,
     },

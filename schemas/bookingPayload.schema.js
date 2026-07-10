@@ -2,6 +2,13 @@ const Joi = require("joi");
 
 const BOOKING_SECTIONS = require("../constants/bookingSections");
 
+const time24Hour = Joi.string()
+  .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
+  .messages({
+    "string.pattern.base":
+      "pickup_time must be in HH:mm format",
+  });
+
 /*
 |--------------------------------------------------------------------------
 | Section Schemas
@@ -94,9 +101,17 @@ const rental_details = Joi.object({
 
   drop_location: Joi.string().required(),
 
-  pickup_time: Joi.string().required(),
+  pickup_time: time24Hour.required(),
 
-  return_time: Joi.string().required(),
+  drop_time: Joi.forbidden().messages({
+    "any.unknown":
+      "drop_time is not allowed. Drop time is calculated automatically from pickup_time.",
+  }),
+
+  return_time: Joi.forbidden().messages({
+    "any.unknown":
+      "return_time is not allowed. Drop time is calculated automatically from pickup_time.",
+  }),
 }).unknown(false);
 
 const ferry_seat_selection = Joi.object({

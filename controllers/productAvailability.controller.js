@@ -178,9 +178,20 @@ const checkProductAvailability = async (req, res) => {
 
     return res.status(result.status || 200).json({
       ...result,
-      selected_location: location,
+      selected_location: {
+        slug: location.slug,
+        name: location.name,
+      },
     });
   } catch (error) {
+    if (error instanceof DateRangeAvailabilityError) {
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message,
+        code: error.code,
+      });
+    }
+
     console.error(
       "[ProductAvailabilityController] checkProductAvailability",
       error
