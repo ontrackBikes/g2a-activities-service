@@ -11,6 +11,8 @@ const {
   VendorProductExclusion,
   VendorProductThingToKnow,
   VendorProductSlot,
+  VendorSchedule,
+  VendorScheduleSlot,
 } = require("../models");
 const { Op } = require("sequelize");
 const sequelize = require("../config/sequelize");
@@ -53,6 +55,85 @@ const queueScheduleSync = async ({
         "Vendor product saved, but schedule sync could not be queued. Use manual sync to retry.",
     };
   }
+};
+
+const cleanupInventoryForPricingTypeChange = async ({
+  vendorProductId,
+  previousPricingType,
+  transaction,
+}) => {
+  const schedules = await VendorSchedule.findAll({
+    attributes: ["id"],
+    where: {
+      vendor_product_id: vendorProductId,
+    },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  const scheduleIds = schedules.map((schedule) =>
+    Number(schedule.id),
+  );
+
+  let bookedDatedSlots = 0;
+  let datedSlotsDeleted = 0;
+  let schedulesDeleted = 0;
+
+  if (scheduleIds.length) {
+    bookedDatedSlots =
+      await VendorScheduleSlot.count({
+        where: {
+          vendor_schedule_id: scheduleIds,
+          booked: {
+            [Op.gt]: 0,
+          },
+        },
+        transaction,
+      });
+
+    if (bookedDatedSlots > 0) {
+      return {
+        blocked: true,
+        booked_dated_slots: bookedDatedSlots,
+      };
+    }
+
+    datedSlotsDeleted =
+      await VendorScheduleSlot.destroy({
+        where: {
+          vendor_schedule_id: scheduleIds,
+        },
+        transaction,
+      });
+
+    schedulesDeleted = await VendorSchedule.destroy({
+      where: {
+        id: scheduleIds,
+      },
+      transaction,
+    });
+  }
+
+  const templateSlotWhere = {
+    vendor_product_id: vendorProductId,
+  };
+
+  if (previousPricingType === "FIXED") {
+    templateSlotWhere.slot_name = "Default";
+  }
+
+  const templateSlotsDeleted =
+    await VendorProductSlot.destroy({
+      where: templateSlotWhere,
+      transaction,
+    });
+
+  return {
+    blocked: false,
+    dated_slots_deleted: datedSlotsDeleted,
+    schedules_deleted: schedulesDeleted,
+    template_slots_deleted: templateSlotsDeleted,
+  };
 };
 
 const createVendorProduct = async (req, res) => {
@@ -414,6 +495,12 @@ const updateVendorProduct = async (req, res) => {
           const effectivePricingType =
             vendorProductUpdates.pricing_type ||
             vendorProduct.pricing_type;
+          const previousPricingType =
+            vendorProduct.pricing_type;
+          const pricingTypeChanged =
+            vendorProductUpdates.pricing_type &&
+            vendorProductUpdates.pricing_type !==
+              previousPricingType;
 
           if (
             hasCustomFixedTiming &&
@@ -422,6 +509,24 @@ const updateVendorProduct = async (req, res) => {
             return {
               invalidTiming: true,
             };
+          }
+
+          let inventoryCleanup = null;
+
+          if (pricingTypeChanged) {
+            inventoryCleanup =
+              await cleanupInventoryForPricingTypeChange({
+                vendorProductId: vendorProduct.id,
+                previousPricingType,
+                transaction,
+              });
+
+            if (inventoryCleanup.blocked) {
+              return {
+                pricingTypeChangeBlocked: true,
+                inventoryCleanup,
+              };
+            }
           }
 
           await vendorProduct.update(
@@ -471,6 +576,8 @@ const updateVendorProduct = async (req, res) => {
           return {
             vendorProduct,
             defaultSlot,
+            pricingTypeChanged,
+            inventoryCleanup,
           };
         },
       );
@@ -490,6 +597,17 @@ const updateVendorProduct = async (req, res) => {
       });
     }
 
+    if (updateResult.pricingTypeChangeBlocked) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Pricing type cannot be changed because bookings exist in current schedules",
+        booked_dated_slots:
+          updateResult.inventoryCleanup
+            .booked_dated_slots,
+      });
+    }
+
     const { vendorProduct, defaultSlot } =
       updateResult;
     const scheduleSync =
@@ -497,7 +615,9 @@ const updateVendorProduct = async (req, res) => {
         vendorProductId: vendorProduct.id,
         vendorProductSlotId:
           defaultSlot?.id || null,
-        trigger: "vendor-product-updated",
+        trigger: updateResult.pricingTypeChanged
+          ? "vendor-product-pricing-type-changed"
+          : "vendor-product-updated",
       });
 
     return res.json({
@@ -507,6 +627,8 @@ const updateVendorProduct = async (req, res) => {
         ...vendorProduct.toJSON(),
         default_slot: defaultSlot,
       },
+      inventory_cleanup:
+        updateResult.inventoryCleanup,
       schedule_sync: scheduleSync,
     });
   } catch (error) {
