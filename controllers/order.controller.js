@@ -98,12 +98,101 @@ const getInventorySlotIdsForOrderItem = ({
   }
 
   const slotId = Number(
-    orderItem.vendor_schedule_slot_id,
+    estimate?.vendor_schedule_slot_id,
   );
 
   return Number.isInteger(slotId) && slotId > 0
     ? [slotId]
     : [];
+};
+
+const buildOrderItemBookingData = ({
+  estimate,
+  product,
+}) => {
+  const quotation = estimate.quotation || {};
+  const availability = quotation.availability || {};
+  const bookingData = estimate.booking_data || {};
+  const pricing = estimate.pricing || {};
+  const selectedSlot = availability.selected_slot || null;
+  const compactObject = (object) =>
+    Object.fromEntries(
+      Object.entries(object).filter(
+        ([, value]) =>
+          value !== undefined && value !== null,
+      ),
+    );
+
+  const snapshot = {
+    booking_mode: estimate.booking_mode,
+    guests:
+      bookingData.guests ||
+      pricing.quantity ||
+      1,
+    vendor: {
+      vendor_id: estimate.vendor_id || null,
+      vendor_product_id:
+        estimate.vendor_product_id || null,
+    },
+    product: compactObject({
+      slug: quotation.product?.slug,
+      name: quotation.product?.name,
+    }),
+    location: compactObject({
+      slug: quotation.location?.slug,
+      name: quotation.location?.name,
+    }),
+    pricing: compactObject({
+      currency: pricing.currency,
+      pricing_type: pricing.pricing_type,
+      unit_price: pricing.unit_price,
+      quantity: pricing.quantity,
+      subtotal: pricing.subtotal,
+      discount: pricing.discount,
+      tax: pricing.tax,
+      grand_total: pricing.grand_total,
+    }),
+  };
+
+  if (bookingData.travel_date) {
+    snapshot.travel_date =
+      bookingData.travel_date;
+  }
+
+  if (bookingData.pickup_date) {
+    snapshot.pickup_date =
+      bookingData.pickup_date;
+  }
+
+  if (bookingData.pickup_time) {
+    snapshot.pickup_time =
+      bookingData.pickup_time;
+  }
+
+  if (bookingData.return_date) {
+    snapshot.return_date =
+      bookingData.return_date;
+  }
+
+  if (bookingData.drop_time) {
+    snapshot.drop_time = bookingData.drop_time;
+  }
+
+  if (bookingData.rental_days) {
+    snapshot.rental_days =
+      bookingData.rental_days;
+  }
+
+  if (selectedSlot) {
+    snapshot.selected_slot = compactObject({
+      name: selectedSlot.name,
+      start_time: selectedSlot.start_time,
+      end_time: selectedSlot.end_time,
+      price: selectedSlot.price,
+    });
+  }
+
+  return snapshot;
 };
 
 const reserveInventoryForConfirmedOrder = async ({
@@ -671,6 +760,12 @@ const createOrderService = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     */
 
+    const orderItemBookingData =
+      buildOrderItemBookingData({
+        estimate,
+        product,
+      });
+
     const orderItem = await OrderItem.create(
       {
         order_id: order.id,
@@ -701,11 +796,9 @@ const createOrderService = async ({ estimateId, payload }) => {
 
         vendor_id: estimate.vendor_id,
 
-        vendor_schedule_id:
-          estimate.vendor_schedule_id,
+        vendor_schedule_id: null,
 
-        vendor_schedule_slot_id:
-          estimate.vendor_schedule_slot_id,
+        vendor_schedule_slot_id: null,
 
         booking_mode:
           estimate.booking_mode,
@@ -717,7 +810,7 @@ const createOrderService = async ({ estimateId, payload }) => {
           product.bookingTemplate.version,
 
         booking_data: JSON.parse(
-          JSON.stringify(estimate.booking_data),
+          JSON.stringify(orderItemBookingData),
         ),
 
         booking_payload: JSON.parse(

@@ -76,6 +76,19 @@ const maintainVendorProductSchedules = async (
       templateSlots = [defaultSlot];
     }
 
+    if (
+      vendorProduct.pricing_type === "SLOT" &&
+      templateSlots.length === 0
+    ) {
+      return {
+        schedulesCreated: 0,
+        slotsCreated: 0,
+        slotsUpdated: 0,
+        slotsClosed: 0,
+        hasTemplateSlots: false,
+      };
+    }
+
     const existingSchedules = await VendorSchedule.findAll({
       attributes: [
         "id",

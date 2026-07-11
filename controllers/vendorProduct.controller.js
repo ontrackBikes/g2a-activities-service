@@ -80,23 +80,15 @@ const cleanupInventoryForPricingTypeChange = async ({
   let schedulesDeleted = 0;
 
   if (scheduleIds.length) {
-    bookedDatedSlots =
-      await VendorScheduleSlot.count({
-        where: {
-          vendor_schedule_id: scheduleIds,
-          booked: {
-            [Op.gt]: 0,
-          },
+    bookedDatedSlots = await VendorScheduleSlot.count({
+      where: {
+        vendor_schedule_id: scheduleIds,
+        booked: {
+          [Op.gt]: 0,
         },
-        transaction,
-      });
-
-    if (bookedDatedSlots > 0) {
-      return {
-        blocked: true,
-        booked_dated_slots: bookedDatedSlots,
-      };
-    }
+      },
+      transaction,
+    });
 
     datedSlotsDeleted =
       await VendorScheduleSlot.destroy({
@@ -130,6 +122,7 @@ const cleanupInventoryForPricingTypeChange = async ({
 
   return {
     blocked: false,
+    booked_dated_slots_reset: bookedDatedSlots,
     dated_slots_deleted: datedSlotsDeleted,
     schedules_deleted: schedulesDeleted,
     template_slots_deleted: templateSlotsDeleted,
@@ -520,13 +513,6 @@ const updateVendorProduct = async (req, res) => {
                 previousPricingType,
                 transaction,
               });
-
-            if (inventoryCleanup.blocked) {
-              return {
-                pricingTypeChangeBlocked: true,
-                inventoryCleanup,
-              };
-            }
           }
 
           await vendorProduct.update(
@@ -594,17 +580,6 @@ const updateVendorProduct = async (req, res) => {
         success: false,
         message:
           "start_time and end_time are only allowed for FIXED pricing",
-      });
-    }
-
-    if (updateResult.pricingTypeChangeBlocked) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Pricing type cannot be changed because bookings exist in current schedules",
-        booked_dated_slots:
-          updateResult.inventoryCleanup
-            .booked_dated_slots,
       });
     }
 
