@@ -808,6 +808,15 @@ const getProductDetailsForApp = async (req, res) => {
 
       include: [
         {
+          model: ProductType,
+          as: "productType",
+
+          include: [ {
+            model: Category,
+            as: "category"
+          }]
+        },
+        {
           model: ProductImage,
           as: "images",
           required: false,
@@ -1002,7 +1011,7 @@ const getProductDetailsForApp = async (req, res) => {
 
       data: {
        
-
+        redirectUrl: `/${product.productType.category.slug}/${product.productType.slug}/${slug}/book` ,
         slug: product.slug,
 
         name: product.name,
