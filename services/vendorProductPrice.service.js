@@ -18,10 +18,7 @@ const getVendorProductPrice = (
   return {
     base_price: basePrice,
     display_price: lowestSlotPrice,
-    price_type:
-      vendorProduct.pricing_type === "SLOT"
-        ? "starts_from"
-        : "flat",
+    price_type: vendorProduct.pricing_type,
   };
 };
 
