@@ -29,6 +29,19 @@ VendorProductSlot.init(
       },
     },
 
+    slot_type: {
+      type: DataTypes.ENUM("TIME", "VARIANT"),
+      allowNull: false,
+      defaultValue: "TIME",
+      comment: "TIME for timed activity slots, VARIANT for vehicle/equipment variants",
+      set(value) {
+        this.setDataValue(
+          "slot_type",
+          value ? String(value).toUpperCase() : value,
+        );
+      },
+    },
+
     start_time: {
       type: DataTypes.TIME,
       allowNull: true,
@@ -110,6 +123,9 @@ VendorProductSlot.init(
       },
       {
         fields: ["vendor_product_id"],
+      },
+      {
+        fields: ["slot_type"],
       },
       {
         fields: ["active"],

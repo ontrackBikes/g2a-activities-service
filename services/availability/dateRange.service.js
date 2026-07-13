@@ -27,6 +27,12 @@ const getEffectiveMaxBookable = ({
   return limits.length ? Math.min(...limits) : 0;
 };
 
+const getSlotType = (slot) =>
+  slot?.slot_type ||
+  (slot?.start_time && slot?.end_time
+    ? "TIME"
+    : "VARIANT");
+
 module.exports.checkDateRange = async ({
   product,
   location,
@@ -82,6 +88,8 @@ module.exports.checkDateRange = async ({
     returnDate: payload.return_date,
     pickupTime: payload.pickup_time,
     guests: payload.guests,
+    selectedSlotToken:
+      payload.selected_slot_token || null,
   });
 
 
@@ -113,10 +121,6 @@ module.exports.checkDateRange = async ({
 
   const isSlotPricing =
     availability.vendorProduct.pricing_type === "SLOT";
-  const slotVariantType = isSlotPricing
-    ? availability.vendorProduct.slot_variant_type ||
-      "TIME"
-    : null;
 
   const dailyPricing = Array.isArray(
     availability.daily_pricing,
@@ -124,13 +128,15 @@ module.exports.checkDateRange = async ({
     ? availability.daily_pricing
     : [];
 
-  const availableSlots = availability.selected_slot
-    ? [availability.selected_slot]
-    : Array.isArray(availability.slots)
+  const availableSlots =
+    Array.isArray(availability.slots) &&
+    availability.slots.length
       ? availability.slots
-      : dailyPricing
-          .map((day) => day.slot)
-          .filter(Boolean);
+      : availability.selected_slot
+        ? [availability.selected_slot]
+        : dailyPricing
+            .map((day) => day.slot)
+            .filter(Boolean);
 
   const slot_mapping = {};
 
@@ -147,17 +153,11 @@ module.exports.checkDateRange = async ({
         return {
           token,
           name: slot.slot_name,
-          start_time:
-            slotVariantType === "TIME"
-              ? slot.start_time
-              : null,
-          end_time:
-            slotVariantType === "TIME"
-              ? slot.end_time
-              : null,
+          slot_type: getSlotType(slot),
+          start_time: slot.start_time,
+          end_time: slot.end_time,
           price: Number(slot.price),
           available: slot.available,
-          variant_type: slotVariantType,
           max_bookable_per_booking:
             getEffectiveMaxBookable({
               vendorMax:
@@ -169,7 +169,14 @@ module.exports.checkDateRange = async ({
       })
     : [];
 
-  const selectedSlot = slots.length ? slots[0] : null;
+  const selectedSlot =
+    slots.find(
+      (slot) =>
+        slot_mapping[slot.token] ===
+        availability.selected_slot?.id,
+    ) ||
+    slots[0] ||
+    null;
   const firstDailyPricing = dailyPricing[0] || null;
   const fixedScheduleSlot = !isSlotPricing
     ? firstDailyPricing?.slot || null
@@ -220,7 +227,7 @@ module.exports.checkDateRange = async ({
     },
 
     availability: {
-      slot_variant_type: slotVariantType,
+      slots,
       selected_slot: selectedSlot,
       daily_pricing: dailyPricing.map((day) => ({
         date: day.date,

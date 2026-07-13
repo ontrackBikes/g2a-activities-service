@@ -46,6 +46,7 @@ const maintainVendorProductSchedules = async (
             slot_name: "Default",
           },
           defaults: {
+            slot_type: "TIME",
             start_time: "09:00:00",
             end_time: "18:00:00",
             default_price: vendorProduct.base_price,
@@ -66,6 +67,7 @@ const maintainVendorProductSchedules = async (
             vendorProduct.base_capacity,
           max_bookable_per_booking:
             vendorProduct.max_bookable_per_booking,
+          slot_type: "TIME",
           active: true,
         },
         {

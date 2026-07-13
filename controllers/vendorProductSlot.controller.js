@@ -15,6 +15,76 @@ const {
   "../queues/vendorSchedule/vendorSchedule.queue"
 );
 
+const normalizeTimeValue = (value) =>
+  value === "" || value === undefined ? null : value;
+
+const inferSlotType = ({ slotType, startTime, endTime }) => {
+  if (slotType) {
+    return String(slotType).toUpperCase();
+  }
+
+  return startTime && endTime ? "TIME" : "VARIANT";
+};
+
+const buildSlotTimingPayload = ({
+  value,
+  existingSlot = null,
+}) => {
+  const hasStartTime = Object.prototype.hasOwnProperty.call(
+    value,
+    "start_time",
+  );
+  const hasEndTime = Object.prototype.hasOwnProperty.call(
+    value,
+    "end_time",
+  );
+
+  const startTime = hasStartTime
+    ? normalizeTimeValue(value.start_time)
+    : existingSlot?.start_time ?? null;
+  const endTime = hasEndTime
+    ? normalizeTimeValue(value.end_time)
+    : existingSlot?.end_time ?? null;
+  const requestedStartTime = hasStartTime
+    ? normalizeTimeValue(value.start_time)
+    : null;
+  const requestedEndTime = hasEndTime
+    ? normalizeTimeValue(value.end_time)
+    : null;
+
+  const slotType = inferSlotType({
+    slotType:
+      value.slot_type || existingSlot?.slot_type,
+    startTime,
+    endTime,
+  });
+
+  if (slotType === "TIME" && (!startTime || !endTime)) {
+    return {
+      error:
+        "start_time and end_time are required for TIME slots",
+    };
+  }
+
+  if (
+    slotType === "VARIANT" &&
+    (requestedStartTime || requestedEndTime)
+  ) {
+    return {
+      error:
+        "start_time and end_time are not allowed for VARIANT slots",
+    };
+  }
+
+  return {
+    payload: {
+      slot_type: slotType,
+      start_time: slotType === "TIME" ? startTime : null,
+      end_time: slotType === "TIME" ? endTime : null,
+    },
+  };
+};
+
 const queueScheduleSync = async ({
   vendorProductId,
   vendorProductSlotId,
@@ -101,6 +171,17 @@ const createVendorProductSlot = async (
       });
     }
 
+    const timingResult = buildSlotTimingPayload({
+      value,
+    });
+
+    if (timingResult.error) {
+      return res.status(400).json({
+        success: false,
+        message: timingResult.error,
+      });
+    }
+
     const slot =
       await VendorProductSlot.create({
         vendor_product_id:
@@ -108,11 +189,7 @@ const createVendorProductSlot = async (
 
         slot_name: value.slot_name,
 
-        start_time:
-          value.start_time || null,
-
-        end_time:
-          value.end_time || null,
+        ...timingResult.payload,
 
         default_price:
           value.default_price,
@@ -259,7 +336,22 @@ const updateVendorProductSlot =
         });
       }
 
-      await slot.update(value);
+      const timingResult = buildSlotTimingPayload({
+        value,
+        existingSlot: slot,
+      });
+
+      if (timingResult.error) {
+        return res.status(400).json({
+          success: false,
+          message: timingResult.error,
+        });
+      }
+
+      await slot.update({
+        ...value,
+        ...timingResult.payload,
+      });
       const scheduleSync =
         await queueScheduleSync({
           vendorProductId: req.params.id,

@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const moment = require("moment-timezone");
+const crypto = require("crypto");
 
 const {
   Product,
@@ -32,6 +33,13 @@ class DateRangeAvailabilityError extends Error {
 const roundMoney = (value) =>
   Math.round((Number(value) + Number.EPSILON) * 100) /
   100;
+
+const buildSlotToken = (slotId) =>
+  `slot_${crypto
+    .createHash("sha1")
+    .update(String(slotId))
+    .digest("hex")
+    .substring(0, 16)}`;
 
 const parsePositiveInteger = (value, fieldName) => {
   const parsedValue = Number(value);
@@ -255,6 +263,8 @@ const buildSlotVendorCandidate = ({
     );
   });
 
+  const candidates = [];
+
   for (const firstDateSlot of firstDateSlots) {
     const templateSlotId = Number(
       firstDateSlot.vendor_product_slot_id,
@@ -293,19 +303,21 @@ const buildSlotVendorCandidate = ({
       continue;
     }
 
-    return buildCandidateResult({
-      vendorProduct,
-      guests,
-      requiredDates,
-      dailyPricing,
-      selectedSlot: firstDateSlot,
-    });
+    candidates.push(
+      buildCandidateResult({
+        vendorProduct,
+        guests,
+        requiredDates,
+        dailyPricing,
+        selectedSlot: firstDateSlot,
+      }),
+    );
   }
 
-  return null;
+  return candidates;
 };
 
-const buildVendorCandidate = ({
+const buildVendorCandidates = ({
   vendorProduct,
   requiredDates,
   guests,
@@ -327,12 +339,83 @@ const buildVendorCandidate = ({
     });
   }
 
-  return buildFixedVendorCandidate({
+  const fixedCandidate = buildFixedVendorCandidate({
     vendorProduct,
     requiredDates,
     scheduleByDate,
     guests,
   });
+
+  return fixedCandidate ? [fixedCandidate] : [];
+};
+
+const sortCandidates = (first, second) => {
+  const firstDatePriceDifference =
+    first.first_date_unit_price -
+    second.first_date_unit_price;
+
+  if (firstDatePriceDifference !== 0) {
+    return firstDatePriceDifference;
+  }
+
+  const totalDifference =
+    first.rental_total - second.rental_total;
+
+  if (totalDifference !== 0) {
+    return totalDifference;
+  }
+
+  const unitPriceDifference =
+    first.unit_price_total -
+    second.unit_price_total;
+
+  if (unitPriceDifference !== 0) {
+    return unitPriceDifference;
+  }
+
+  const vendorProductDifference =
+    Number(first.vendorProduct.id) -
+    Number(second.vendorProduct.id);
+
+  if (vendorProductDifference !== 0) {
+    return vendorProductDifference;
+  }
+
+  return (
+    Number(first.selected_slot?.id || 0) -
+    Number(second.selected_slot?.id || 0)
+  );
+};
+
+const buildSlotOptionKey = (slot) =>
+  [
+    slot.slot_name,
+    slot.start_time || "",
+    slot.end_time || "",
+  ].join("|");
+
+const getVisibleSlotCandidates = (candidates) => {
+  const visibleCandidates = [];
+  const seen = new Set();
+
+  for (const candidate of candidates) {
+    const slot = candidate.selected_slot;
+
+    if (!slot) {
+      continue;
+    }
+
+    const key = buildSlotOptionKey(slot);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    visibleCandidates.push(candidate);
+  }
+
+  return visibleCandidates;
 };
 
 const getAvailableDateRangeVendor = async ({
@@ -342,6 +425,7 @@ const getAvailableDateRangeVendor = async ({
   returnDate,
   pickupTime = DEFAULT_PICKUP_TIME,
   guests,
+  selectedSlotToken = null,
 }) => {
   const resolvedProductId = parsePositiveInteger(
     productId,
@@ -378,7 +462,6 @@ const getAvailableDateRangeVendor = async ({
       "product_id",
       "location_id",
       "pricing_type",
-      "slot_variant_type",
       "base_price",
       "base_capacity",
       "max_bookable_per_booking"
@@ -474,8 +557,8 @@ const getAvailableDateRangeVendor = async ({
   });
 
   const candidates = vendorProducts
-    .map((vendorProduct) =>
-      buildVendorCandidate({
+    .flatMap((vendorProduct) =>
+      buildVendorCandidates({
         vendorProduct,
         requiredDates: dates,
         guests: resolvedGuests,
@@ -483,37 +566,21 @@ const getAvailableDateRangeVendor = async ({
     )
     .filter(Boolean);
 
-  candidates.sort((first, second) => {
-    const firstDatePriceDifference =
-      first.first_date_unit_price -
-      second.first_date_unit_price;
+  candidates.sort(sortCandidates);
 
-    if (firstDatePriceDifference !== 0) {
-      return firstDatePriceDifference;
-    }
-
-    const totalDifference =
-      first.rental_total - second.rental_total;
-
-    if (totalDifference !== 0) {
-      return totalDifference;
-    }
-
-    const unitPriceDifference =
-      first.unit_price_total -
-      second.unit_price_total;
-
-    if (unitPriceDifference !== 0) {
-      return unitPriceDifference;
-    }
-
-    return (
-      Number(first.vendorProduct.id) -
-      Number(second.vendorProduct.id)
-    );
-  });
-
-  const selectedVendor = candidates[0] || null;
+  const slotCandidates = candidates.filter(
+    (candidate) =>
+      candidate.vendorProduct.pricing_type === "SLOT",
+  );
+  const visibleSlotCandidates =
+    getVisibleSlotCandidates(slotCandidates);
+  const selectedVendor = selectedSlotToken
+    ? visibleSlotCandidates.find(
+        (candidate) =>
+          buildSlotToken(candidate.selected_slot.id) ===
+          selectedSlotToken,
+      ) || null
+    : candidates[0] || null;
 
 
   if (!selectedVendor) {
@@ -527,6 +594,9 @@ const getAvailableDateRangeVendor = async ({
     rental_days: rentalDays,
     pickup_time: normalizedPickupTime,
     drop_time: dropTime,
+    slots: visibleSlotCandidates.map(
+      (candidate) => candidate.selected_slot,
+    ),
   };
 };
 

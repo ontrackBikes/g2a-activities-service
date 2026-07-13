@@ -27,6 +27,12 @@ const getEffectiveMaxBookable = ({
   return limits.length ? Math.min(...limits) : 0;
 };
 
+const getSlotType = (slot) =>
+  slot?.slot_type ||
+  (slot?.start_time && slot?.end_time
+    ? "TIME"
+    : "VARIANT");
+
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
@@ -96,10 +102,6 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
    */
 
   const isSlotPricing = availability.vendorProduct.pricing_type === "SLOT";
-  const slotVariantType = isSlotPricing
-    ? availability.vendorProduct.slot_variant_type ||
-      "TIME"
-    : null;
 
   const slot_mapping = {};
 
@@ -118,21 +120,15 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
           name: slot.slot_name,
 
-          start_time:
-            slotVariantType === "TIME"
-              ? slot.start_time
-              : null,
+          slot_type: getSlotType(slot),
 
-          end_time:
-            slotVariantType === "TIME"
-              ? slot.end_time
-              : null,
+          start_time: slot.start_time,
+
+          end_time: slot.end_time,
 
           price: Number(slot.price),
 
           available: slot.available,
-
-          variant_type: slotVariantType,
 
           max_bookable_per_booking:
             getEffectiveMaxBookable({
@@ -216,8 +212,6 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
     availability: {
       pricing_type: availability.vendorProduct.pricing_type,
-
-      slot_variant_type: slotVariantType,
 
       slots,
       selected_slot: selectedSlot,

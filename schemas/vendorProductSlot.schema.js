@@ -7,6 +7,10 @@ const createVendorProductSlotSchema =
       .max(100)
       .required(),
 
+    slot_type: Joi.string()
+      .valid("TIME", "VARIANT", "time", "variant")
+      .uppercase(),
+
     start_time: Joi.string()
       .allow(null, ""),
 
@@ -37,6 +41,10 @@ const updateVendorProductSlotSchema =
     slot_name: Joi.string()
       .trim()
       .max(100),
+
+    slot_type: Joi.string()
+      .valid("TIME", "VARIANT", "time", "variant")
+      .uppercase(),
 
     start_time: Joi.string()
       .allow(null, ""),

@@ -35,14 +35,6 @@ VendorProduct.init(
       allowNull: false,
     },
 
-    slot_variant_type: {
-      type: DataTypes.ENUM(
-        "TIME",
-        "VEHICLE"
-      ),
-      allowNull: true,
-    },
-
     base_price: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
@@ -124,10 +116,6 @@ VendorProduct.init(
 
       {
         fields: ["pricing_type"],
-      },
-
-      {
-        fields: ["slot_variant_type"],
       },
 
       {

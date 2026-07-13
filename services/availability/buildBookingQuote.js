@@ -72,6 +72,34 @@ const sanitizeProduct = (product) => {
   };
 };
 
+const getSlotDisplayType = ({
+  slots = [],
+  selectedSlot = null,
+}) => {
+  const slotOptions = [
+    ...(Array.isArray(slots) ? slots : []),
+    selectedSlot,
+  ].filter(Boolean);
+
+  if (!slotOptions.length) {
+    return null;
+  }
+
+  const explicitType = slotOptions.find(
+    (slot) => slot.slot_type,
+  )?.slot_type;
+
+  if (explicitType) {
+    return explicitType;
+  }
+
+  const hasTimedSlot = slotOptions.some(
+    (slot) => slot.start_time && slot.end_time,
+  );
+
+  return hasTimedSlot ? "TIME" : "VARIANT";
+};
+
 const buildBookingQuote = ({
   product,
   location,
@@ -79,6 +107,10 @@ const buildBookingQuote = ({
   pricing = {},
   availability = {},
 }) => {
+  const slots = availability.slots || [];
+  const selectedSlot =
+    availability.selected_slot || null;
+
   return {
     product: sanitizeProduct(product),
     location: {
@@ -110,12 +142,14 @@ const buildBookingQuote = ({
     },
 
     availability: {
-      slot_variant_type:
-        availability.slot_variant_type || null,
+      slot_display_type: getSlotDisplayType({
+        slots,
+        selectedSlot,
+      }),
 
-      slots: availability.slots || [],
+      slots,
 
-      selected_slot: availability.selected_slot || null,
+      selected_slot: selectedSlot,
 
       daily_pricing: availability.daily_pricing || [],
 

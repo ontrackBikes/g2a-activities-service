@@ -213,6 +213,7 @@ const createVendorProduct = async (req, res) => {
                   vendor_product_id:
                     createdVendorProduct.id,
                   slot_name: "Default",
+                  slot_type: "TIME",
                   start_time: startTime,
                   end_time: endTime,
                   default_price:
@@ -496,25 +497,6 @@ const updateVendorProduct = async (req, res) => {
               previousPricingType;
 
           if (
-            vendorProductUpdates.slot_variant_type !==
-              undefined &&
-            effectivePricingType !== "SLOT"
-          ) {
-            return {
-              invalidSlotVariantType: true,
-            };
-          }
-
-          if (effectivePricingType !== "SLOT") {
-            vendorProductUpdates.slot_variant_type = null;
-          } else if (
-            !vendorProductUpdates.slot_variant_type &&
-            !vendorProduct.slot_variant_type
-          ) {
-            vendorProductUpdates.slot_variant_type = "TIME";
-          }
-
-          if (
             hasCustomFixedTiming &&
             effectivePricingType !== "FIXED"
           ) {
@@ -552,6 +534,7 @@ const updateVendorProduct = async (req, res) => {
                   slot_name: "Default",
                 },
                 defaults: {
+                  slot_type: "TIME",
                   start_time: startTime,
                   end_time: endTime,
                   default_price:
@@ -568,6 +551,7 @@ const updateVendorProduct = async (req, res) => {
 
             await defaultSlot.update(
               {
+                slot_type: "TIME",
                 start_time: startTime,
                 end_time: endTime,
                 active: true,
@@ -599,14 +583,6 @@ const updateVendorProduct = async (req, res) => {
         success: false,
         message:
           "start_time and end_time are only allowed for FIXED pricing",
-      });
-    }
-
-    if (updateResult.invalidSlotVariantType) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "slot_variant_type is only allowed for SLOT pricing",
       });
     }
 
