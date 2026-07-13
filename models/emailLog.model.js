@@ -97,5 +97,5 @@ EmailLog.init(
     updatedAt: "updated_at",
   },
 );
-EmailLog.sync({ alter: true });
+// EmailLog.sync({ alter: true });
 module.exports = EmailLog;
