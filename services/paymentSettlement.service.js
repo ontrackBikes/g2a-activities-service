@@ -331,6 +331,117 @@ async function sendConfirmationEmail({ payment, order }) {
       `[PaymentSettlement] Sending booking confirmation to ${customerEmail}`,
     );
 
+    const emailTemplateModel = {
+  customerName:
+    order.customer_details?.name ||
+    [
+      order.customer_details?.first_name,
+      order.customer_details?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    "Customer",
+
+  customerEmail: customerEmail,
+
+  customerPhone:
+    order.customer_details?.phone || "",
+
+  orderId: order.order_id,
+
+  // Optional since your template currently uses orderId
+  order_id: order.order_id,
+
+  paymentId:
+    payment.gateway_payment_id ||
+    payment.payment_id,
+
+  paymentStatus: payment.status,
+
+  bookingDate: new Date(order.created_at).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  ),
+
+  currency: order.currency,
+
+  amount: Number(order.grand_total).toFixed(2),
+
+  subtotal: Number(order.subtotal).toFixed(2),
+
+  discount: Number(order.discount).toFixed(2),
+
+  tax: Number(order.tax).toFixed(2),
+
+  items: (order.items || []).map((item) => {
+    const booking =
+      item.booking_data ||
+      item.quotation?.booking ||
+      {};
+
+    const pricing =
+      item.pricing ||
+      item.quotation?.pricing ||
+      {};
+
+    const delivery =
+      item.booking_payload?.bike_delivery ||
+      {};
+
+    return {
+      product_name: item.product_name,
+
+      location_name: item.location_name,
+
+      booking: {
+        travel_date:
+          booking.travel_date || "",
+
+        pickup_date:
+          booking.pickup_date || "",
+
+        return_date:
+          booking.return_date || "",
+
+        rental_days:
+          booking.rental_days || "",
+
+        guests:
+          booking.guests || "",
+
+        pickup_time:
+          delivery.pickup_time || "",
+
+        return_time:
+          delivery.return_time || "",
+
+        pickup_location:
+          delivery.pickup_location || "",
+
+        drop_location:
+          delivery.drop_location || "",
+      },
+
+      pricing: {
+        currency:
+          pricing.currency ||
+          order.currency,
+
+        grand_total:
+          Number(
+            pricing.grand_total ??
+              pricing.subtotal ??
+              0,
+          ).toFixed(2),
+      },
+    };
+  }),
+};
+
     return sendTemplateEmail({
       orderId: order.id,
       customerId: order.customer_id,
@@ -339,7 +450,7 @@ async function sendConfirmationEmail({ payment, order }) {
 
       templateAlias: emailTemplates.BOOKING_CONFIRMATION,
 
-      templateModel,
+      templateModel: emailTemplateModel,
 
       metadata: {
         type: "booking_confirmation",

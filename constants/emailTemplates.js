@@ -1,6 +1,6 @@
 module.exports = {
-  // BOOKING_CONFIRMATION:
-  //   "booking-confirmation",
+  BOOKING_CONFIRMATION:
+    "activities_order_successful",
 
   BOOKING_CANCELLED:
     "booking-cancelled",

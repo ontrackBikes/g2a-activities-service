@@ -3,9 +3,7 @@ const googleSheetService = require("../services/googleSheet.service");
 const bikeRentalService = require("../services/bikeRentals.service");
 const razorpayService = require("../services/razorpay.service");
 const BookingEstimate = require("../models/bookingEstimate.model");
-const {
-  Op,
-} = require("sequelize");
+const { Op } = require("sequelize");
 
 const {
   Product,
@@ -17,7 +15,6 @@ const {
   Payment,
   VendorScheduleSlot,
 } = require("../models");
-
 
 const { validateBookingPayload } = require("../schemas/bookingPayload.schema");
 const sequelize = require("../config/sequelize");
@@ -63,20 +60,13 @@ const buildDateRangeFilter = ({ dateFrom, dateTo }) => {
 const getOrderItemQuantity = (orderItem) => {
   const bookingData = orderItem.booking_data || {};
   const pricing = orderItem.pricing || {};
-  const quantity =
-    Number(bookingData.guests) ||
-    Number(pricing.quantity) ||
-    1;
+  const quantity = Number(bookingData.guests) || Number(pricing.quantity) || 1;
 
   return Math.max(quantity, 1);
 };
 
-const getInventorySlotIdsForOrderItem = ({
-  orderItem,
-  estimate,
-}) => {
-  const inventorySlots =
-    estimate?.metadata?.inventory_slots;
+const getInventorySlotIdsForOrderItem = ({ orderItem, estimate }) => {
+  const inventorySlots = estimate?.metadata?.inventory_slots;
 
   if (
     orderItem.booking_mode === "date_range" &&
@@ -86,30 +76,18 @@ const getInventorySlotIdsForOrderItem = ({
     return [
       ...new Set(
         inventorySlots
-          .map((slot) =>
-            Number(slot.vendor_schedule_slot_id),
-          )
-          .filter(
-            (slotId) =>
-              Number.isInteger(slotId) && slotId > 0,
-          ),
+          .map((slot) => Number(slot.vendor_schedule_slot_id))
+          .filter((slotId) => Number.isInteger(slotId) && slotId > 0),
       ),
     ];
   }
 
-  const slotId = Number(
-    estimate?.vendor_schedule_slot_id,
-  );
+  const slotId = Number(estimate?.vendor_schedule_slot_id);
 
-  return Number.isInteger(slotId) && slotId > 0
-    ? [slotId]
-    : [];
+  return Number.isInteger(slotId) && slotId > 0 ? [slotId] : [];
 };
 
-const buildOrderItemBookingData = ({
-  estimate,
-  product,
-}) => {
+const buildOrderItemBookingData = ({ estimate, product }) => {
   const quotation = estimate.quotation || {};
   const availability = quotation.availability || {};
   const bookingData = estimate.booking_data || {};
@@ -118,21 +96,16 @@ const buildOrderItemBookingData = ({
   const compactObject = (object) =>
     Object.fromEntries(
       Object.entries(object).filter(
-        ([, value]) =>
-          value !== undefined && value !== null,
+        ([, value]) => value !== undefined && value !== null,
       ),
     );
 
   const snapshot = {
     booking_mode: estimate.booking_mode,
-    guests:
-      bookingData.guests ||
-      pricing.quantity ||
-      1,
+    guests: bookingData.guests || pricing.quantity || 1,
     vendor: {
       vendor_id: estimate.vendor_id || null,
-      vendor_product_id:
-        estimate.vendor_product_id || null,
+      vendor_product_id: estimate.vendor_product_id || null,
     },
     product: compactObject({
       slug: quotation.product?.slug,
@@ -155,23 +128,19 @@ const buildOrderItemBookingData = ({
   };
 
   if (bookingData.travel_date) {
-    snapshot.travel_date =
-      bookingData.travel_date;
+    snapshot.travel_date = bookingData.travel_date;
   }
 
   if (bookingData.pickup_date) {
-    snapshot.pickup_date =
-      bookingData.pickup_date;
+    snapshot.pickup_date = bookingData.pickup_date;
   }
 
   if (bookingData.pickup_time) {
-    snapshot.pickup_time =
-      bookingData.pickup_time;
+    snapshot.pickup_time = bookingData.pickup_time;
   }
 
   if (bookingData.return_date) {
-    snapshot.return_date =
-      bookingData.return_date;
+    snapshot.return_date = bookingData.return_date;
   }
 
   if (bookingData.drop_time) {
@@ -179,8 +148,7 @@ const buildOrderItemBookingData = ({
   }
 
   if (bookingData.rental_days) {
-    snapshot.rental_days =
-      bookingData.rental_days;
+    snapshot.rental_days = bookingData.rental_days;
   }
 
   if (selectedSlot) {
@@ -195,10 +163,7 @@ const buildOrderItemBookingData = ({
   return snapshot;
 };
 
-const reserveInventoryForConfirmedOrder = async ({
-  order,
-  transaction,
-}) => {
+const reserveInventoryForConfirmedOrder = async ({ order, transaction }) => {
   const orderItems = await OrderItem.findAll({
     where: {
       order_id: order.id,
@@ -216,18 +181,14 @@ const reserveInventoryForConfirmedOrder = async ({
   });
 
   for (const orderItem of orderItems) {
-    const quantity =
-      getOrderItemQuantity(orderItem);
-    const inventorySlotIds =
-      getInventorySlotIdsForOrderItem({
-        orderItem,
-        estimate,
-      });
+    const quantity = getOrderItemQuantity(orderItem);
+    const inventorySlotIds = getInventorySlotIdsForOrderItem({
+      orderItem,
+      estimate,
+    });
 
     if (
-      ["single_date", "date_range"].includes(
-        orderItem.booking_mode,
-      ) &&
+      ["single_date", "date_range"].includes(orderItem.booking_mode) &&
       !inventorySlotIds.length
     ) {
       const error = new Error(
@@ -238,31 +199,22 @@ const reserveInventoryForConfirmedOrder = async ({
     }
 
     for (const slotId of inventorySlotIds) {
-      const scheduleSlot =
-        await VendorScheduleSlot.findByPk(
-          slotId,
-          {
-            transaction,
-            lock: transaction.LOCK.UPDATE,
-          },
-        );
+      const scheduleSlot = await VendorScheduleSlot.findByPk(slotId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
 
       if (!scheduleSlot) {
-        const error = new Error(
-          "Inventory slot not found for this order.",
-        );
+        const error = new Error("Inventory slot not found for this order.");
         error.status = 409;
         throw error;
       }
 
       const booked = Number(scheduleSlot.booked) || 0;
-      const available =
-        Number(scheduleSlot.available) || 0;
+      const available = Number(scheduleSlot.available) || 0;
 
       if (available < quantity) {
-        const error = new Error(
-          "Insufficient inventory for this order.",
-        );
+        const error = new Error("Insufficient inventory for this order.");
         error.status = 409;
         throw error;
       }
@@ -551,7 +503,6 @@ const createBikeRentalOrder = async (req, res) => {
 };
 
 const createOrderService = async ({ estimateId, payload }) => {
-  
   const transaction = await sequelize.transaction();
 
   try {
@@ -559,8 +510,7 @@ const createOrderService = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     | Estimate
     |--------------------------------------------------------------------------
-    */  
-   
+    */
 
     const estimate = await BookingEstimate.findOne({
       where: {
@@ -599,15 +549,10 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     const requiresSlotSelection =
       estimate.booking_mode === "single_date" &&
-      Array.isArray(
-        estimate.quotation?.availability?.slots,
-      ) &&
+      Array.isArray(estimate.quotation?.availability?.slots) &&
       estimate.quotation.availability.slots.length > 0;
 
-    if (
-      requiresSlotSelection &&
-      !estimate.vendor_schedule_slot_id
-    ) {
+    if (requiresSlotSelection && !estimate.vendor_schedule_slot_id) {
       throw {
         status: 400,
         message: "Please select a slot.",
@@ -698,20 +643,13 @@ const createOrderService = async ({ estimateId, payload }) => {
       await customer.update(
         {
           first_name:
-            customer.first_name ||
-            payload.customer_details.first_name,
+            customer.first_name || payload.customer_details.first_name,
 
-          last_name:
-            customer.last_name ||
-            payload.customer_details.last_name,
+          last_name: customer.last_name || payload.customer_details.last_name,
 
-          email:
-            customer.email ||
-            payload.customer_details.email,
+          email: customer.email || payload.customer_details.email,
 
-          country:
-            customer.country ||
-            payload.customer_details.country,
+          country: customer.country || payload.customer_details.country,
         },
         {
           transaction,
@@ -731,9 +669,7 @@ const createOrderService = async ({ estimateId, payload }) => {
 
         customer_id: customer.id,
 
-        customer_details: JSON.parse(
-          JSON.stringify(payload.customer_details),
-        ),
+        customer_details: JSON.parse(JSON.stringify(payload.customer_details)),
 
         currency: estimate.pricing.currency,
 
@@ -760,11 +696,10 @@ const createOrderService = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     */
 
-    const orderItemBookingData =
-      buildOrderItemBookingData({
-        estimate,
-        product,
-      });
+    const orderItemBookingData = buildOrderItemBookingData({
+      estimate,
+      product,
+    });
 
     const orderItem = await OrderItem.create(
       {
@@ -774,25 +709,19 @@ const createOrderService = async ({ estimateId, payload }) => {
 
         product_id: estimate.product_id,
 
-        product_name:
-          estimate.quotation.product.name,
+        product_name: estimate.quotation.product.name,
 
-        product_slug:
-          estimate.quotation.product.slug,
+        product_slug: estimate.quotation.product.slug,
 
-        thumbnail_url:
-          estimate.quotation.product.thumbnail_url,
+        thumbnail_url: estimate.quotation.product.thumbnail_url,
 
         location_id: estimate.location_id,
 
-        location_name:
-          estimate.quotation.location.name,
+        location_name: estimate.quotation.location.name,
 
-        location_slug:
-          estimate.quotation.location.slug,
+        location_slug: estimate.quotation.location.slug,
 
-        vendor_product_id:
-          estimate.vendor_product_id,
+        vendor_product_id: estimate.vendor_product_id,
 
         vendor_id: estimate.vendor_id,
 
@@ -800,30 +729,19 @@ const createOrderService = async ({ estimateId, payload }) => {
 
         vendor_schedule_slot_id: null,
 
-        booking_mode:
-          estimate.booking_mode,
+        booking_mode: estimate.booking_mode,
 
-        booking_template_id:
-          product.bookingTemplate.id,
+        booking_template_id: product.bookingTemplate.id,
 
-        booking_template_version:
-          product.bookingTemplate.version,
+        booking_template_version: product.bookingTemplate.version,
 
-        booking_data: JSON.parse(
-          JSON.stringify(orderItemBookingData),
-        ),
+        booking_data: JSON.parse(JSON.stringify(orderItemBookingData)),
 
-        booking_payload: JSON.parse(
-          JSON.stringify(payload),
-        ),
+        booking_payload: JSON.parse(JSON.stringify(payload)),
 
-        quotation: JSON.parse(
-          JSON.stringify(estimate.quotation),
-        ),
+        quotation: JSON.parse(JSON.stringify(estimate.quotation)),
 
-        pricing: JSON.parse(
-          JSON.stringify(estimate.pricing),
-        ),
+        pricing: JSON.parse(JSON.stringify(estimate.pricing)),
 
         status: "pending",
       },
@@ -861,22 +779,17 @@ const createOrderService = async ({ estimateId, payload }) => {
 
           shoe_size: participant.shoe_size,
 
-          passport_number:
-            participant.passport_number,
+          passport_number: participant.passport_number,
 
           id_number: participant.id_number,
 
-          seat_preference:
-            participant.seat_preference,
+          seat_preference: participant.seat_preference,
 
-          seat_number:
-            participant.seat_number,
+          seat_number: participant.seat_number,
 
-          medical_declaration:
-            payload.medical_declaration || {},
+          medical_declaration: payload.medical_declaration || {},
 
-          emergency_contact:
-            payload.emergency_contact || {},
+          emergency_contact: payload.emergency_contact || {},
         })),
         {
           transaction,
@@ -944,8 +857,7 @@ const createOrder = async (req, res) => {
 
     return res.status(error.status || 500).json({
       success: false,
-      message:
-        error.message || "Failed to create order.",
+      message: error.message || "Failed to create order.",
       errors: error.errors || undefined,
     });
   }
@@ -1077,13 +989,9 @@ const getOrders = async (req, res) => {
       ];
     }
 
-    const sortColumn = allowedSortColumns.has(sort_by)
-      ? sort_by
-      : "created_at";
+    const sortColumn = allowedSortColumns.has(sort_by) ? sort_by : "created_at";
     const sortDirection =
-      String(sort_order).toUpperCase() === "ASC"
-        ? "ASC"
-        : "DESC";
+      String(sort_order).toUpperCase() === "ASC" ? "ASC" : "DESC";
 
     const orders = await Order.findAndCountAll({
       where: orderWhere,
@@ -1116,9 +1024,7 @@ const getOrders = async (req, res) => {
             "mobile",
             "country",
           ],
-          where: Object.keys(customerWhere).length
-            ? customerWhere
-            : undefined,
+          where: Object.keys(customerWhere).length ? customerWhere : undefined,
           required:
             Boolean(search && String(search).trim()) ||
             Object.keys(customerWhere).length > 0,
@@ -1139,9 +1045,7 @@ const getOrders = async (req, res) => {
             "booking_mode",
             "status",
           ],
-          where: Object.keys(itemWhere).length
-            ? itemWhere
-            : undefined,
+          where: Object.keys(itemWhere).length ? itemWhere : undefined,
           required:
             Boolean(search && String(search).trim()) ||
             Object.keys(itemWhere).length > 0,
@@ -1201,23 +1105,48 @@ const getOrder = async (req, res) => {
       where: {
         order_id,
       },
-
+      attributes: [
+        "order_id",
+        "estimate_id",
+        "currency",
+        "subtotal",
+        "discount",
+        "tax",
+        "grand_total",
+        "order_status",
+        "customer_details",
+      ],
       include: [
         {
-          model: Customer,
-          as: "customer",
+          model: Payment,
+          as: "payments",
+          attributes: [
+            "payment_id",
+            "amount",
+            "currency",
+            "status",
+            "paid_at",
+            "created_at",
+          ],
         },
 
         {
           model: OrderItem,
           as: "items",
 
-          include: [
-            {
-              model: OrderParticipant,
-              as: "participants",
-            },
+          attributes: [
+            "product_name",
+            "thumbnail_url",
+            "location_name",
+            "location_slug",
+            "booking_data",
+            "pricing",
+            "created_at",
           ],
+          include: {
+            model: OrderParticipant,
+            as: "participants",
+          },
         },
       ],
     });
@@ -1229,9 +1158,31 @@ const getOrder = async (req, res) => {
       });
     }
 
+    const formattedOrder = order.toJSON();
+
+    formattedOrder.items = formattedOrder.items.map((item) => ({
+      product_name: item.product_name,
+      thumbnail_url: item.thumbnail_url,
+      location_name: item.location_name,
+      location_slug: item.location_slug,
+      pricing: item.pricing,
+      created_at: item.created_at,
+      participants: item.participants,
+      booking_data: {
+        guests: item.booking_data?.guests,
+        pickup_date: item.booking_data?.pickup_date,
+        pickup_time: item.booking_data?.pickup_time,
+        return_date: item.booking_data?.return_date,
+        drop_time: item.booking_data?.drop_time,
+        rental_days: item.booking_data?.rental_days,
+        booking_mode: item.booking_data?.booking_mode,
+        selected_slot: item.booking_data?.selected_slot,
+      },
+    }));
+
     return res.json({
       success: true,
-      data: order,
+      data: formattedOrder,
     });
   } catch (error) {
     console.error("[getOrder]", error);
@@ -1291,10 +1242,8 @@ const createOrderPayment = async (req, res) => {
     if (
       payment &&
       payment.gateway_order_id &&
-      Number(payment.amount) ===
-        Number(order.grand_total) &&
-      (!payment.expires_at ||
-        payment.expires_at > new Date())
+      Number(payment.amount) === Number(order.grand_total) &&
+      (!payment.expires_at || payment.expires_at > new Date())
     ) {
       return res.json({
         success: true,
@@ -1308,22 +1257,18 @@ const createOrderPayment = async (req, res) => {
 
           order_id: order.order_id,
 
-          razorpay_order_id:
-            payment.gateway_order_id,
+          razorpay_order_id: payment.gateway_order_id,
 
-          amount:
-            Number(payment.amount) * 100,
+          amount: Number(payment.amount) * 100,
 
           currency: payment.currency,
 
           customer: {
-            name:
-              `${order.customer_details.first_name} ${order.customer_details.last_name}`,
+            name: `${order.customer_details.first_name} ${order.customer_details.last_name}`,
 
             email: order.customer_details.email,
 
-            contact:
-              order.customer_details.phone,
+            contact: order.customer_details.phone,
           },
         },
       });
@@ -1333,33 +1278,27 @@ const createOrderPayment = async (req, res) => {
      * Create Razorpay Order
      */
 
-    const paymentResult =
-      await razorpayService.createRazorpayOrder({
-        orderId: order.order_id,
+    const paymentResult = await razorpayService.createRazorpayOrder({
+      orderId: order.order_id,
 
-        totalPrice: Number(
-          order.grand_total,
-        ),
+      totalPrice: Number(order.grand_total),
 
-        currency: order.currency,
+      currency: order.currency,
 
-        notes: {
-          order_id: order.order_id,
-          estimate_id:
-            order.estimate_id,
-        },
-      });
+      notes: {
+        order_id: order.order_id,
+        estimate_id: order.estimate_id,
+      },
+    });
 
     if (!paymentResult.success) {
       return res.status(500).json({
         success: false,
-        message:
-          "Unable to initiate payment.",
+        message: "Unable to initiate payment.",
       });
     }
 
-    const razorpayOrder =
-      paymentResult.data;
+    const razorpayOrder = paymentResult.data;
 
     /**
      * Expire previous payment
@@ -1379,22 +1318,17 @@ const createOrderPayment = async (req, res) => {
 
       gateway: "razorpay",
 
-      gateway_order_id:
-        razorpayOrder.id,
+      gateway_order_id: razorpayOrder.id,
 
       amount: order.grand_total,
 
       currency: order.currency,
 
-      gateway_response:
-        razorpayOrder,
+      gateway_response: razorpayOrder,
 
       status: "pending",
 
-      expires_at: new Date(
-        Date.now() +
-          15 * 60 * 1000,
-      ),
+      expires_at: new Date(Date.now() + 15 * 60 * 1000),
     });
 
     return res.json({
@@ -1409,36 +1343,27 @@ const createOrderPayment = async (req, res) => {
 
         order_id: order.order_id,
 
-        razorpay_order_id:
-          razorpayOrder.id,
+        razorpay_order_id: razorpayOrder.id,
 
         amount: razorpayOrder.amount,
 
-        currency:
-          razorpayOrder.currency,
+        currency: razorpayOrder.currency,
 
         customer: {
-          name:
-            `${order.customer_details.first_name} ${order.customer_details.last_name}`,
+          name: `${order.customer_details.first_name} ${order.customer_details.last_name}`,
 
-          email:
-            order.customer_details.email,
+          email: order.customer_details.email,
 
-          contact:
-            order.customer_details.phone,
+          contact: order.customer_details.phone,
         },
       },
     });
   } catch (error) {
-    console.error(
-      "[createOrderPayment]",
-      error,
-    );
+    console.error("[createOrderPayment]", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to create payment.",
+      message: "Unable to create payment.",
     });
   }
 };
@@ -1637,7 +1562,6 @@ const createOrderPayment = async (req, res) => {
 //   }
 // };
 
-
 const verifyOrderPayment = async (req, res) => {
   try {
     const { order_id } = req.params;
@@ -1663,20 +1587,14 @@ const verifyOrderPayment = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
-      "[verifyOrderPayment]",
-      error
-    );
+    console.error("[verifyOrderPayment]", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to verify payment.",
+      message: "Unable to verify payment.",
     });
   }
 };
-
-
 
 module.exports = {
   createBikeRentalOrder,
@@ -1684,5 +1602,5 @@ module.exports = {
   getOrders,
   getOrder,
   createOrderPayment,
-  verifyOrderPayment
+  verifyOrderPayment,
 };
