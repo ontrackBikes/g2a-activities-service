@@ -41,6 +41,9 @@ const buildSlotToken = (slotId) =>
     .digest("hex")
     .substring(0, 16)}`;
 
+const getSlotTokenSource = (slot) =>
+  slot?.vendor_product_slot_id || slot?.id;
+
 const parsePositiveInteger = (value, fieldName) => {
   const parsedValue = Number(value);
 
@@ -577,7 +580,9 @@ const getAvailableDateRangeVendor = async ({
   const selectedVendor = selectedSlotToken
     ? visibleSlotCandidates.find(
         (candidate) =>
-          buildSlotToken(candidate.selected_slot.id) ===
+          buildSlotToken(
+            getSlotTokenSource(candidate.selected_slot),
+          ) ===
           selectedSlotToken,
       ) || null
     : candidates[0] || null;

@@ -33,6 +33,9 @@ const getSlotType = (slot) =>
     ? "TIME"
     : "VARIANT");
 
+const getSlotTokenSource = (slot) =>
+  slot?.vendor_product_slot_id || slot?.id;
+
 module.exports.checkDateRange = async ({
   product,
   location,
@@ -144,7 +147,7 @@ module.exports.checkDateRange = async ({
     ? availableSlots.map((slot) => {
         const token = `slot_${crypto
           .createHash("sha1")
-          .update(String(slot.id))
+          .update(String(getSlotTokenSource(slot)))
           .digest("hex")
           .substring(0, 16)}`;
 
