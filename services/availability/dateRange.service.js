@@ -10,6 +10,23 @@ const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
+const getEffectiveMaxBookable = ({
+  vendorMax,
+  available,
+}) => {
+  const parsedVendorMax = Number(vendorMax);
+  const parsedAvailable = Number(available);
+  const limits = [
+    parsedVendorMax,
+    parsedAvailable,
+  ].filter(
+    (value) =>
+      Number.isFinite(value) && value >= 0,
+  );
+
+  return limits.length ? Math.min(...limits) : 0;
+};
+
 module.exports.checkDateRange = async ({
   product,
   location,
@@ -94,9 +111,12 @@ module.exports.checkDateRange = async ({
     };
   }
 
-  const max_bookable_per_booking = availability.vendorProduct.max_bookable_per_booking ?? 0
   const isSlotPricing =
     availability.vendorProduct.pricing_type === "SLOT";
+  const slotVariantType = isSlotPricing
+    ? availability.vendorProduct.slot_variant_type ||
+      "TIME"
+    : null;
 
   const dailyPricing = Array.isArray(
     availability.daily_pricing,
@@ -104,11 +124,13 @@ module.exports.checkDateRange = async ({
     ? availability.daily_pricing
     : [];
 
-  const availableSlots = Array.isArray(availability.slots)
-    ? availability.slots
-    : dailyPricing
-        .map((day) => day.slot)
-        .filter(Boolean);
+  const availableSlots = availability.selected_slot
+    ? [availability.selected_slot]
+    : Array.isArray(availability.slots)
+      ? availability.slots
+      : dailyPricing
+          .map((day) => day.slot)
+          .filter(Boolean);
 
   const slot_mapping = {};
 
@@ -125,10 +147,24 @@ module.exports.checkDateRange = async ({
         return {
           token,
           name: slot.slot_name,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
+          start_time:
+            slotVariantType === "TIME"
+              ? slot.start_time
+              : null,
+          end_time:
+            slotVariantType === "TIME"
+              ? slot.end_time
+              : null,
           price: Number(slot.price),
           available: slot.available,
+          variant_type: slotVariantType,
+          max_bookable_per_booking:
+            getEffectiveMaxBookable({
+              vendorMax:
+                availability.vendorProduct
+                  .max_bookable_per_booking,
+              available: slot.available,
+            }),
         };
       })
     : [];
@@ -140,6 +176,15 @@ module.exports.checkDateRange = async ({
     : null;
   const vendorSchedule =
     firstDailyPricing?.schedule || null;
+  const inventorySlot =
+    selectedSlot || fixedScheduleSlot;
+  const max_bookable_per_booking =
+    getEffectiveMaxBookable({
+      vendorMax:
+        availability.vendorProduct
+          .max_bookable_per_booking,
+      available: inventorySlot?.available,
+    });
 
   /**
    * Build quotation
@@ -160,7 +205,8 @@ module.exports.checkDateRange = async ({
 
     pricing: {
       currency: "INR",
-      price_type: "flat",
+      pricing_type:
+        availability.vendorProduct.pricing_type,
 
       unit_price: availability.unit_price_total,
       quantity: availability.guests,
@@ -174,6 +220,8 @@ module.exports.checkDateRange = async ({
     },
 
     availability: {
+      slot_variant_type: slotVariantType,
+      selected_slot: selectedSlot,
       daily_pricing: dailyPricing.map((day) => ({
         date: day.date,
         unit_price: day.unit_price,

@@ -9,6 +9,24 @@ const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 const crypto = require("crypto");
+
+const getEffectiveMaxBookable = ({
+  vendorMax,
+  available,
+}) => {
+  const parsedVendorMax = Number(vendorMax);
+  const parsedAvailable = Number(available);
+  const limits = [
+    parsedVendorMax,
+    parsedAvailable,
+  ].filter(
+    (value) =>
+      Number.isFinite(value) && value >= 0,
+  );
+
+  return limits.length ? Math.min(...limits) : 0;
+};
+
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
@@ -78,6 +96,10 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
    */
 
   const isSlotPricing = availability.vendorProduct.pricing_type === "SLOT";
+  const slotVariantType = isSlotPricing
+    ? availability.vendorProduct.slot_variant_type ||
+      "TIME"
+    : null;
 
   const slot_mapping = {};
 
@@ -96,15 +118,29 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
           name: slot.slot_name,
 
-          start_time: slot.start_time,
+          start_time:
+            slotVariantType === "TIME"
+              ? slot.start_time
+              : null,
 
-          end_time: slot.end_time,
+          end_time:
+            slotVariantType === "TIME"
+              ? slot.end_time
+              : null,
 
           price: Number(slot.price),
 
           available: slot.available,
 
-          max_bookable_per_booking: slot.max_bookable_per_booking,
+          variant_type: slotVariantType,
+
+          max_bookable_per_booking:
+            getEffectiveMaxBookable({
+              vendorMax:
+                availability.vendorProduct
+                  .max_bookable_per_booking,
+              available: slot.available,
+            }),
         };
       })
     : [];
@@ -138,6 +174,14 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const subtotal = unitPrice * payload.guests;
 
   const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
+  const effectiveMaxBookable = isSlotPricing
+    ? selectedSlot?.max_bookable_per_booking || 0
+    : getEffectiveMaxBookable({
+        vendorMax:
+          availability.vendorProduct
+            .max_bookable_per_booking,
+        available: fixedScheduleSlot?.available,
+      });
 
   const quotation = buildBookingQuote({
     product,
@@ -165,10 +209,15 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       tax: 0,
 
       grand_total: subtotal,
+
+      max_bookable_per_booking:
+        effectiveMaxBookable,
     },
 
     availability: {
       pricing_type: availability.vendorProduct.pricing_type,
+
+      slot_variant_type: slotVariantType,
 
       slots,
       selected_slot: selectedSlot,
@@ -176,7 +225,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         ? {
             available: fixedScheduleSlot.available,
             max_bookable_per_booking:
-              fixedScheduleSlot.max_bookable_per_booking,
+              effectiveMaxBookable,
           }
         : null,
     },

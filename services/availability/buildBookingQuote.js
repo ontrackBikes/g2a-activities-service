@@ -110,6 +110,9 @@ const buildBookingQuote = ({
     },
 
     availability: {
+      slot_variant_type:
+        availability.slot_variant_type || null,
+
       slots: availability.slots || [],
 
       selected_slot: availability.selected_slot || null,

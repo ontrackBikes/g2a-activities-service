@@ -496,6 +496,25 @@ const updateVendorProduct = async (req, res) => {
               previousPricingType;
 
           if (
+            vendorProductUpdates.slot_variant_type !==
+              undefined &&
+            effectivePricingType !== "SLOT"
+          ) {
+            return {
+              invalidSlotVariantType: true,
+            };
+          }
+
+          if (effectivePricingType !== "SLOT") {
+            vendorProductUpdates.slot_variant_type = null;
+          } else if (
+            !vendorProductUpdates.slot_variant_type &&
+            !vendorProduct.slot_variant_type
+          ) {
+            vendorProductUpdates.slot_variant_type = "TIME";
+          }
+
+          if (
             hasCustomFixedTiming &&
             effectivePricingType !== "FIXED"
           ) {
@@ -580,6 +599,14 @@ const updateVendorProduct = async (req, res) => {
         success: false,
         message:
           "start_time and end_time are only allowed for FIXED pricing",
+      });
+    }
+
+    if (updateResult.invalidSlotVariantType) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "slot_variant_type is only allowed for SLOT pricing",
       });
     }
 

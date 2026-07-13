@@ -6,6 +6,11 @@ const PRICING_TYPES = [
   "KM_BASED",
 ];
 
+const SLOT_VARIANT_TYPES = [
+  "TIME",
+  "VEHICLE",
+];
+
 const timeSchema = Joi.string()
   .pattern(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/)
   .messages({
@@ -46,6 +51,14 @@ const createVendorProductSchema = Joi.object({
   pricing_type: Joi.string()
     .valid(...PRICING_TYPES)
     .required(),
+
+  slot_variant_type: Joi.when("pricing_type", {
+    is: "SLOT",
+    then: Joi.string()
+      .valid(...SLOT_VARIANT_TYPES)
+      .default("TIME"),
+    otherwise: Joi.forbidden(),
+  }),
 
   base_price: Joi.number()
     .min(0)
@@ -93,6 +106,11 @@ const updateVendorProductSchema =
     pricing_type: Joi.string().valid(
       ...PRICING_TYPES
     ),
+
+    slot_variant_type:
+      Joi.string().valid(
+        ...SLOT_VARIANT_TYPES
+      ),
 
     base_price: Joi.number()
       .min(0),

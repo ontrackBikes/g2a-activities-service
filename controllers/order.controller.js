@@ -186,6 +186,9 @@ const buildOrderItemBookingData = ({
   if (selectedSlot) {
     snapshot.selected_slot = compactObject({
       name: selectedSlot.name,
+      variant_type:
+        selectedSlot.variant_type ||
+        availability.slot_variant_type,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
       price: selectedSlot.price,

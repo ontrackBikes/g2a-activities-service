@@ -139,7 +139,7 @@ const buildRentalDates = ({
   };
 };
 
-const selectLowestPricedSlot = (slots) =>
+const sortSlotsByPrice = (slots) =>
   [...slots]
     .filter((slot) => {
       const price = Number(slot.price);
@@ -155,21 +155,46 @@ const selectLowestPricedSlot = (slots) =>
       }
 
       return Number(first.id) - Number(second.id);
-    })[0] || null;
+    });
 
-const buildVendorCandidate = ({
+const selectLowestPricedSlot = (slots) =>
+  sortSlotsByPrice(slots)[0] || null;
+
+const buildCandidateResult = ({
   vendorProduct,
-  requiredDates,
   guests,
+  requiredDates,
+  dailyPricing,
+  selectedSlot,
 }) => {
-  const scheduleByDate = new Map(
-    (vendorProduct.schedules || []).map(
-      (schedule) => [
-        String(schedule.schedule_date),
-        schedule,
-      ],
+  const unitPriceTotal = roundMoney(
+    dailyPricing.reduce(
+      (total, item) => total + item.unit_price,
+      0,
     ),
   );
+
+  return {
+    vendorProduct,
+    guests,
+    rental_days: requiredDates.length,
+    unit_price_total: unitPriceTotal,
+    rental_total: roundMoney(
+      unitPriceTotal * guests,
+    ),
+    first_date_unit_price:
+      dailyPricing[0]?.unit_price || 0,
+    selected_slot: selectedSlot,
+    daily_pricing: dailyPricing,
+  };
+};
+
+const buildFixedVendorCandidate = ({
+  vendorProduct,
+  requiredDates,
+  scheduleByDate,
+  guests,
+}) => {
   const dailyPricing = [];
 
   for (const date of requiredDates) {
@@ -195,23 +220,119 @@ const buildVendorCandidate = ({
     });
   }
 
-  const unitPriceTotal = roundMoney(
-    dailyPricing.reduce(
-      (total, item) => total + item.unit_price,
-      0,
-    ),
-  );
-
-  return {
+  return buildCandidateResult({
     vendorProduct,
     guests,
-    rental_days: requiredDates.length,
-    unit_price_total: unitPriceTotal,
-    rental_total: roundMoney(
-      unitPriceTotal * guests,
+    requiredDates,
+    dailyPricing,
+    selectedSlot: dailyPricing[0]?.slot || null,
+  });
+};
+
+const buildSlotVendorCandidate = ({
+  vendorProduct,
+  requiredDates,
+  scheduleByDate,
+  guests,
+}) => {
+  const firstDate = requiredDates[0];
+  const firstSchedule = scheduleByDate.get(firstDate);
+
+  if (!firstSchedule) {
+    return null;
+  }
+
+  const firstDateSlots = sortSlotsByPrice(
+    firstSchedule.slots || [],
+  ).filter((slot) => {
+    const templateSlotId = Number(
+      slot.vendor_product_slot_id,
+    );
+
+    return (
+      Number.isInteger(templateSlotId) &&
+      templateSlotId > 0
+    );
+  });
+
+  for (const firstDateSlot of firstDateSlots) {
+    const templateSlotId = Number(
+      firstDateSlot.vendor_product_slot_id,
+    );
+    const dailyPricing = [];
+    let isAvailableForEveryDate = true;
+
+    for (const date of requiredDates) {
+      const schedule = scheduleByDate.get(date);
+
+      if (!schedule) {
+        isAvailableForEveryDate = false;
+        break;
+      }
+
+      const matchingSlot = (schedule.slots || []).find(
+        (slot) =>
+          Number(slot.vendor_product_slot_id) ===
+          templateSlotId,
+      );
+
+      if (!matchingSlot) {
+        isAvailableForEveryDate = false;
+        break;
+      }
+
+      dailyPricing.push({
+        date,
+        unit_price: roundMoney(matchingSlot.price),
+        schedule,
+        slot: matchingSlot,
+      });
+    }
+
+    if (!isAvailableForEveryDate) {
+      continue;
+    }
+
+    return buildCandidateResult({
+      vendorProduct,
+      guests,
+      requiredDates,
+      dailyPricing,
+      selectedSlot: firstDateSlot,
+    });
+  }
+
+  return null;
+};
+
+const buildVendorCandidate = ({
+  vendorProduct,
+  requiredDates,
+  guests,
+}) => {
+  const scheduleByDate = new Map(
+    (vendorProduct.schedules || []).map(
+      (schedule) => [
+        String(schedule.schedule_date),
+        schedule,
+      ],
     ),
-    daily_pricing: dailyPricing,
-  };
+  );
+  if (vendorProduct.pricing_type === "SLOT") {
+    return buildSlotVendorCandidate({
+      vendorProduct,
+      requiredDates,
+      scheduleByDate,
+      guests,
+    });
+  }
+
+  return buildFixedVendorCandidate({
+    vendorProduct,
+    requiredDates,
+    scheduleByDate,
+    guests,
+  });
 };
 
 const getAvailableDateRangeVendor = async ({
@@ -257,6 +378,7 @@ const getAvailableDateRangeVendor = async ({
       "product_id",
       "location_id",
       "pricing_type",
+      "slot_variant_type",
       "base_price",
       "base_capacity",
       "max_bookable_per_booking"
@@ -301,7 +423,10 @@ const getAvailableDateRangeVendor = async ({
             as: "slots",
             attributes: [
               "id",
+              "vendor_product_slot_id",
               "slot_name",
+              "start_time",
+              "end_time",
               "price",
               "capacity",
               "booked",
@@ -359,6 +484,14 @@ const getAvailableDateRangeVendor = async ({
     .filter(Boolean);
 
   candidates.sort((first, second) => {
+    const firstDatePriceDifference =
+      first.first_date_unit_price -
+      second.first_date_unit_price;
+
+    if (firstDatePriceDifference !== 0) {
+      return firstDatePriceDifference;
+    }
+
     const totalDifference =
       first.rental_total - second.rental_total;
 
