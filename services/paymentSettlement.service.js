@@ -1,73 +1,72 @@
 const sequelize = require("../config/sequelize");
 const emailTemplates = require("../constants/emailTemplates");
 
-const {
-  Payment,
-  Order,
-  OrderItem,
-} = require("../models");
-
+const { Payment, Order, OrderItem, VendorScheduleSlot } = require("../models");
+const BookingEstimate = require("../models/bookingEstimate.model");
 
 const { sendTemplateEmail, sendEmail } = require("./postmark.service");
-
-
 
 /**
  * Lock payment
  */
-async function lockPayment({
-  paymentId,
-  transaction,
-}) {
-  const payment = await Payment.findByPk(
-    paymentId,
-    {
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    }
-  );
+/**
+ * Acquire settlement lock.
+ *
+ * Returns:
+ * {
+ *   status: "ready" | "already_settled" | "not_found",
+ *   payment: Payment | null,
+ * }
+ */
+async function lockPayment({ paymentId, transaction }) {
+  const payment = await Payment.findByPk(paymentId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
 
+  /**
+   * Payment not found.
+   */
   if (!payment) {
-    throw new Error("Payment not found.");
+    return {
+      status: "not_found",
+      payment: null,
+    };
   }
 
   /**
-   * Already settled
+   * Already settled.
    */
-  if (
-    payment.settlement_status ===
-    "completed"
-  ) {
-    return null;
+  if (payment.settlement_status === "completed") {
+    return {
+      status: "already_settled",
+      payment,
+    };
   }
 
   /**
-   * Acquire settlement lock
+   * Acquire settlement lock.
    */
-  payment.settlement_status =
-    "processing";
+  payment.settlement_status = "processing";
 
   await payment.save({
     transaction,
   });
 
-  return payment;
+  return {
+    status: "ready",
+    payment,
+  };
 }
 
 /**
  * Lock order
  */
-async function lockOrder({
-  orderId,
-  transaction,
-}) {
-  const order = await Order.findByPk(
-    orderId,
-    {
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    }
-  );
+async function lockOrder({ orderId, transaction }) {
+  const order = await Order.findByPk(orderId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
 
   if (!order) {
     throw new Error("Order not found.");
@@ -79,10 +78,7 @@ async function lockOrder({
 /**
  * Confirm payment
  */
-async function confirmPayment({
-  payment,
-  transaction,
-}) {
+async function confirmPayment({ payment, transaction }) {
   payment.status = "captured";
 
   if (!payment.paid_at) {
@@ -101,25 +97,107 @@ async function confirmPayment({
  *
  * Actual implementation handled separately.
  */
-async function reserveInventory({
-  order,
-  transaction,
-}) {
-  // await reserveInventoryForConfirmedOrder({
-  //   order,
-  //   transaction,
-  // });
+/**
+ * Reserve inventory
+ *
+ * Inventory is reserved against the selected vendor schedule slot
+ * stored in the BookingEstimate metadata.
+ */
+async function reserveInventory({ order, transaction }) {
+  /**
+   * Fetch original quotation / estimate.
+   */
+  const quotation = await BookingEstimate.findOne({
+    where: {
+      estimate_id: order.estimate_id,
+    },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
 
-  return;
+  if (!quotation) {
+    throw new Error(`BookingEstimate ${order.estimate_id} not found.`);
+  }
+
+  const metadata = quotation.metadata || {};
+
+  /**
+   * No slot selected.
+   *
+   * Non-slot based products (open inventory)
+   * don't require inventory reservation.
+   */
+  if (!metadata.selected_slot_token) {
+    return;
+  }
+
+  /**
+   * Resolve selected slot.
+   */
+  const vendorScheduleSlotId =
+    metadata.slot_mapping?.[metadata.selected_slot_token];
+
+  if (!vendorScheduleSlotId) {
+    throw new Error(
+      `Selected slot mapping not found for estimate ${quotation.estimate_id}.`,
+    );
+  }
+
+  /**
+   * Lock inventory row.
+   */
+  const slot = await VendorScheduleSlot.findByPk(vendorScheduleSlotId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  if (!slot) {
+    throw new Error(`VendorScheduleSlot ${vendorScheduleSlotId} not found.`);
+  }
+
+  /**
+   * External inventory.
+   *
+   * Inventory is managed by the vendor,
+   * so don't update local counters.
+   */
+  if (!slot.allow_sync_updates) {
+    return;
+  }
+
+  const quantity = Number(quotation.pricing?.quantity || 1);
+
+  if (slot.available < quantity) {
+    throw new Error(
+      `Insufficient inventory for slot ${slot.id}. Requested ${quantity}, Available ${slot.available}.`,
+    );
+  }
+
+  /**
+   * Reserve inventory.
+   */
+  await VendorScheduleSlot.increment(
+    {
+      booked: quantity,
+      available: -quantity,
+    },
+    {
+      where: {
+        id: slot.id,
+      },
+      transaction,
+    },
+  );
+
+  console.log(
+    `[Inventory] Reserved ${quantity} seat(s) for VendorScheduleSlot ${slot.id}.`,
+  );
 }
 
 /**
  * Confirm order
  */
-async function confirmOrder({
-  order,
-  transaction,
-}) {
+async function confirmOrder({ order, transaction }) {
   order.payment_status = "paid";
   order.order_status = "confirmed";
 
@@ -133,10 +211,7 @@ async function confirmOrder({
 /**
  * Confirm order items
  */
-async function confirmOrderItems({
-  orderId,
-  transaction,
-}) {
+async function confirmOrderItems({ orderId, transaction }) {
   await OrderItem.update(
     {
       status: "confirmed",
@@ -146,7 +221,7 @@ async function confirmOrderItems({
         order_id: orderId,
       },
       transaction,
-    }
+    },
   );
 }
 
@@ -156,16 +231,12 @@ async function confirmOrderItems({
  * Actual implementation handled separately.
  */
 
-async function sendConfirmationEmail({
-  payment,
-  order,
-}) {
-  const customerEmail =
-    order.customer_details?.email;
+async function sendConfirmationEmail({ payment, order }) {
+  const customerEmail = order.customer_details?.email;
 
   if (!customerEmail) {
     console.warn(
-      `[PaymentSettlement] No customer email found for order ${order.order_id}`
+      `[PaymentSettlement] No customer email found for order ${order.order_id}`,
     );
 
     return {
@@ -179,15 +250,9 @@ async function sendConfirmationEmail({
    */
   const itemsHtml = (order.items || [])
     .map((item) => {
-      const booking =
-        item.quotation?.booking ||
-        item.booking_data ||
-        {};
+      const booking = item.quotation?.booking || item.booking_data || {};
 
-      const pricing =
-        item.quotation?.pricing ||
-        item.pricing ||
-        {};
+      const pricing = item.quotation?.pricing || item.pricing || {};
 
       return `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px;">
@@ -252,7 +317,7 @@ async function sendConfirmationEmail({
     amount: order.grand_total,
     currency: order.currency,
 
-    paymentId: payment.payment_id,
+    paymentId: payment.gateway_payment_id,
     paymentStatus: payment.status,
 
     items: order.items || [],
@@ -263,7 +328,7 @@ async function sendConfirmationEmail({
    */
   if (emailTemplates.BOOKING_CONFIRMATION) {
     console.log(
-      `[PaymentSettlement] Sending booking confirmation to ${customerEmail}`
+      `[PaymentSettlement] Sending booking confirmation to ${customerEmail}`,
     );
 
     return sendTemplateEmail({
@@ -272,8 +337,7 @@ async function sendConfirmationEmail({
 
       to: customerEmail,
 
-      templateAlias:
-        emailTemplates.BOOKING_CONFIRMATION,
+      templateAlias: emailTemplates.BOOKING_CONFIRMATION,
 
       templateModel,
 
@@ -294,9 +358,7 @@ async function sendConfirmationEmail({
       <h2>Booking Confirmed</h2>
 
       <p>
-        Hi ${
-          templateModel.customerName
-        },
+        Hi ${templateModel.customerName},
       </p>
 
       <p>
@@ -365,14 +427,9 @@ async function sendConfirmationEmail({
  *
  * WhatsApp / SMS / Analytics etc.
  */
-async function sendNotifications({
-  payment,
-  order,
-}) {
+async function sendNotifications({ payment, order }) {
   return;
 }
-
-
 
 const settlePayment = async ({ paymentId } = {}) => {
   if (!paymentId) {
@@ -391,34 +448,52 @@ const settlePayment = async ({ paymentId } = {}) => {
 
   try {
     /**
-     * Acquire payment lock.
-     *
-     * Returns:
-     * - null -> already settled / payment not found
-     * - Payment -> continue settlement
+     * Acquire settlement lock.
      */
-    payment = await lockPayment({
+    const result = await lockPayment({
       paymentId,
       transaction,
     });
 
-    if (!payment) {
-      if (!transaction.finished) {
+    payment = result.payment;
+
+    switch (result.status) {
+      case "not_found":
         await transaction.rollback();
-      }
 
-      console.log(
-        `[PaymentSettlement] Payment ${paymentId} already settled or not found.`
-      );
+        console.warn(
+          `[PaymentSettlement] Payment ${paymentId} not found.`
+        );
 
-      return {
-        success: true,
-        skipped: true,
-      };
+        return {
+          success: false,
+          reason: "not_found",
+        };
+
+      case "already_settled":
+        await transaction.rollback();
+
+        console.log(
+          `[PaymentSettlement] Payment ${paymentId} already settled.`
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          reason: "already_settled",
+        };
+
+      case "ready":
+        break;
+
+      default:
+        throw new Error(
+          `Unknown payment status '${result.status}'.`
+        );
     }
 
     /**
-     * Lock order
+     * Lock order.
      */
     order = await lockOrder({
       orderId: payment.order_id,
@@ -426,7 +501,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Confirm payment
+     * Confirm payment.
      */
     await confirmPayment({
       payment,
@@ -434,7 +509,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Reserve inventory
+     * Reserve inventory.
      */
     await reserveInventory({
       order,
@@ -442,7 +517,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Confirm order
+     * Confirm order.
      */
     await confirmOrder({
       order,
@@ -450,7 +525,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Confirm order items
+     * Confirm order items.
      */
     await confirmOrderItems({
       orderId: order.id,
@@ -458,7 +533,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Settlement completed
+     * Settlement completed.
      */
     payment.settlement_status =
       "completed";
@@ -468,14 +543,12 @@ const settlePayment = async ({ paymentId } = {}) => {
     });
 
     /**
-     * Commit transaction
+     * Commit transaction.
      */
     await transaction.commit();
 
     /**
-     * Reload order with items.
-     * This happens outside the transaction because
-     * we only need it for notifications.
+     * Reload order for notifications.
      */
     order = await Order.findByPk(
       order.id,
@@ -524,10 +597,10 @@ const settlePayment = async ({ paymentId } = {}) => {
   }
 
   /**
-   * Notifications
+   * Notifications.
    *
-   * These should never rollback
-   * a successful settlement.
+   * These must never rollback
+   * a successful payment.
    */
   try {
     await sendConfirmationEmail({
@@ -557,8 +630,6 @@ const settlePayment = async ({ paymentId } = {}) => {
   };
 };
 
-
-
 module.exports = {
-    settlePayment
-}
+  settlePayment,
+};
