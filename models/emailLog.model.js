@@ -33,38 +33,43 @@ EmailLog.init(
 
     subject: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
 
     html_body: {
       type: DataTypes.TEXT("long"),
-      allowNull: false,
+      allowNull: true,
     },
 
     message_id: {
       type: DataTypes.STRING(100),
       allowNull: true,
+      unique: true,
     },
 
     provider: {
-      type: DataTypes.ENUM("postmark", "ses", "sendgrid"),
+      type: DataTypes.ENUM(
+        "postmark",
+        "ses",
+        "sendgrid"
+      ),
+      allowNull: false,
       defaultValue: "postmark",
     },
 
     status: {
-      type: DataTypes.ENUM("pending", "sent", "failed"),
+      type: DataTypes.ENUM(
+        "pending",
+        "sent",
+        "failed"
+      ),
+      allowNull: false,
       defaultValue: "pending",
     },
 
     error: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-
-    metadata: {
-      type: DataTypes.JSON,
-      allowNull: false,
-      defaultValue: {},
     },
 
     template: {
@@ -82,6 +87,12 @@ EmailLog.init(
       allowNull: false,
       defaultValue: {},
     },
+
+    metadata: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      defaultValue: {},
+    },
   },
   {
     sequelize,
@@ -95,7 +106,28 @@ EmailLog.init(
     createdAt: "created_at",
 
     updatedAt: "updated_at",
-  },
+
+    indexes: [
+      {
+        fields: ["order_id"],
+      },
+      {
+        fields: ["customer_id"],
+      },
+      {
+        fields: ["status"],
+      },
+      {
+        fields: ["message_id"],
+        unique: true,
+      },
+      {
+        fields: ["created_at"],
+      },
+    ],
+  }
 );
+
 // EmailLog.sync({ alter: true });
+
 module.exports = EmailLog;

@@ -1,67 +1,73 @@
 const postmark = require("postmark");
 const EmailLog = require("../models/emailLog.model");
 
-const client = new postmark.ServerClient(process.env.POSTMARK_SERVER_TOKEN);
+const client = new postmark.ServerClient(
+  process.env.POSTMARK_SERVER_TOKEN
+);
 
+const FROM_EMAIL = process.env.POSTMARK_FROM_EMAIL;
+const MESSAGE_STREAM =
+  process.env.POSTMARK_MESSAGE_STREAM || "outbound";
 
+/**
+ * Send normal HTML email
+ */
 const sendEmail = async ({
   orderId = null,
   customerId = null,
+
   to,
+
   subject,
+
   html,
+
   text = "",
+
   metadata = {},
 }) => {
   const log = await EmailLog.create({
     order_id: orderId,
-
     customer_id: customerId,
 
     to_email: to,
-
-    from_email: process.env.POSTMARK_FROM_EMAIL,
+    from_email: FROM_EMAIL,
 
     subject,
-
     html_body: html,
 
     metadata,
+
+    provider: "postmark",
 
     status: "pending",
   });
 
   try {
     const response = await client.sendEmail({
-      From: process.env.POSTMARK_FROM_EMAIL,
-
+      From: FROM_EMAIL,
       To: to,
-
       Subject: subject,
-
       HtmlBody: html,
-
       TextBody: text,
-
-      MessageStream: process.env.POSTMARK_MESSAGE_STREAM || "outbound",
+      MessageStream: MESSAGE_STREAM,
     });
 
-    log.status = "sent";
-
-    log.message_id = response.MessageID;
-
-    await log.save();
+    await log.update({
+      status: "sent",
+      message_id: response.MessageID,
+      error: null,
+    });
 
     return {
       success: true,
       data: response,
     };
   } catch (error) {
-    log.status = "failed";
-
-    log.error = error.message;
-
-    await log.save();
+    await log.update({
+      status: "failed",
+      error: error.message,
+    });
 
     console.error("[Postmark]", error);
 
@@ -72,75 +78,78 @@ const sendEmail = async ({
   }
 };
 
+/**
+ * Send Postmark template email
+ */
 const sendTemplateEmail = async ({
   orderId = null,
   customerId = null,
 
   to,
 
-  templateId,
-
+  templateId = null,
   templateAlias = null,
 
   templateModel = {},
 
   metadata = {},
 }) => {
+  if (!templateId && !templateAlias) {
+    throw new Error(
+      "Either templateId or templateAlias is required."
+    );
+  }
+
   const log = await EmailLog.create({
     order_id: orderId,
-
     customer_id: customerId,
 
     to_email: to,
-
-    from_email: process.env.POSTMARK_FROM_EMAIL,
+    from_email: FROM_EMAIL,
 
     template: templateAlias,
-
     template_id: templateId,
-
     template_model: templateModel,
 
     metadata,
+
+    provider: "postmark",
 
     status: "pending",
   });
 
   try {
-    let response;
+    const payload = {
+      From: FROM_EMAIL,
+      To: to,
+      TemplateModel: templateModel,
+      MessageStream: MESSAGE_STREAM,
+    };
 
     if (templateId) {
-      response = await client.sendEmailWithTemplate({
-        From: process.env.POSTMARK_FROM_EMAIL,
-        To: to,
-        TemplateId: templateId,
-        TemplateModel: templateModel,
-        MessageStream: process.env.POSTMARK_MESSAGE_STREAM || "outbound",
-      });
+      payload.TemplateId = templateId;
     } else {
-      response = await client.sendEmailWithTemplate({
-        From: process.env.POSTMARK_FROM_EMAIL,
-        To: to,
-        TemplateAlias: templateAlias,
-        TemplateModel: templateModel,
-        MessageStream: process.env.POSTMARK_MESSAGE_STREAM || "outbound",
-      });
+      payload.TemplateAlias = templateAlias;
     }
 
-    log.status = "sent";
-    log.message_id = response.MessageID;
+    const response =
+      await client.sendEmailWithTemplate(payload);
 
-    await log.save();
+    await log.update({
+      status: "sent",
+      message_id: response.MessageID,
+      error: null,
+    });
 
     return {
       success: true,
       data: response,
     };
   } catch (error) {
-    log.status = "failed";
-    log.error = error.message;
-
-    await log.save();
+    await log.update({
+      status: "failed",
+      error: error.message,
+    });
 
     console.error("[Postmark]", error);
 
