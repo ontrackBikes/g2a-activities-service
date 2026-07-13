@@ -174,21 +174,96 @@ async function sendConfirmationEmail({
     };
   }
 
+  /**
+   * Build booking summary from Order Items
+   */
+  const itemsHtml = (order.items || [])
+    .map((item) => {
+      const booking =
+        item.quotation?.booking ||
+        item.booking_data ||
+        {};
+
+      const pricing =
+        item.quotation?.pricing ||
+        item.pricing ||
+        {};
+
+      return `
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px;">
+          <h3 style="margin:0 0 10px;">
+            ${item.product_name}
+          </h3>
+
+          <div>
+            <strong>Location:</strong>
+            ${item.location_name}
+          </div>
+
+          ${
+            booking.travel_date
+              ? `<div><strong>Travel Date:</strong> ${booking.travel_date}</div>`
+              : ""
+          }
+
+          ${
+            booking.pickup_date
+              ? `<div><strong>Pickup Date:</strong> ${booking.pickup_date}</div>`
+              : ""
+          }
+
+          ${
+            booking.return_date
+              ? `<div><strong>Return Date:</strong> ${booking.return_date}</div>`
+              : ""
+          }
+
+          ${
+            booking.rental_days
+              ? `<div><strong>Rental Days:</strong> ${booking.rental_days}</div>`
+              : ""
+          }
+
+          ${
+            booking.guests
+              ? `<div><strong>Guests:</strong> ${booking.guests}</div>`
+              : ""
+          }
+
+          <hr style="margin:15px 0;">
+
+          <div>
+            <strong>Price:</strong>
+            ${pricing.currency || order.currency}
+            ${pricing.grand_total || pricing.subtotal || ""}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
   const templateModel = {
     orderId: order.order_id,
-    customerName: order.customer_details?.name,
+    customerName:
+      order.customer_details?.name ||
+      order.customer_details?.first_name ||
+      "Customer",
+
     amount: order.grand_total,
     currency: order.currency,
+
     paymentId: payment.payment_id,
     paymentStatus: payment.status,
+
+    items: order.items || [],
   };
 
   /**
-   * Use Postmark template if configured.
+   * Preferred: Postmark Template
    */
   if (emailTemplates.BOOKING_CONFIRMATION) {
     console.log(
-      `Sending booking confirmation template to ${customerEmail}`
+      `[PaymentSettlement] Sending booking confirmation to ${customerEmail}`
     );
 
     return sendTemplateEmail({
@@ -209,43 +284,61 @@ async function sendConfirmationEmail({
   }
 
   /**
-   * Fallback HTML email.
+   * HTML fallback
    */
-  console.warn(
-    "[PaymentSettlement] BOOKING_CONFIRMATION template not configured. Sending basic HTML email."
-  );
-
   const subject = `Booking Confirmation - ${order.order_id}`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h2>Booking Confirmed 🎉</h2>
+  <div style="font-family:Arial,sans-serif;max-width:700px;margin:auto;line-height:1.6;">
 
-      <p>Hi ${templateModel.customerName || "Customer"},</p>
+      <h2>Booking Confirmed</h2>
 
-      <p>Your booking has been confirmed successfully.</p>
+      <p>
+        Hi ${
+          templateModel.customerName
+        },
+      </p>
 
-      <table cellpadding="6">
+      <p>
+        Thank you for booking with us.
+        Your booking has been confirmed.
+      </p>
+
+      <table cellpadding="6" cellspacing="0">
         <tr>
           <td><strong>Order ID</strong></td>
-          <td>${templateModel.orderId}</td>
+          <td>${order.order_id}</td>
         </tr>
+
         <tr>
           <td><strong>Payment ID</strong></td>
-          <td>${templateModel.paymentId}</td>
+          <td>${payment.payment_id}</td>
         </tr>
-        <tr>
-          <td><strong>Amount</strong></td>
-          <td>${templateModel.currency} ${templateModel.amount}</td>
-        </tr>
+
         <tr>
           <td><strong>Status</strong></td>
-          <td>${templateModel.paymentStatus}</td>
+          <td>${payment.status}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Total</strong></td>
+          <td>${order.currency} ${order.grand_total}</td>
         </tr>
       </table>
 
-      <p>Thank you for booking with us.</p>
-    </div>
+      <br>
+
+      ${itemsHtml}
+
+      <p>
+        We look forward to hosting you.
+      </p>
+
+      <p>
+        Team Go2Andaman
+      </p>
+
+  </div>
   `;
 
   return sendEmail({
@@ -258,7 +351,7 @@ async function sendConfirmationEmail({
 
     html,
 
-    text: `Your booking ${templateModel.orderId} has been confirmed.`,
+    text: `Your booking ${order.order_id} has been confirmed.`,
 
     metadata: {
       type: "booking_confirmation",
@@ -280,17 +373,29 @@ async function sendNotifications({
 }
 
 
-const settlePayment = async ({ paymentId }) => {
 
-  console.log("**** Payment Settlement Worker Triggered ****")
-  const transaction = await sequelize.transaction();
+const settlePayment = async ({ paymentId } = {}) => {
+  if (!paymentId) {
+    throw new Error("paymentId is required.");
+  }
+
+  console.log(
+    `[PaymentSettlement] Processing payment ${paymentId}`
+  );
+
+  const transaction =
+    await sequelize.transaction();
 
   let payment = null;
   let order = null;
 
   try {
     /**
-     * Acquire payment lock
+     * Acquire payment lock.
+     *
+     * Returns:
+     * - null -> already settled / payment not found
+     * - Payment -> continue settlement
      */
     payment = await lockPayment({
       paymentId,
@@ -298,12 +403,22 @@ const settlePayment = async ({ paymentId }) => {
     });
 
     if (!payment) {
-      await transaction.rollback();
-      return;
+      if (!transaction.finished) {
+        await transaction.rollback();
+      }
+
+      console.log(
+        `[PaymentSettlement] Payment ${paymentId} already settled or not found.`
+      );
+
+      return {
+        success: true,
+        skipped: true,
+      };
     }
 
     /**
-     * Acquire order lock
+     * Lock order
      */
     order = await lockOrder({
       orderId: payment.order_id,
@@ -343,9 +458,10 @@ const settlePayment = async ({ paymentId }) => {
     });
 
     /**
-     * Mark settlement completed
+     * Settlement completed
      */
-    payment.settlement_status = "completed";
+    payment.settlement_status =
+      "completed";
 
     await payment.save({
       transaction,
@@ -355,8 +471,26 @@ const settlePayment = async ({ paymentId }) => {
      * Commit transaction
      */
     await transaction.commit();
+
+    /**
+     * Reload order with items.
+     * This happens outside the transaction because
+     * we only need it for notifications.
+     */
+    order = await Order.findByPk(
+      order.id,
+      {
+        include: [
+          {
+            association: "items",
+          },
+        ],
+      }
+    );
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
 
     console.error(
       "[PaymentSettlement]",
@@ -364,19 +498,26 @@ const settlePayment = async ({ paymentId }) => {
     );
 
     /**
-     * Mark settlement failed
+     * Mark settlement failed.
      */
-    if (payment) {
-      await Payment.update(
-        {
-          settlement_status: "failed",
-        },
-        {
-          where: {
-            id: payment.id,
+    if (payment?.id) {
+      try {
+        await Payment.update(
+          {
+            settlement_status: "failed",
           },
-        }
-      );
+          {
+            where: {
+              id: payment.id,
+            },
+          }
+        );
+      } catch (updateError) {
+        console.error(
+          "[PaymentSettlement][FailedUpdate]",
+          updateError
+        );
+      }
     }
 
     throw error;
@@ -385,7 +526,8 @@ const settlePayment = async ({ paymentId }) => {
   /**
    * Notifications
    *
-   * These should never rollback a successful booking.
+   * These should never rollback
+   * a successful settlement.
    */
   try {
     await sendConfirmationEmail({
@@ -403,8 +545,17 @@ const settlePayment = async ({ paymentId }) => {
       error
     );
   }
-};
 
+  console.log(
+    `[PaymentSettlement] Payment ${payment.payment_id} settled successfully.`
+  );
+
+  return {
+    success: true,
+    paymentId: payment.payment_id,
+    orderId: order.order_id,
+  };
+};
 
 
 
