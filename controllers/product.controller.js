@@ -9,6 +9,7 @@ const {
   VendorProduct,
   Category,
   ProductTag,
+  ProductTagMapping,
   Location,
   ProductFaq,
   ProductTerm,
@@ -341,6 +342,8 @@ const getProductsListForApp = async (req, res) => {
       featured,
       category_slug,
       product_type_slug,
+      tag_slug,
+      tag_slugs,
       location_slug,
       location_id,
       location_slugs,
@@ -443,6 +446,13 @@ const getProductsListForApp = async (req, res) => {
       ...new Set([
         ...parseQueryList(location_slug),
         ...parseQueryList(location_slugs),
+      ]),
+    ];
+
+    const selectedTagSlugs = [
+      ...new Set([
+        ...parseQueryList(tag_slug),
+        ...parseQueryList(tag_slugs),
       ]),
     ];
 
@@ -551,6 +561,31 @@ const getProductsListForApp = async (req, res) => {
             },
           ],
         },
+
+        ...(selectedTagSlugs.length
+          ? [
+              {
+                model: ProductTagMapping,
+                as: "tagMappings",
+                attributes: [],
+                required: true,
+                include: [
+                  {
+                    model: ProductTag,
+                    as: "tag",
+                    attributes: [],
+                    required: true,
+                    where: {
+                      active: true,
+                      slug: {
+                        [Op.in]: selectedTagSlugs,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
 
         {
           model: ProductTag,
