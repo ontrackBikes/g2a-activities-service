@@ -5,6 +5,7 @@ const {
   ProductGroup,
   ProductImage,
   ProductType,
+  Vendor,
   VendorProduct,
   Category,
   ProductTag,
@@ -777,6 +778,214 @@ const getProductsListForApp = async (req, res) => {
   }
 };
 
+const getRecommendedProductsForApp = async (req, res) => {
+  try {
+    const match = req.params.slug.match(/^(.*)-in-(.*)$/);
+
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product URL.",
+      });
+    }
+
+    const [, productSlug, locationSlug] = match;
+    const guests = Math.max(
+      Number.parseInt(req.query.guests, 10) || 1,
+      1,
+    );
+    const limit = Math.min(
+      Math.max(Number.parseInt(req.query.limit, 10) || 8, 1),
+      20,
+    );
+
+    const location = await Location.findOne({
+      attributes: ["id", "name", "slug"],
+      where: {
+        slug: locationSlug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
+    const product = await Product.findOne({
+      attributes: ["id", "product_type_id"],
+      where: {
+        slug: productSlug,
+        active: true,
+      },
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+          attributes: ["category_id"],
+          required: true,
+          where: { active: true },
+        },
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+          attributes: [],
+          required: true,
+          where: {
+            location_id: location.id,
+            active: true,
+          },
+          include: [
+            {
+              model: Vendor,
+              as: "vendor",
+              attributes: [],
+              required: true,
+              where: { active: true },
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Product is not available at this location.",
+      });
+    }
+
+    const categoryId = product.productType.category_id;
+
+    const vendorProducts = await VendorProduct.findAll({
+      attributes: ["product_id", "location_id"],
+      where: {
+        location_id: location.id,
+        active: true,
+      },
+      include: [
+        {
+          model: Vendor,
+          as: "vendor",
+          attributes: [],
+          required: true,
+          where: { active: true },
+        },
+        {
+          model: Product,
+          as: "product",
+          required: true,
+          where: {
+            active: true,
+            id: { [Op.ne]: product.id },
+          },
+          attributes: [
+            "id",
+            "slug",
+            "name",
+            "short_description",
+            "thumbnail_url",
+            "thumbnail_url_sm",
+          ],
+          include: [
+            {
+              model: ProductType,
+              as: "productType",
+              attributes: ["name", "slug"],
+              required: true,
+              where: {
+                category_id: categoryId,
+                active: true,
+              },
+            },
+          ],
+        },
+      ],
+      order: [[{ model: Product, as: "product" }, "sort_order", "ASC"]],
+    });
+
+    const candidates = new Map();
+
+    for (const vendorProduct of vendorProducts) {
+      if (!candidates.has(vendorProduct.product_id)) {
+        candidates.set(vendorProduct.product_id, {
+          product: vendorProduct.product,
+          productId: vendorProduct.product_id,
+          locationId: vendorProduct.location_id,
+        });
+      }
+    }
+
+    const candidatePairs = Array.from(candidates.values()).map(
+      ({ productId, locationId }) => ({ productId, locationId }),
+    );
+    const availabilityByProductLocation =
+      await getAvailableVendorsForProductLocations({
+        productLocations: candidatePairs,
+        date: req.query.date,
+        guests,
+      });
+
+    const recommendations = Array.from(candidates.values())
+      .map(({ product: candidate, productId, locationId }) => {
+        const availability =
+          availabilityByProductLocation.get(
+            `${Number(productId)}:${Number(locationId)}`,
+          ) || null;
+
+        if (!availability) {
+          return null;
+        }
+
+        return {
+          slug: candidate.slug,
+          name: candidate.name,
+          short_description: candidate.short_description,
+          thumbnail_url: candidate.thumbnail_url,
+          thumbnail_url_sm: candidate.thumbnail_url_sm,
+          product_type: candidate.productType
+            ? {
+                name: candidate.productType.name,
+                slug: candidate.productType.slug,
+              }
+            : null,
+          starting_price: availability.pricing.display_price,
+          price_type: availability.pricing.price_type,
+          available: true,
+          next_available_slot:
+            availability.schedule?.schedule_date || null,
+        };
+      })
+      .filter(Boolean)
+      .sort(
+        (first, second) =>
+          first.starting_price - second.starting_price ||
+          first.name.localeCompare(second.name),
+      )
+      .slice(0, limit);
+
+    return res.status(200).json({
+      success: true,
+      location,
+      count: recommendations.length,
+      data: recommendations,
+    });
+  } catch (error) {
+    console.error(
+      "[ProductController] getRecommendedProductsForApp",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch recommended products.",
+    });
+  }
+};
+
 const getProductDetailsForApp = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -954,7 +1163,7 @@ const getProductDetailsForApp = async (req, res) => {
 
     const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
 
-    const [availability, nextAvailableSlot, relatedProducts] =
+    const [availability, nextAvailableSlot] =
       await Promise.all([
         
         getAvailableVendorForProduct({
@@ -968,27 +1177,6 @@ const getProductDetailsForApp = async (req, res) => {
           productId: product.id,
           locationSlug: location_slug,
           guests: requestedGuests,
-        }),
-
-        Product.findAll({
-          where: {
-            active: true,
-
-            product_type_id: product.product_type_id,
-
-            id: {
-              [Op.ne]: product.id,
-            },
-          },
-
-          limit: 8,
-
-          order: [
-            ["featured", "DESC"],
-            ["sort_order", "ASC"],
-          ],
-
-          attributes: ["slug", "name", "thumbnail_url"],
         }),
       ]);
    
@@ -1066,12 +1254,6 @@ const getProductDetailsForApp = async (req, res) => {
 
         locations: locations,
 
-        related_products: relatedProducts.map((relatedProduct) => ({
-          slug: relatedProduct.slug,
-          name: relatedProduct.name,
-          thumbnail_url: relatedProduct.thumbnail_url,
-        })),
-
         selectedLocation,
 
          bookingTemplate: product.bookingTemplate,
@@ -1095,5 +1277,6 @@ module.exports = {
   deleteProduct,
   searchProducts,
   getProductsListForApp,
+  getRecommendedProductsForApp,
   getProductDetailsForApp,
 };

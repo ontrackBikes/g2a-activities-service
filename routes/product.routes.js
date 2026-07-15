@@ -8,6 +8,7 @@ const {
   deleteProduct,
   searchProducts,
   getProductsListForApp,
+  getRecommendedProductsForApp,
   getProductDetailsForApp,
 } = require("../controllers/product.controller");
 const {
@@ -33,6 +34,11 @@ router.get(
 router.get(
   "/app/products-list/:slug",
   getProductDetailsForApp
+);
+
+router.get(
+  "/app/:slug/recommended",
+  getRecommendedProductsForApp,
 );
 
 router.get(

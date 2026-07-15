@@ -3,6 +3,7 @@ const moment = require("moment-timezone");
 
 const {
   VendorProduct,
+  Vendor,
   VendorSchedule,
   VendorScheduleSlot,
   Location,
@@ -167,6 +168,13 @@ const getAvailableVendorForProduct = async ({
   const vendorProducts = await VendorProduct.findAll({
     where: vendorWhere,
     include: [
+      {
+        model: Vendor,
+        as: "vendor",
+        attributes: [],
+        required: true,
+        where: { active: true },
+      },
       {
         model: Location,
         as: "location",
