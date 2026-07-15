@@ -1,5 +1,8 @@
 const Category = require("../models/category.model");
 const ProductType = require("../models/productType.model");
+const Product = require("../models/product.model");
+const VendorProduct = require("../models/vendorProduct.model");
+const Location = require("../models/location.model");
 const { Op } = require("sequelize");
 
 const {
@@ -67,6 +70,16 @@ const getProductTypes = async (req, res) => {
   try {
     const where = {};
     const category_where = {};
+    const include = [
+      {
+        model: Category,
+        as: "category",
+        where: category_where,
+        attributes: {
+          exclude: ["id"],
+        },
+      },
+    ];
 
     if (req.query.category_id) {
       where.category_id = req.query.category_id;
@@ -79,21 +92,44 @@ const getProductTypes = async (req, res) => {
       where.active = req.query.active === "true";
     }
 
+    if (req.query.location_slug) {
+      include.push({
+        model: Product,
+        as: "products",
+        attributes: [],
+        required: true,
+        where: { active: true },
+        include: [
+          {
+            model: VendorProduct,
+            as: "vendorProducts",
+            attributes: [],
+            required: true,
+            where: { active: true },
+            include: [
+              {
+                model: Location,
+                as: "location",
+                attributes: [],
+                required: true,
+                where: {
+                  slug: req.query.location_slug,
+                  active: true,
+                },
+              },
+            ],
+          },
+        ],
+      });
+    }
+
     const productTypes = await ProductType.findAll({
       where,
+      distinct: true,
       attributes: {
         exclude: ["category_id"],
       },
-      include: [
-        {
-          model: Category,
-          as: "category",
-          where: category_where,
-          attributes: {
-            exclude: ["id"],
-          },
-        },
-      ],
+      include,
       order: [
         ["sort_order", "ASC"],
         ["name", "ASC"],
