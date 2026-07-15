@@ -8,6 +8,7 @@ const {
   getLocationOptions,
   updateLocation,
   deleteLocation,
+  getLocationApp,
 } = require("../controllers/location.controller");
 
 const router = express.Router();
@@ -25,5 +26,7 @@ router.get("/:id", getLocation);
 router.patch("/:id", updateLocation);
 
 router.delete("/:id", deleteLocation);
+
+router.get("/app/:slug", getLocationApp);
 
 module.exports = router;

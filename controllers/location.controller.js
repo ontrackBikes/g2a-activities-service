@@ -8,8 +8,7 @@ const {
 
 const createLocation = async (req, res) => {
   try {
-    const { error, value } =
-      createLocationSchema.validate(req.body);
+    const { error, value } = createLocationSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -19,10 +18,7 @@ const createLocation = async (req, res) => {
     }
 
     if (value.parent_location_id) {
-      const parentLocation =
-        await Location.findByPk(
-          value.parent_location_id
-        );
+      const parentLocation = await Location.findByPk(value.parent_location_id);
 
       if (!parentLocation) {
         return res.status(404).json({
@@ -32,21 +28,15 @@ const createLocation = async (req, res) => {
       }
     }
 
-    const location = await Location.create(
-      value
-    );
+    const location = await Location.create(value);
 
     return res.status(201).json({
       success: true,
-      message:
-        "Location created successfully",
+      message: "Location created successfully",
       data: location,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] createLocation",
-      error
-    );
+    console.error("[LocationController] createLocation", error);
 
     return res.status(500).json({
       success: false,
@@ -57,11 +47,7 @@ const createLocation = async (req, res) => {
 
 const getLocations = async (req, res) => {
   try {
-    const {
-      active,
-      location_type,
-      parent_location_id,
-    } = req.query;
+    const { active, location_type, parent_location_id } = req.query;
 
     const where = {};
 
@@ -70,69 +56,52 @@ const getLocations = async (req, res) => {
     }
 
     if (location_type) {
-      where.location_type =
-        location_type;
+      where.location_type = location_type;
     }
 
     if (parent_location_id) {
-      where.parent_location_id =
-        parent_location_id;
+      where.parent_location_id = parent_location_id;
     }
 
-    const locations =
-      await Location.findAll({
-        where,
-        order: [["name", "ASC"]],
-      });
+    const locations = await Location.findAll({
+      where,
+      order: [["name", "ASC"]],
+    });
 
-    const locationIds = locations.map(
-      (location) => location.id
-    );
+    const locationIds = locations.map((location) => location.id);
 
     let countMap = {};
 
     if (locationIds.length) {
-      const productCounts =
-        await VendorProduct.findAll({
-          attributes: [
-            "location_id",
-            [
-              Sequelize.fn(
-                "COUNT",
-                Sequelize.fn(
-                  "DISTINCT",
-                  Sequelize.col("product_id")
-                )
-              ),
-              "product_count",
-            ],
+      const productCounts = await VendorProduct.findAll({
+        attributes: [
+          "location_id",
+          [
+            Sequelize.fn(
+              "COUNT",
+              Sequelize.fn("DISTINCT", Sequelize.col("product_id")),
+            ),
+            "product_count",
           ],
-          where: {
-            location_id: locationIds,
-            active: true,
-          },
-          group: ["location_id"],
-          raw: true,
-        });
-
-      countMap = productCounts.reduce(
-        (acc, item) => {
-          acc[item.location_id] = Number(
-            item.product_count
-          );
-          return acc;
+        ],
+        where: {
+          location_id: locationIds,
+          active: true,
         },
-        {}
-      );
+        group: ["location_id"],
+        raw: true,
+      });
+
+      countMap = productCounts.reduce((acc, item) => {
+        acc[item.location_id] = Number(item.product_count);
+        return acc;
+      }, {});
     }
 
-    const data = locations.map(
-      (location) => ({
-        ...location.toJSON(),
-        product_count:
-          countMap[location.id] || 0,
-      })
-    );
+    const data = locations.map((location) => ({
+      ...location.toJSON(),
+      product_count: countMap[location.id] || 0,
+    }));
 
     return res.json({
       success: true,
@@ -140,10 +109,7 @@ const getLocations = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] getLocations",
-      error
-    );
+    console.error("[LocationController] getLocations", error);
 
     return res.status(500).json({
       success: false,
@@ -154,28 +120,23 @@ const getLocations = async (req, res) => {
 
 const getLocation = async (req, res) => {
   try {
-    const location =
-      await Location.findByPk(
-        req.params.id,
+    const location = await Location.findByPk(req.params.id, {
+      include: [
         {
-          include: [
-            {
-              model: Location,
-              as: "parent",
-            },
-            {
-              model: Location,
-              as: "children",
-            },
-          ],
-        }
-      );
+          model: Location,
+          as: "parent",
+        },
+        {
+          model: Location,
+          as: "children",
+        },
+      ],
+    });
 
     if (!location) {
       return res.status(404).json({
         success: false,
-        message:
-          "Location not found",
+        message: "Location not found",
       });
     }
 
@@ -184,10 +145,7 @@ const getLocation = async (req, res) => {
       data: location,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] getLocation",
-      error
-    );
+    console.error("[LocationController] getLocation", error);
 
     return res.status(500).json({
       success: false,
@@ -196,31 +154,68 @@ const getLocation = async (req, res) => {
   }
 };
 
-const getLocationOptions = async (
-  req,
-  res
-) => {
+const getLocationApp = async (req, res) => {
   try {
-    const locations =
-      await Location.findAll({
-        where: {
-          active: true,
-        },
-        attributes: [
-          "id",
-          "name",
-          "slug",
-        ],
-        order: [["name", "ASC"]],
+    let slug = req.params.slug;
+    if (!slug)
+      return res.status(500).json({
+        success: false,
+        message: "Please provode slug",
       });
-
-    const options = locations.map(
-      (location) => ({
-        id: location.id,
-        label: location.name,
-        slug: location.slug,
-      })
+    const location = await Location.findOne(
+      { where: { slug: req.params.slug }, attributes: { exclude: ["id"] } },
+      {
+        include: [
+          {
+            model: Location,
+            as: "parent",
+            attributes: { exclude: ["id"] },
+          },
+          {
+            model: Location,
+            as: "children",
+            attributes: { exclude: ["id"] },
+          },
+        ],
+      },
     );
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: location,
+    });
+  } catch (error) {
+    console.error("[LocationController] getLocation", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getLocationOptions = async (req, res) => {
+  try {
+    const locations = await Location.findAll({
+      where: {
+        active: true,
+      },
+      attributes: ["id", "name", "slug"],
+      order: [["name", "ASC"]],
+    });
+
+    const options = locations.map((location) => ({
+      id: location.id,
+      label: location.name,
+      slug: location.slug,
+    }));
 
     return res.json({
       success: true,
@@ -228,10 +223,7 @@ const getLocationOptions = async (
       data: options,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] getLocationOptions",
-      error
-    );
+    console.error("[LocationController] getLocationOptions", error);
 
     return res.status(500).json({
       success: false,
@@ -240,18 +232,14 @@ const getLocationOptions = async (
   }
 };
 
-const getLocationTree = async (
-  req,
-  res
-) => {
+const getLocationTree = async (req, res) => {
   try {
-    const locations =
-      await Location.findAll({
-        where: {
-          active: true,
-        },
-        raw: true,
-      });
+    const locations = await Location.findAll({
+      where: {
+        active: true,
+      },
+      raw: true,
+    });
 
     const map = {};
     const roots = [];
@@ -264,23 +252,14 @@ const getLocationTree = async (
     });
 
     locations.forEach((location) => {
-      if (
-        location.parent_location_id
-      ) {
-        const parent =
-          map[
-            location.parent_location_id
-          ];
+      if (location.parent_location_id) {
+        const parent = map[location.parent_location_id];
 
         if (parent) {
-          parent.children.push(
-            map[location.id]
-          );
+          parent.children.push(map[location.id]);
         }
       } else {
-        roots.push(
-          map[location.id]
-        );
+        roots.push(map[location.id]);
       }
     });
 
@@ -289,10 +268,7 @@ const getLocationTree = async (
       data: roots,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] getLocationTree",
-      error
-    );
+    console.error("[LocationController] getLocationTree", error);
 
     return res.status(500).json({
       success: false,
@@ -301,15 +277,9 @@ const getLocationTree = async (
   }
 };
 
-const updateLocation = async (
-  req,
-  res
-) => {
+const updateLocation = async (req, res) => {
   try {
-    const { error, value } =
-      updateLocationSchema.validate(
-        req.body
-      );
+    const { error, value } = updateLocationSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
@@ -318,44 +288,29 @@ const updateLocation = async (
       });
     }
 
-    const location =
-      await Location.findByPk(
-        req.params.id
-      );
+    const location = await Location.findByPk(req.params.id);
 
     if (!location) {
       return res.status(404).json({
         success: false,
-        message:
-          "Location not found",
+        message: "Location not found",
       });
     }
 
-    if (
-      value.parent_location_id
-    ) {
-      const parentLocation =
-        await Location.findByPk(
-          value.parent_location_id
-        );
+    if (value.parent_location_id) {
+      const parentLocation = await Location.findByPk(value.parent_location_id);
 
       if (!parentLocation) {
         return res.status(404).json({
           success: false,
-          message:
-            "Parent location not found",
+          message: "Parent location not found",
         });
       }
 
-      if (
-        Number(
-          value.parent_location_id
-        ) === Number(req.params.id)
-      ) {
+      if (Number(value.parent_location_id) === Number(req.params.id)) {
         return res.status(400).json({
           success: false,
-          message:
-            "Location cannot be its own parent",
+          message: "Location cannot be its own parent",
         });
       }
     }
@@ -364,15 +319,11 @@ const updateLocation = async (
 
     return res.json({
       success: true,
-      message:
-        "Location updated successfully",
+      message: "Location updated successfully",
       data: location,
     });
   } catch (error) {
-    console.error(
-      "[LocationController] updateLocation",
-      error
-    );
+    console.error("[LocationController] updateLocation", error);
 
     return res.status(500).json({
       success: false,
@@ -381,21 +332,14 @@ const updateLocation = async (
   }
 };
 
-const deleteLocation = async (
-  req,
-  res
-) => {
+const deleteLocation = async (req, res) => {
   try {
-    const location =
-      await Location.findByPk(
-        req.params.id
-      );
+    const location = await Location.findByPk(req.params.id);
 
     if (!location) {
       return res.status(404).json({
         success: false,
-        message:
-          "Location not found",
+        message: "Location not found",
       });
     }
 
@@ -405,14 +349,10 @@ const deleteLocation = async (
 
     return res.json({
       success: true,
-      message:
-        "Location deleted successfully",
+      message: "Location deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "[LocationController] deleteLocation",
-      error
-    );
+    console.error("[LocationController] deleteLocation", error);
 
     return res.status(500).json({
       success: false,
@@ -429,4 +369,5 @@ module.exports = {
   getLocationTree,
   updateLocation,
   deleteLocation,
+  getLocationApp,
 };
