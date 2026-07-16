@@ -1,6 +1,17 @@
 const Joi = require("joi");
 
 const BOOKING_SECTIONS = require("../constants/bookingSections");
+const { bikeRentalLocations } = require("../data/productConfig");
+
+const PICKUP_POINTS = [
+  ...new Set(
+    bikeRentalLocations.flatMap((location) =>
+      (location.pickupDropPoints || [])
+        .filter((point) => point.pickup || point.drop)
+        .map((point) => point.name),
+    ),
+  ),
+];
 
 const time24Hour = Joi.string()
   .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -97,11 +108,47 @@ const medical_declaration = Joi.object({
 }).unknown(false);
 
 const rental_details = Joi.object({
-  pickup_location: Joi.string().required(),
-
-  drop_location: Joi.string().required(),
-
   pickup_time: time24Hour.required(),
+
+  pickup_type: Joi.string().valid("self", "hotel").required(),
+
+  pickup_point: Joi.string()
+    .valid(...PICKUP_POINTS)
+    .when("pickup_type", {
+      is: "self",
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+  pickup_hotel_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .when("pickup_type", {
+      is: "hotel",
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+  drop_type: Joi.string().valid("self", "hotel").required(),
+
+  drop_point: Joi.string()
+    .valid(...PICKUP_POINTS)
+    .when("drop_type", {
+      is: "self",
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
+
+  drop_hotel_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(255)
+    .when("drop_type", {
+      is: "hotel",
+      then: Joi.required(),
+      otherwise: Joi.forbidden(),
+    }),
 
   drop_time: Joi.forbidden().messages({
     "any.unknown":
@@ -165,7 +212,8 @@ const validateBookingPayload = ({
       continue;
     }
 
-    const { error } = schema.validate(
+    const sectionSchema = section.required ? schema.required() : schema;
+    const { error } = sectionSchema.validate(
       payload[section.section],
       {
         abortEarly: false,
