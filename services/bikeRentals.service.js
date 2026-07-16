@@ -2,6 +2,13 @@ const { products, bikeRentalLocations } = require("../data/productConfig");
 const moment = require("moment-timezone");
 moment.tz.setDefault("Asia/Kolkata");
 
+const normalizeLocationName = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/\bisland\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const bikeRentals = {
   /* -------------------- PRODUCT INFO -------------------- */
   productInfo() {
@@ -32,7 +39,9 @@ const bikeRentals = {
     if (!locationName) return null;
 
     return bikeRentalLocations.find(
-      (loc) => loc.name.toLowerCase() === locationName.toLowerCase(),
+      (loc) =>
+        normalizeLocationName(loc.name) ===
+        normalizeLocationName(locationName),
     );
   },
 
@@ -67,6 +76,50 @@ const bikeRentals = {
       success: true,
       data: location.pickupDropPoints || [],
     };
+  },
+
+  validateCheckoutRentalDetails({ locationName, rentalDetails }) {
+    if (!rentalDetails) {
+      return { success: true };
+    }
+
+    const location = this.getLocationByName(locationName);
+
+    if (!location) {
+      return {
+        success: false,
+        message: "Pickup and drop points are not configured for this location.",
+      };
+    }
+
+    const points = location.pickupDropPoints || [];
+
+    if (
+      rentalDetails.pickup_type === "self" &&
+      !points.some(
+        (point) =>
+          point.pickup && point.name === rentalDetails.pickup_point,
+      )
+    ) {
+      return {
+        success: false,
+        message: "Invalid self pickup point for the selected location.",
+      };
+    }
+
+    if (
+      rentalDetails.drop_type === "self" &&
+      !points.some(
+        (point) => point.drop && point.name === rentalDetails.drop_point,
+      )
+    ) {
+      return {
+        success: false,
+        message: "Invalid self drop point for the selected location.",
+      };
+    }
+
+    return { success: true };
   },
 
   /* -------------------- PICKUP / DROP VALIDATION -------------------- */

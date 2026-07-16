@@ -608,6 +608,25 @@ const createOrderService = async ({ estimateId, payload }) => {
       };
     }
 
+    const rentalDetailsValidation =
+      bikeRentalService.bikeRentals.validateCheckoutRentalDetails({
+        locationName: estimate.quotation?.location?.name,
+        rentalDetails: payload.rental_details,
+      });
+
+    if (!rentalDetailsValidation.success) {
+      throw {
+        status: 422,
+        message: "Validation failed.",
+        errors: [
+          {
+            section: "rental_details",
+            errors: [rentalDetailsValidation.message],
+          },
+        ],
+      };
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Find / Create Customer
