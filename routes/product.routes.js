@@ -17,6 +17,9 @@ const {
 } = require(
   "../controllers/productAvailability.controller"
 );
+const {
+  getTagsByProduct,
+} = require("../controllers/productTagMapping.controller");
 
 const router = express.Router();
 
@@ -51,6 +54,7 @@ router.post(
   checkProductAvailability,
 );
 
+router.get("/:id/tags", getTagsByProduct);
 
 router.get("/:id", getProduct);
 

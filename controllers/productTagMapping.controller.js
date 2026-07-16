@@ -112,6 +112,59 @@ const getProductsByTag = async (req, res) => {
   }
 };
 
+const getTagsByProduct = async (req, res) => {
+  try {
+    const product = await Product.findByPk(req.params.id, {
+      attributes: ["id", "name", "slug"],
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const mappings = await ProductTagMapping.findAll({
+      where: {
+        product_id: product.id,
+      },
+      attributes: ["id", "sort_order"],
+      include: [
+        {
+          model: ProductTag,
+          as: "tag",
+          attributes: ["id", "name", "slug", "icon", "color", "active"],
+          required: true,
+        },
+      ],
+      order: [
+        ["sort_order", "ASC"],
+        [{ model: ProductTag, as: "tag" }, "name", "ASC"],
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        product: product.toJSON(),
+        tags: mappings.map((mapping) => ({
+          mapping_id: mapping.id,
+          sort_order: mapping.sort_order,
+          ...mapping.tag.toJSON(),
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("[getTagsByProduct]", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product tags",
+    });
+  }
+};
+
 const removeTagFromProduct = async (
   req,
   res
@@ -152,5 +205,6 @@ const removeTagFromProduct = async (
 module.exports = {
   assignTagToProduct,
   getProductsByTag,
+  getTagsByProduct,
   removeTagFromProduct
 }
