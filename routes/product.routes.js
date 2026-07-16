@@ -19,6 +19,7 @@ const {
 );
 const {
   getTagsByProduct,
+  removeTagFromProduct,
 } = require("../controllers/productTagMapping.controller");
 
 const router = express.Router();
@@ -55,6 +56,8 @@ router.post(
 );
 
 router.get("/:id/tags", getTagsByProduct);
+
+router.delete("/:productId/tags/:tagId", removeTagFromProduct);
 
 router.get("/:id", getProduct);
 

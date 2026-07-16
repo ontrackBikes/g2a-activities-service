@@ -170,13 +170,13 @@ const removeTagFromProduct = async (
   res
 ) => {
   try {
-    const { product_id, tag_id } = req.body;
+    const { productId, tagId } = req.params;
 
     const deleted =
       await ProductTagMapping.destroy({
         where: {
-          product_id,
-          tag_id,
+          product_id: productId,
+          tag_id: tagId,
         },
       });
 

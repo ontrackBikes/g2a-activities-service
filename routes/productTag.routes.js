@@ -6,7 +6,7 @@ const { createProductTag,
   getProductTagsAPI} = require("../controllers/productTag.controller");
 
 const express = require("express");
-const { assignTagToProduct, getProductsByTag, removeTagFromProduct } = require("../controllers/productTagMapping.controller");
+const { assignTagToProduct, getProductsByTag } = require("../controllers/productTagMapping.controller");
 const router = express.Router();
 
 router.post(
@@ -32,11 +32,6 @@ router.post(
 router.get(
   "/:id/products",
   getProductsByTag
-);
-
-router.delete(
-  "/assign/:mappingId",
-  removeTagFromProduct
 );
 
 module.exports = router;
