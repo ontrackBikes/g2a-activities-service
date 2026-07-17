@@ -610,7 +610,7 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     const rentalDetailsValidation =
       bikeRentalService.bikeRentals.validateCheckoutRentalDetails({
-        locationName: estimate.quotation?.location?.name,
+        locationSlug: estimate.quotation?.location?.slug,
         rentalDetails: payload.rental_details,
       });
 

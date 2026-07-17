@@ -3,6 +3,7 @@ module.exports = Object.freeze([
     id: 1,
     name: "Veer Savarkar International Airport",
     slug: "veer-savarkar-international-airport",
+    location_slug: "port-blair",
     type: "Airport",
     image:
       "https://go2andaman.com/wp-content/uploads/2025/10/AIRPORT-IMG2025-2-e1766661382781.jpg",
@@ -17,6 +18,7 @@ module.exports = Object.freeze([
     id: 2,
     name: "Phoenix Bay Jetty",
     slug: "phoenix-bay-jetty",
+    location_slug: "port-blair",
     type: "Jetty",
     image:
       "https://i0.wp.com/go2andaman.com/wp-content/uploads/2025/08/phoenix2-e1746520985255-831x468-1.webp?w=831&ssl=1",
@@ -31,6 +33,7 @@ module.exports = Object.freeze([
     id: 3,
     name: "Haddo Jetty",
     slug: "haddo-jetty",
+    location_slug: "port-blair",
     type: "Jetty",
     image:
       "https://i0.wp.com/go2andaman.com/wp-content/uploads/2025/08/entrance-e1746516860901.webp?w=1360&ssl=1",
