@@ -1,23 +1,42 @@
 const Joi = require("joi");
 
 const BOOKING_SECTIONS = require("../constants/bookingSections");
-const { bikeRentalLocations } = require("../data/productConfig");
+const bikeRentalLocations = require("../constants/bikeRentalLocations");
+const VALID_PICKUP_POINT_SLUGS = bikeRentalLocations.map(
+  (location) => location.slug,
+);
 
-const PICKUP_POINTS = [
-  ...new Set(
-    bikeRentalLocations.flatMap((location) =>
-      (location.pickupDropPoints || [])
-        .filter((point) => point.pickup || point.drop)
-        .map((point) => point.name),
-    ),
-  ),
-];
+const pickupPointSchema = Joi.object({
+  slug: Joi.string()
+    .valid(...VALID_PICKUP_POINT_SLUGS)
+    .required(),
+
+  address: Joi.string().trim().required(),
+})
+  .unknown(true)
+  .custom((value, helpers) => {
+    const location = bikeRentalLocations.find((x) => x.slug === value.slug);
+
+    if (!location) {
+      console.error("Invalid pickup point:", {
+        path: helpers.state.path,
+        value,
+        validSlugs: VALID_PICKUP_POINT_SLUGS,
+      });
+
+      return helpers.error("any.invalid");
+    }
+
+    return location;
+  })
+  .messages({
+    "any.invalid": "Invalid self pickup point for the selected location.",
+  });
 
 const time24Hour = Joi.string()
   .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
   .messages({
-    "string.pattern.base":
-      "pickup_time must be in HH:mm format",
+    "string.pattern.base": "pickup_time must be in HH:mm format",
   });
 
 /*
@@ -66,9 +85,7 @@ const participant = Joi.object({
   seat_number: Joi.string().allow("", null),
 }).unknown(false);
 
-const participants = Joi.array()
-  .items(participant)
-  .min(1);
+const participants = Joi.array().items(participant).min(1);
 
 const emergency_contact = Joi.object({
   name: Joi.string().required(),
@@ -99,12 +116,10 @@ const medical_declaration = Joi.object({
 
   other: Joi.boolean(),
 
-  other_details: Joi.string()
-    .allow("")
-    .when("other", {
-      is: true,
-      then: Joi.required(),
-    }),
+  other_details: Joi.string().allow("").when("other", {
+    is: true,
+    then: Joi.required(),
+  }),
 }).unknown(false);
 
 const rental_details = Joi.object({
@@ -112,43 +127,31 @@ const rental_details = Joi.object({
 
   pickup_type: Joi.string().valid("self", "hotel").required(),
 
-  pickup_point: Joi.string()
-    .valid(...PICKUP_POINTS)
-    .when("pickup_type", {
-      is: "self",
-      then: Joi.required(),
-      otherwise: Joi.forbidden(),
-    }),
+  pickup_point: pickupPointSchema.when("pickup_type", {
+    is: "self",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
 
-  pickup_hotel_name: Joi.string()
-    .trim()
-    .min(2)
-    .max(255)
-    .when("pickup_type", {
-      is: "hotel",
-      then: Joi.required(),
-      otherwise: Joi.forbidden(),
-    }),
+  pickup_hotel_name: Joi.string().trim().min(2).max(255).when("pickup_type", {
+    is: "hotel",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
 
   drop_type: Joi.string().valid("self", "hotel").required(),
 
-  drop_point: Joi.string()
-    .valid(...PICKUP_POINTS)
-    .when("drop_type", {
-      is: "self",
-      then: Joi.required(),
-      otherwise: Joi.forbidden(),
-    }),
+  drop_point: pickupPointSchema.when("drop_type", {
+    is: "self",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
 
-  drop_hotel_name: Joi.string()
-    .trim()
-    .min(2)
-    .max(255)
-    .when("drop_type", {
-      is: "hotel",
-      then: Joi.required(),
-      otherwise: Joi.forbidden(),
-    }),
+  drop_hotel_name: Joi.string().trim().min(2).max(255).when("drop_type", {
+    is: "hotel",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
 
   drop_time: Joi.forbidden().messages({
     "any.unknown":
@@ -178,14 +181,11 @@ const SECTION_SCHEMAS = {
 
   [BOOKING_SECTIONS.EMERGENCY_CONTACT]: emergency_contact,
 
-  [BOOKING_SECTIONS.MEDICAL_DECLARATION]:
-    medical_declaration,
+  [BOOKING_SECTIONS.MEDICAL_DECLARATION]: medical_declaration,
 
-  [BOOKING_SECTIONS.RENTAL_DETAILS]:
-    rental_details,
+  [BOOKING_SECTIONS.RENTAL_DETAILS]: rental_details,
 
-  [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]:
-    ferry_seat_selection,
+  [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
 };
 
 /*
@@ -194,10 +194,7 @@ const SECTION_SCHEMAS = {
 |--------------------------------------------------------------------------
 */
 
-const validateBookingPayload = ({
-  bookingTemplate,
-  payload,
-}) => {
+const validateBookingPayload = ({ bookingTemplate, payload }) => {
   const errors = [];
 
   for (const section of bookingTemplate.booking_page_schema.sections || []) {
@@ -205,22 +202,25 @@ const validateBookingPayload = ({
       continue;
     }
 
-    const schema =
-      SECTION_SCHEMAS[section.section];
+    const schema = SECTION_SCHEMAS[section.section];
 
     if (!schema) {
       continue;
     }
 
     const sectionSchema = section.required ? schema.required() : schema;
-    const { error } = sectionSchema.validate(
-      payload[section.section],
-      {
-        abortEarly: false,
-      },
-    );
+
+    const { error, value } = sectionSchema.validate(payload[section.section], {
+      abortEarly: false,
+      stripUnknown: false,
+    });
+
+    if (!error) {
+      payload[section.section] = value;
+    }
 
     if (error) {
+      console.log(JSON.stringify(error.details, null, 2));
       errors.push({
         section: section.section,
         errors: error.details.map((x) => x.message),
