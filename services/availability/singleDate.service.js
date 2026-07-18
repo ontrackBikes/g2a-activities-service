@@ -82,7 +82,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       available: false,
 
       message:
-        "Product is not available for the selected date, location and guests",
+        "This product is not available for the selected date and location.",
 
       data: buildBookingQuote({
         product,
