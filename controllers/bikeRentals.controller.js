@@ -1,5 +1,6 @@
 const { products } = require("../data/productConfig");
 const { bikeRentals } = require("../services/bikeRentals.service");
+const bikeRentalLocations = require("../constants/bikeRentalLocations");
 
 const getinfoBikeRentals = (req, res) => {
   try {
@@ -72,6 +73,23 @@ const getPickupDropPointsByLocation = (req, res) => {
   }
 };
 
+const getBikeRentalPickupDropPointsByLocationSlug = (req, res) => {
+  const locationSlug = String(req.params.locationSlug || "")
+    .trim()
+    .toLowerCase();
+
+  const locations = bikeRentalLocations.filter(
+    (location) => location.location_slug === locationSlug,
+  );
+
+  return res.json({
+    success: true,
+    location_slug: locationSlug,
+    count: locations.length,
+    data: locations,
+  });
+};
+
 const getBikeRentalLocationByName = (req, res) => {
   try {
     const { locationName } = req.params;
@@ -113,5 +131,6 @@ module.exports = {
   getinfoBikeRentals,
   checkAvailabilityBikeRentals,
   getPickupDropPointsByLocation,
+  getBikeRentalPickupDropPointsByLocationSlug,
   getBikeRentalLocationByName,
 };
