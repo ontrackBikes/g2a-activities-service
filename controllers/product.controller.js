@@ -1221,9 +1221,25 @@ const getProductDetailsForApp = async (req, res) => {
 
     const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
 
-    const [availability, nextAvailableSlot] =
+    const selectedVendorLocation = product.vendorProducts.find(
+      (vendorProduct) => vendorProduct.location?.slug === location_slug,
+    );
+
+    const lowestPricePromise =
+      !date && selectedVendorLocation
+        ? getLowestUpcomingPricesForProductLocations({
+            productLocations: [
+              {
+                productId: product.id,
+                locationId: selectedVendorLocation.location_id,
+              },
+            ],
+            guests: requestedGuests,
+          })
+        : Promise.resolve(null);
+
+    const [availability, nextAvailableSlot, lowestPrices] =
       await Promise.all([
-        
         getAvailableVendorForProduct({
           productId: product.id,
           locationSlug: location_slug,
@@ -1236,8 +1252,17 @@ const getProductDetailsForApp = async (req, res) => {
           locationSlug: location_slug,
           guests: requestedGuests,
         }),
+        lowestPricePromise,
       ]);
-   
+
+    const lowestPrice = selectedVendorLocation
+      ? lowestPrices?.get(
+          `${Number(product.id)}:${Number(selectedVendorLocation.location_id)}`,
+        )
+      : null;
+    const pricing = date
+      ? availability?.pricing
+      : lowestPrice || availability?.pricing;
 
     const locations = Array.from(locationsMap.values()).map(location => ({
       ...location,
@@ -1274,11 +1299,9 @@ const getProductDetailsForApp = async (req, res) => {
 
         out_of_stock: !availability,
 
-        starting_price: availability
-          ? availability.pricing.display_price
-          : null,
+        starting_price: pricing ? pricing.display_price : null,
 
-        price_type: availability ? availability.pricing.price_type : null,
+        price_type: pricing ? pricing.price_type : null,
 
         max_bookable_per_booking,
 
