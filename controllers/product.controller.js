@@ -27,6 +27,7 @@ const {
 const {
   getAvailableVendorForProduct,
   getAvailableVendorsForProductLocations,
+  getLowestUpcomingPricesForProductLocations,
 } = require("../services/availableVendor.service");
 const {
   getNextAvailableSlotForProduct,
@@ -680,8 +681,7 @@ const getProductsListForApp = async (req, res) => {
         productLocationPairs.map(({ locationId }) => locationId),
       ),
     ];
-    const [locationAvailabilityMap, locationNextAvailableSlotMap] =
-      await Promise.all([
+    const priceRequests = [
         getAvailableVendorsForProductLocations({
           productLocations: productLocationPairs,
           date,
@@ -693,7 +693,22 @@ const getProductsListForApp = async (req, res) => {
           locationSlugs: selectedLocationSlugs,
           guests: requestedGuests,
         }),
-      ]);
+      ];
+
+    if (!date) {
+      priceRequests.push(
+        getLowestUpcomingPricesForProductLocations({
+          productLocations: productLocationPairs,
+          guests: requestedGuests,
+        }),
+      );
+    }
+
+    const [
+      locationAvailabilityMap,
+      locationNextAvailableSlotMap,
+      locationStartingPriceMap = new Map(),
+    ] = await Promise.all(priceRequests);
 
     const data = products.map((product) => {
       const json = product.toJSON();
@@ -703,25 +718,32 @@ const getProductsListForApp = async (req, res) => {
         : [];
       const locationResults = locationsForProduct.map((location) => {
         const key = `${Number(product.id)}:${Number(location.id)}`;
+        const availability = locationAvailabilityMap.get(key) || null;
+        const pricing = date
+          ? availability?.pricing || null
+          : locationStartingPriceMap.get(key) || availability?.pricing || null;
 
         return {
           location,
-          availability: locationAvailabilityMap.get(key) || null,
-          nextAvailableSlot:
-            locationAvailabilityMap.get(key)?.schedule
-              ?.schedule_date ||
-            locationNextAvailableSlotMap.get(key) || null,
+          availability,
+          pricing,
+          nextAvailableSlot: date
+            ? availability?.schedule?.schedule_date ||
+              locationNextAvailableSlotMap.get(key) ||
+              null
+            : locationNextAvailableSlotMap.get(key) || null,
         };
       });
       const availableLocationResults = locationResults
-        .filter(({ availability }) => Boolean(availability))
+        .filter(({ availability, pricing }) => availability && pricing)
         .sort(
           (first, second) =>
-            first.availability.pricing.display_price -
-            second.availability.pricing.display_price,
+            first.pricing.display_price -
+            second.pricing.display_price,
         );
-      const availability =
-        availableLocationResults[0]?.availability || null;
+      const selectedLocationResult = availableLocationResults[0] || null;
+      const availability = selectedLocationResult?.availability || null;
+      const pricing = selectedLocationResult?.pricing || null;
       const nextAvailableSlot =
         locationResults
           .map(({ nextAvailableSlot: slotDate }) => slotDate)
@@ -731,12 +753,13 @@ const getProductsListForApp = async (req, res) => {
         ({
           location,
           availability: locationAvailability,
+          pricing: locationPricing,
         }) => ({
           name: location.name,
           slug: location.slug,
           available: Boolean(locationAvailability),
-          starting_price: locationAvailability
-            ? locationAvailability.pricing.display_price
+          starting_price: locationPricing
+            ? locationPricing.display_price
             : null,
         }),
       );
@@ -758,15 +781,15 @@ const getProductsListForApp = async (req, res) => {
 
         out_of_stock: !availability,
 
-        starting_price: availability
-          ? availability.pricing.display_price
+        starting_price: pricing
+          ? pricing.display_price
           : null,
 
-        price_type: availability ? availability.pricing.price_type : null,
+        price_type: pricing ? pricing.price_type : null,
 
-        next_available_slot:
-          availability?.schedule?.schedule_date ||
-          nextAvailableSlot,
+        next_available_slot: date
+          ? availability?.schedule?.schedule_date || nextAvailableSlot
+          : nextAvailableSlot,
 
         category: json.productType?.category
           ? {

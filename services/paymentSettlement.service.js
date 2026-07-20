@@ -92,22 +92,30 @@ async function confirmPayment({ payment, transaction }) {
   return payment;
 }
 
-/**
- * Reserve inventory
- *
- * Actual implementation handled separately.
- */
-/**
- * Reserve inventory
- *
- * Inventory is reserved against the selected vendor schedule slot
- * stored in the BookingEstimate metadata.
- */
+const getInventorySlotIds = (estimate) => {
+  const metadata = estimate.metadata || {};
+  const dateRangeSlotIds = Array.isArray(metadata.inventory_slots)
+    ? metadata.inventory_slots
+        .map((entry) => Number(entry.vendor_schedule_slot_id))
+        .filter((slotId) => Number.isInteger(slotId) && slotId > 0)
+    : [];
+
+  if (dateRangeSlotIds.length) {
+    return [...new Set(dateRangeSlotIds)];
+  }
+
+  const selectedSlotId = Number(
+    metadata.slot_mapping?.[estimate.selected_slot_token] ||
+      estimate.vendor_schedule_slot_id,
+  );
+
+  return Number.isInteger(selectedSlotId) && selectedSlotId > 0
+    ? [selectedSlotId]
+    : [];
+};
+
 async function reserveInventory({ order, transaction }) {
-  /**
-   * Fetch original quotation / estimate.
-   */
-  const quotation = await BookingEstimate.findOne({
+  const estimate = await BookingEstimate.findOne({
     where: {
       estimate_id: order.estimate_id,
     },
@@ -115,82 +123,55 @@ async function reserveInventory({ order, transaction }) {
     lock: transaction.LOCK.UPDATE,
   });
 
-  if (!quotation) {
+  if (!estimate) {
     throw new Error(`BookingEstimate ${order.estimate_id} not found.`);
   }
 
-  const metadata = quotation.metadata || {};
+  const inventorySlotIds = getInventorySlotIds(estimate);
 
-  /**
-   * No slot selected.
-   *
-   * Non-slot based products (open inventory)
-   * don't require inventory reservation.
-   */
-  if (!metadata.selected_slot_token) {
+  if (!inventorySlotIds.length) {
     return;
   }
 
-  /**
-   * Resolve selected slot.
-   */
-  const vendorScheduleSlotId =
-    metadata.slot_mapping?.[metadata.selected_slot_token];
-
-  if (!vendorScheduleSlotId) {
-    throw new Error(
-      `Selected slot mapping not found for estimate ${quotation.estimate_id}.`,
-    );
-  }
-
-  /**
-   * Lock inventory row.
-   */
-  const slot = await VendorScheduleSlot.findByPk(vendorScheduleSlotId, {
+  const slots = await VendorScheduleSlot.findAll({
+    where: {
+      id: inventorySlotIds,
+    },
+    order: [["id", "ASC"]],
     transaction,
     lock: transaction.LOCK.UPDATE,
   });
 
-  if (!slot) {
-    throw new Error(`VendorScheduleSlot ${vendorScheduleSlotId} not found.`);
-  }
-
-  /**
-   * External inventory.
-   *
-   * Inventory is managed by the vendor,
-   * so don't update local counters.
-   */
-  if (!slot.allow_sync_updates) {
-    return;
-  }
-
-  const quantity = Number(quotation.pricing?.quantity || 1);
-
-  if (slot.available < quantity) {
+  if (slots.length !== inventorySlotIds.length) {
     throw new Error(
-      `Insufficient inventory for slot ${slot.id}. Requested ${quantity}, Available ${slot.available}.`,
+      `Inventory slot not found for estimate ${estimate.estimate_id}.`,
     );
   }
 
-  /**
-   * Reserve inventory.
-   */
-  await VendorScheduleSlot.increment(
-    {
-      booked: quantity,
-      available: -quantity,
-    },
-    {
-      where: {
-        id: slot.id,
-      },
-      transaction,
-    },
+  const quantity = Number(estimate.pricing?.quantity || 1);
+
+  for (const slot of slots) {
+    if (Number(slot.available) < quantity) {
+      throw new Error(
+        `Insufficient inventory for slot ${slot.id}. Requested ${quantity}, Available ${slot.available}.`,
+      );
+    }
+  }
+
+  await Promise.all(
+    slots.map((slot) =>
+      slot.update(
+        {
+          booked: Number(slot.booked) + quantity,
+          available: Number(slot.available) - quantity,
+        },
+        { transaction },
+      ),
+    ),
   );
 
   console.log(
-    `[Inventory] Reserved ${quantity} seat(s) for VendorScheduleSlot ${slot.id}.`,
+    `[Inventory] Reserved ${quantity} seat(s) across ${slots.length} schedule slot(s).`,
   );
 }
 
