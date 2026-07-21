@@ -34,6 +34,25 @@ const {
   getNextAvailableSlotsForProductLocations,
 } = require("../services/nextAvailableSlot.service");
 
+const findActiveProductType = (productTypeId) =>
+  ProductType.findOne({
+    where: {
+      id: productTypeId,
+      active: true,
+    },
+    include: [
+      {
+        model: Category,
+        as: "category",
+        attributes: [],
+        required: true,
+        where: {
+          active: true,
+        },
+      },
+    ],
+  });
+
 const createProduct = async (req, res) => {
   try {
     const { error, value } = createProductSchema.validate(req.body);
@@ -62,7 +81,9 @@ const createProduct = async (req, res) => {
     /**
      * Validate Product Type
      */
-    const productType = await ProductType.findByPk(value.product_type_id);
+    const productType = await findActiveProductType(
+      value.product_type_id,
+    );
 
     if (!productType) {
       return res.status(404).json({
@@ -274,6 +295,19 @@ const updateProduct = async (req, res) => {
         success: false,
         message: "Product not found",
       });
+    }
+
+    if (value.product_type_id) {
+      const productType = await findActiveProductType(
+        value.product_type_id,
+      );
+
+      if (!productType) {
+        return res.status(404).json({
+          success: false,
+          message: "Product type not found",
+        });
+      }
     }
 
     await product.update(value);
