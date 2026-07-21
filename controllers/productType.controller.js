@@ -24,7 +24,12 @@ const createProductType = async (req, res) => {
       });
     }
 
-    const category = await Category.findByPk(value.category_id);
+    const category = await Category.findOne({
+      where: {
+        id: value.category_id,
+        active: true,
+      },
+    });
 
     if (!category) {
       return res.status(404).json({
@@ -69,7 +74,9 @@ const createProductType = async (req, res) => {
 const getProductTypes = async (req, res) => {
   try {
     const where = {};
-    const category_where = {};
+    const category_where = {
+      active: true,
+    };
     const include = [
       {
         model: Category,
@@ -161,6 +168,10 @@ const getProductTypeById = async (req, res) => {
         {
           model: Category,
           as: "category",
+          required: true,
+          where: {
+            active: true,
+          },
         },
       ],
     });
@@ -210,7 +221,12 @@ const updateProductType = async (req, res) => {
     }
 
     if (value.category_id) {
-      const category = await Category.findByPk(value.category_id);
+      const category = await Category.findOne({
+        where: {
+          id: value.category_id,
+          active: true,
+        },
+      });
 
       if (!category) {
         return res.status(404).json({

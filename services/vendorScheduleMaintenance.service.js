@@ -217,7 +217,7 @@ const maintainVendorProductSchedules = async (
             Number(templateSlot.id),
           );
 
-        if (!existingSlot) {
+        if (!existingSlot || !existingSlot.allow_sync_updates) {
           continue;
         }
 
