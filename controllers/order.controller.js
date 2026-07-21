@@ -60,7 +60,11 @@ const buildDateRangeFilter = ({ dateFrom, dateTo }) => {
 const getOrderItemQuantity = (orderItem) => {
   const bookingData = orderItem.booking_data || {};
   const pricing = orderItem.pricing || {};
-  const quantity = Number(bookingData.guests) || Number(pricing.quantity) || 1;
+  const quantity =
+    Number(bookingData.quantity) ||
+    Number(pricing.quantity) ||
+    Number(bookingData.guests) ||
+    1;
 
   return Math.max(quantity, 1);
 };
@@ -102,7 +106,8 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
 
   const snapshot = {
     booking_mode: estimate.booking_mode,
-    guests: bookingData.guests || pricing.quantity || 1,
+    guests: bookingData.guests || 1,
+    quantity: bookingData.quantity || pricing.quantity || 1,
     vendor: {
       vendor_id: estimate.vendor_id || null,
       vendor_product_id: estimate.vendor_product_id || null,
@@ -1189,6 +1194,7 @@ const getOrder = async (req, res) => {
       participants: item.participants,
       booking_data: {
         guests: item.booking_data?.guests,
+        quantity: item.booking_data?.quantity,
         pickup_date: item.booking_data?.pickup_date,
         pickup_time: item.booking_data?.pickup_time,
         return_date: item.booking_data?.return_date,

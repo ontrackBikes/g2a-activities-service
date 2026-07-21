@@ -86,6 +86,11 @@ const checkDateRangeAvailabilitySchema = Joi.object({
     .min(1)
     .default(1),
 
+  quantity: Joi.number()
+    .integer()
+    .min(1)
+    .required(),
+
   estimate_id: estimateId,
 
   selected_slot_token: slotToken,

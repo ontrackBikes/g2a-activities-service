@@ -42,7 +42,10 @@ const checkProductAvailability = async (req, res) => {
       ...req.body,
       date: req.body.date || moment().format("YYYY-MM-DD"),
       pickup_date: req.body.pickup_date || moment().format("YYYY-MM-DD"),
-      return_date: req.body.return_date || moment(req.body.pickup_date).add(1, 'd').format("YYYY-MM-DD"),
+      return_date:
+        req.body.return_date ||
+        moment(req.body.pickup_date).add(1, "d").format("YYYY-MM-DD"),
+      pickup_time: req.body.pickup_time || "10:00",
     };
 
     // Parse "<product>-in-<location>"

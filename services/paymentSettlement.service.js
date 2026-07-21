@@ -276,6 +276,12 @@ async function sendConfirmationEmail({ payment, order }) {
               : ""
           }
 
+          ${
+            booking.quantity
+              ? `<div><strong>Quantity:</strong> ${booking.quantity}</div>`
+              : ""
+          }
+
           <hr style="margin:15px 0;">
 
           <div>
@@ -393,6 +399,9 @@ async function sendConfirmationEmail({ payment, order }) {
 
         guests:
           booking.guests || "",
+
+        quantity:
+          booking.quantity || "",
 
         pickup_time:
           delivery.pickup_time || "",

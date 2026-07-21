@@ -90,7 +90,7 @@ module.exports.checkDateRange = async ({
     pickupDate: payload.pickup_date,
     returnDate: payload.return_date,
     pickupTime: payload.pickup_time,
-    guests: payload.guests,
+    guests: payload.quantity,
     selectedSlotToken:
       payload.selected_slot_token || null,
   });
@@ -117,6 +117,7 @@ module.exports.checkDateRange = async ({
           return_date: payload.return_date,
           drop_time: payload.pickup_time,
           guests: payload.guests,
+          quantity: payload.quantity,
         },
       }),
     };
@@ -210,7 +211,8 @@ module.exports.checkDateRange = async ({
       return_date: availability.end_date,
       drop_time: availability.drop_time,
       rental_days: availability.rental_days,
-      guests: availability.guests,
+      guests: payload.guests,
+      quantity: payload.quantity,
     },
 
     pricing: {
@@ -219,7 +221,7 @@ module.exports.checkDateRange = async ({
         availability.vendorProduct.pricing_type,
 
       unit_price: availability.unit_price_total,
-      quantity: availability.guests,
+      quantity: payload.quantity,
 
       subtotal: availability.rental_total,
       discount: 0,
