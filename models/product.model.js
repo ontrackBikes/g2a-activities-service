@@ -111,6 +111,16 @@ Product.init(
       defaultValue: "single_date",
     },
 
+
+     pricing_mode: {
+      type: DataTypes.ENUM(
+        "quantity",
+        "guest"
+      ),
+      allowNull: false,
+      defaultValue: "guest",
+    },
+
     /**
      * Featured on homepage
      */
