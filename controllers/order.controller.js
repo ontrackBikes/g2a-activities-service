@@ -69,6 +69,48 @@ const getOrderItemQuantity = (orderItem) => {
   return Math.max(quantity, 1);
 };
 
+const formatRentalPoint = (point) => {
+  if (!point) {
+    return null;
+  }
+
+  return {
+    name: point.name || null,
+    slug: point.slug || null,
+    address: point.address || null,
+  };
+};
+
+const formatRentalDetails = (rentalDetails) => {
+  if (!rentalDetails) {
+    return null;
+  }
+
+  const details = {
+    pickup_time: rentalDetails.pickup_time,
+    pickup_type: rentalDetails.pickup_type,
+    drop_type: rentalDetails.drop_type,
+  };
+
+  if (rentalDetails.pickup_point) {
+    details.pickup_point = formatRentalPoint(rentalDetails.pickup_point);
+  }
+
+  if (rentalDetails.pickup_hotel_name) {
+    details.pickup_hotel_name = rentalDetails.pickup_hotel_name;
+  }
+
+  if (rentalDetails.drop_point) {
+    details.drop_point = formatRentalPoint(rentalDetails.drop_point);
+  }
+
+  if (rentalDetails.drop_hotel_name) {
+    details.drop_hotel_name = rentalDetails.drop_hotel_name;
+  }
+
+  return details;
+};
+
 const getInventorySlotIdsForOrderItem = ({ orderItem, estimate }) => {
   const inventorySlots = estimate?.metadata?.inventory_slots;
 
@@ -1164,6 +1206,7 @@ const getOrder = async (req, res) => {
             "location_name",
             "location_slug",
             "booking_data",
+            "booking_payload",
             "pricing",
             "created_at",
           ],
@@ -1192,6 +1235,9 @@ const getOrder = async (req, res) => {
       pricing: item.pricing,
       created_at: item.created_at,
       participants: item.participants,
+      rental_details: formatRentalDetails(
+        item.booking_payload?.rental_details,
+      ),
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,
