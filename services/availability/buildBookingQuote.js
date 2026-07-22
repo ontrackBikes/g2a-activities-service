@@ -14,6 +14,7 @@ const sanitizeTerms = (terms = []) =>
   Array.isArray(terms)
     ? terms.map((term) => ({
         content: term.content,
+        title: term.title,
         sort_order: term.sort_order,
       }))
     : [];
