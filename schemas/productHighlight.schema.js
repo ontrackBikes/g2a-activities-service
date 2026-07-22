@@ -13,6 +13,8 @@ const createProductHighlightSchema = Joi.object({
 const updateProductHighlightSchema = Joi.object({
   content: Joi.string().trim().min(1).max(5000),
 
+  title: Joi.string().trim().min(1).max(5000),
+
   sort_order: Joi.number().integer().min(0),
 
   active: Joi.boolean(),

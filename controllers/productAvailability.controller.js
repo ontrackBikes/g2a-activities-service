@@ -7,6 +7,9 @@ const {
   Category,
   BookingTemplate,
   ProductTerm,
+  ProductInclusion,
+  ProductHighlight,
+  ProductExclusion,
 } = require("../models");
 const {
   checkSingleDateAvailabilitySchema,
@@ -104,7 +107,19 @@ const checkProductAvailability = async (req, res) => {
         {
           model: ProductTerm,
           as: "terms",
-        }
+        },
+        {
+          model: ProductInclusion,
+          as: "inclusions",
+        },
+        {
+          model: ProductHighlight,
+          as: "highlights",
+        },
+        {
+          model: ProductExclusion,
+          as: "exclusions",
+        },
       ],
     });
 

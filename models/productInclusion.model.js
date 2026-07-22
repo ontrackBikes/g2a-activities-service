@@ -25,6 +25,12 @@ ProductInclusion.init(
       onUpdate: "CASCADE",
     },
 
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Included Item",
+    },
+
     content: {
       type: DataTypes.TEXT,
       allowNull: false,
@@ -78,5 +84,5 @@ ProductInclusion.init(
     ],
   },
 );
-
+ProductInclusion.sync({alter: true})
 module.exports = ProductInclusion;

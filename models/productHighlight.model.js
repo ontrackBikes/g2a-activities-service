@@ -24,7 +24,11 @@ ProductHighlight.init(
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     },
-
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Title",
+    },
     content: {
       type: DataTypes.TEXT,
       allowNull: false,
@@ -78,5 +82,5 @@ ProductHighlight.init(
     ],
   },
 );
-
+//ProductHighlight.sync({alter: true})
 module.exports = ProductHighlight;

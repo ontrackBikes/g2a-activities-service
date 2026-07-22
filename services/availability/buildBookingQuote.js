@@ -69,6 +69,9 @@ const sanitizeProduct = (product) => {
       plainProduct.productType,
     ),
     terms: sanitizeTerms(plainProduct.terms),
+    inclusions: sanitizeTerms(plainProduct.inclusions),
+    highlights: sanitizeTerms(plainProduct.highlights),
+    exclusion: sanitizeTerms(plainProduct.exclusion),
   };
 };
 
