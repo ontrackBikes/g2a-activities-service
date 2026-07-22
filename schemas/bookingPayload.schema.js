@@ -1,4 +1,8 @@
 const Joi = require("joi");
+const {
+  getCountries,
+  parsePhoneNumberFromString,
+} = require("libphonenumber-js");
 
 const BOOKING_SECTIONS = require("../constants/bookingSections");
 const bikeRentalLocations = require("../constants/bikeRentalLocations");
@@ -39,6 +43,23 @@ const time24Hour = Joi.string()
     "string.pattern.base": "pickup_time must be in HH:mm format",
   });
 
+const ISO_COUNTRY_CODES = getCountries();
+
+const isValidInternationalPhone = ({
+  country,
+  countryCode,
+  phone,
+}) => {
+  const phoneNumber = parsePhoneNumberFromString(
+    `${countryCode}${phone}`,
+  );
+
+  return (
+    phoneNumber?.isValid() === true &&
+    phoneNumber.country === country
+  );
+};
+
 /*
 |--------------------------------------------------------------------------
 | Section Schemas
@@ -52,12 +73,56 @@ const customer_details = Joi.object({
 
   email: Joi.string().email().required(),
 
-  phone: Joi.string()
-    .pattern(/^[6-9]\d{9}$/)
+  country_code: Joi.string()
+    .pattern(/^\+[1-9]\d{0,3}$/)
     .required(),
 
-  country: Joi.string().required(),
-}).unknown(false);
+  phone: Joi.string()
+    .pattern(/^\d{4,15}$/)
+    .required(),
+
+  alternate_phone: Joi.string()
+    .pattern(/^\d{4,15}$/)
+    .allow("", null)
+    .optional(),
+
+  country: Joi.string()
+    .trim()
+    .uppercase()
+    .valid(...ISO_COUNTRY_CODES)
+    .required(),
+})
+  .custom((value, helpers) => {
+    if (
+      !isValidInternationalPhone({
+        country: value.country,
+        countryCode: value.country_code,
+        phone: value.phone,
+      })
+    ) {
+      return helpers.error("customer_details.phone.invalid");
+    }
+
+    if (
+      value.alternate_phone &&
+      !isValidInternationalPhone({
+        country: value.country,
+        countryCode: value.country_code,
+        phone: value.alternate_phone,
+      })
+    ) {
+      return helpers.error("customer_details.alternate_phone.invalid");
+    }
+
+    return value;
+  })
+  .messages({
+    "customer_details.phone.invalid":
+      '"phone" must be valid for the supplied country and country_code.',
+    "customer_details.alternate_phone.invalid":
+      '"alternate_phone" must be valid for the supplied country and country_code.',
+  })
+  .unknown(false);
 
 const participant = Joi.object({
   first_name: Joi.string().required(),

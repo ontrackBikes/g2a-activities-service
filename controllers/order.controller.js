@@ -4,6 +4,7 @@ const bikeRentalService = require("../services/bikeRentals.service");
 const razorpayService = require("../services/razorpay.service");
 const BookingEstimate = require("../models/bookingEstimate.model");
 const { Op } = require("sequelize");
+const { parsePhoneNumberFromString } = require("libphonenumber-js");
 
 const {
   Product,
@@ -68,6 +69,9 @@ const getOrderItemQuantity = (orderItem) => {
 
   return Math.max(quantity, 1);
 };
+
+const normalizeCustomerMobile = ({ country_code, phone }) =>
+  parsePhoneNumberFromString(`${country_code}${phone}`)?.number || null;
 
 const formatRentalPoint = (point) => {
   if (!point) {
@@ -680,9 +684,13 @@ const createOrderService = async ({ estimateId, payload }) => {
     |--------------------------------------------------------------------------
     */
 
+    const customerMobile = normalizeCustomerMobile(payload.customer_details);
+
     let customer = await Customer.findOne({
       where: {
-        mobile: payload.customer_details.phone,
+        mobile: {
+          [Op.in]: [customerMobile, payload.customer_details.phone],
+        },
       },
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -697,7 +705,7 @@ const createOrderService = async ({ estimateId, payload }) => {
 
           email: payload.customer_details.email,
 
-          mobile: payload.customer_details.phone,
+          mobile: customerMobile,
 
           country: payload.customer_details.country,
         },
@@ -716,6 +724,8 @@ const createOrderService = async ({ estimateId, payload }) => {
           email: customer.email || payload.customer_details.email,
 
           country: customer.country || payload.customer_details.country,
+
+          mobile: customerMobile,
         },
         {
           transaction,

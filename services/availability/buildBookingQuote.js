@@ -19,6 +19,15 @@ const sanitizeTerms = (terms = []) =>
       }))
     : [];
 
+const sanitizeCancellationPolicies = (policies = []) =>
+  Array.isArray(policies)
+    ? policies.map((policy) => ({
+        title: policy.title,
+        content: policy.content,
+        sort_order: policy.sort_order,
+      }))
+    : [];
+
 const sanitizeBookingTemplate = (bookingTemplate) => {
   if (!bookingTemplate) {
     return null;
@@ -70,6 +79,9 @@ const sanitizeProduct = (product) => {
       plainProduct.productType,
     ),
     terms: sanitizeTerms(plainProduct.terms),
+    cancellation_policies: sanitizeCancellationPolicies(
+      plainProduct.cancellationPolicies,
+    ),
     inclusions: sanitizeTerms(plainProduct.inclusions),
     highlights: sanitizeTerms(plainProduct.highlights),
     exclusions: sanitizeTerms(plainProduct.exclusions),

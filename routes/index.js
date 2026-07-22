@@ -14,6 +14,7 @@ const productHighlightRoutes = require("./productHighlight.routes");
 const productInclusionRoutes = require("./productInclusion.routes");
 const productExclusionRoutes = require("./productExclusion.routes");
 const productThingToKnowRoutes = require("./productThingToKnow.routes");
+const productCancellationPolicyRoutes = require("./productCancellationPolicy.routes");
 const vendorProductFaqRoutes = require("./vendorProductFaq.routes");
 const vendorProductHighlightRoutes = require("./vendorProductHighlight.routes");
 const vendorProductInclusionRoutes = require("./vendorProductInclusion.routes");
@@ -81,6 +82,11 @@ router.use("/product-inclusions", productInclusionRoutes);
 router.use("/product-exclusions", productExclusionRoutes);
 
 router.use("/product-things-to-know", productThingToKnowRoutes);
+
+router.use(
+  "/product-cancellation-policies",
+  productCancellationPolicyRoutes,
+);
 
 router.use("/media", mediaRoutes);
 

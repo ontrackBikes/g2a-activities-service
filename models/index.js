@@ -20,6 +20,7 @@ const ProductHighlight = require("./productHighlight.model");
 const ProductInclusion = require("./productInclusion.model");
 const ProductExclusion = require("./productExclusion.model");
 const ProductThingToKnow = require("./productThingToKnow.model");
+const ProductCancellationPolicy = require("./productCancellationPolicy.model");
 const MediaLibrary = require("./mediaLibrary.model");
 const ProductTag = require("./productTag.model");
 const ProductTagMapping = require("./productTagMapping.model");
@@ -270,6 +271,17 @@ ProductThingToKnow.belongsTo(Product, {
   as: "product",
 });
 
+Product.hasMany(ProductCancellationPolicy, {
+  foreignKey: "product_id",
+  as: "cancellationPolicies",
+  onDelete: "CASCADE",
+});
+
+ProductCancellationPolicy.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
 /**
  * Product Type -> Products
  */
@@ -458,6 +470,7 @@ module.exports = {
   ProductInclusion,
   ProductExclusion,
   ProductThingToKnow,
+  ProductCancellationPolicy,
   MediaLibrary,
   ProductTag,
   ProductTagMapping,

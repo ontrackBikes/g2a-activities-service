@@ -17,6 +17,7 @@ const {
   ProductInclusion,
   ProductExclusion,
   ProductThingToKnow,
+  ProductCancellationPolicy,
   BookingTemplate,
 } = require("../models");
 
@@ -1192,6 +1193,16 @@ const getProductDetailsForApp = async (req, res) => {
         },
 
         {
+          model: ProductCancellationPolicy,
+          as: "cancellationPolicies",
+          required: false,
+          separate: true,
+          where: { active: true },
+          attributes: ["title", "content", "sort_order"],
+          order: [["sort_order", "ASC"], ["id", "ASC"]],
+        },
+
+        {
           model: ProductTag,
           as: "tags",
           through: {
@@ -1356,6 +1367,14 @@ const getProductDetailsForApp = async (req, res) => {
         inclusions: formatContentItems(product.inclusions),
 
         exclusions: formatContentItems(product.exclusions),
+
+        cancellation_policies: (product.cancellationPolicies || []).map(
+          (policy) => ({
+            title: policy.title,
+            content: policy.content,
+            sort_order: policy.sort_order,
+          }),
+        ),
 
         faqs: (product.faqs || []).map((faq) => ({
           question: faq.question,
