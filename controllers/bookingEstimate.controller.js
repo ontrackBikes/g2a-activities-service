@@ -140,7 +140,7 @@ module.exports.selectEstimateSlot = async (req, res) => {
      */
 
     const quantity =
-      Number(estimate.booking_data?.guests || 1);
+      Number(estimate.pricing?.quantity || 1);
 
     /**
      * Update internal ids

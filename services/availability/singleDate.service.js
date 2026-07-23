@@ -35,6 +35,7 @@ const getSlotType = (slot) =>
 
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const pricingQuantity = payload.pricing_quantity;
 
   /**
    * Validate Date
@@ -64,7 +65,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
     productId: product.id,
     locationId: location.id,
     date: payload.date,
-    guests: payload.guests,
+    guests: pricingQuantity,
   };
 
   const availability = await getAvailableVendorForProduct(availabilityPayload);
@@ -92,6 +93,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         booking: {
           travel_date: payload.date,
           guests: payload.guests,
+          quantity: payload.quantity,
         },
       }),
     };
@@ -167,7 +169,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
     ? Number(selectedVendorSlot.price)
     : Number(availability.pricing.display_price);
 
-  const subtotal = unitPrice * payload.guests;
+  const subtotal = unitPrice * pricingQuantity;
 
   const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
   const effectiveMaxBookable = isSlotPricing
@@ -187,6 +189,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
     booking: {
       travel_date: payload.date,
       guests: payload.guests,
+      quantity: payload.quantity,
     },
 
     pricing: {
@@ -196,7 +199,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
       unit_price: unitPrice,
 
-      quantity: payload.guests,
+      quantity: pricingQuantity,
 
       subtotal,
 

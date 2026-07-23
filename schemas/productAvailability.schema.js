@@ -39,7 +39,11 @@ const checkSingleDateAvailabilitySchema = Joi.object({
   guests: Joi.number()
     .integer()
     .min(1)
-    .required(),
+    .default(1),
+
+  quantity: Joi.number()
+    .integer()
+    .min(1),
 
   estimate_id: estimateId,
 
@@ -88,8 +92,7 @@ const checkDateRangeAvailabilitySchema = Joi.object({
 
   quantity: Joi.number()
     .integer()
-    .min(1)
-    .required(),
+    .min(1),
 
   estimate_id: estimateId,
 
@@ -136,6 +139,11 @@ const availableDatesQuerySchema = Joi.object({
     .min(1)
     .max(100)
     .default(1),
+
+  quantity: Joi.number()
+    .integer()
+    .min(1)
+    .max(100),
 });
 
 module.exports = {

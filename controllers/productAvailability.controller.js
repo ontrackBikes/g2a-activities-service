@@ -75,6 +75,7 @@ const checkProductAvailability = async (req, res) => {
         "slug",
         "name",
         "booking_mode",
+        "pricing_mode",
         "thumbnail_url",
       ],
 
@@ -172,6 +173,23 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
+    const pricingField =
+      product.pricing_mode === "quantity"
+        ? "quantity"
+        : "guests";
+
+    if (!value[pricingField]) {
+      return res.status(400).json({
+        success: false,
+        message: `"${pricingField}" is required for this product.`,
+      });
+    }
+
+    const availabilityPayload = {
+      ...value,
+      pricing_quantity: value[pricingField],
+    };
+
     /**
      * Location
      */
@@ -203,8 +221,8 @@ const checkProductAvailability = async (req, res) => {
     const result = await handler({
       product,
       location,
-      payload: value,
-      estimateId: value.estimate_id,
+      payload: availabilityPayload,
+      estimateId: availabilityPayload.estimate_id,
     });
 
     return res.status(result.status || 200).json({
@@ -259,6 +277,7 @@ const getProductAvailableDates = async (req, res) => {
       fromDate: value.from_date || null,
       toDate: value.to_date || null,
       guests: value.guests,
+      quantity: value.quantity,
     });
 
     const product = result.product;
@@ -268,10 +287,12 @@ const getProductAvailableDates = async (req, res) => {
       from_date: result.from_date,
       to_date: result.to_date,
       guests: result.guests,
+      pricing_quantity: result.pricing_quantity,
       product: {
         slug: product.slug,
         name: product.name,
         booking_mode: product.booking_mode,
+        pricing_mode: product.pricing_mode,
         product_type: product.product_type,
         category: product.category,
       },

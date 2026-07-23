@@ -27,6 +27,10 @@ const createProductSchema = Joi.object({
   )
   .default("single_date"),
 
+  pricing_mode: Joi.string()
+    .valid("quantity", "guest")
+    .default("guest"),
+
   active: Joi.boolean().default(true),
   booking_template_id: Joi.number().integer().positive().required(),
 });
@@ -53,6 +57,8 @@ const updateProductSchema = Joi.object({
   "date_range",
   "open",
 ),
+
+  pricing_mode: Joi.string().valid("quantity", "guest"),
 
   active: Joi.boolean(),
 }).min(1);

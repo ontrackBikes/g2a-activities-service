@@ -111,6 +111,7 @@ const getProduct = async ({
       "slug",
       "name",
       "booking_mode",
+      "pricing_mode",
     ],
     include: [
       {
@@ -149,6 +150,7 @@ const getAvailableDates = async ({
   fromDate = null,
   toDate = null,
   guests = 1,
+  quantity = null,
 }) => {
   if (!productSlug) {
     throw new AvailableDatesError(
@@ -173,6 +175,17 @@ const getAvailableDates = async ({
     throw new AvailableDatesError(
       "Product not found or does not support single-date availability",
       404,
+    );
+  }
+
+  const pricingQuantity =
+    product.pricing_mode === "quantity"
+      ? quantity
+      : guests;
+
+  if (!pricingQuantity) {
+    throw new AvailableDatesError(
+      "quantity is required for this product",
     );
   }
 
@@ -255,7 +268,7 @@ const getAvailableDates = async ({
           "max_bookable_per_booking",
         ],
         required: true,
-        where: buildSlotWhere({ guests }),
+        where: buildSlotWhere({ guests: pricingQuantity }),
       },
     ],
     order: [["schedule_date", "ASC"]],
@@ -266,6 +279,7 @@ const getAvailableDates = async ({
     slug: productJson.slug,
     name: productJson.name,
     booking_mode: productJson.booking_mode,
+    pricing_mode: productJson.pricing_mode,
     product_type: productJson.productType
       ? {
           slug: productJson.productType.slug,
@@ -361,6 +375,7 @@ const getAvailableDates = async ({
     from_date: normalizedFromDate,
     to_date: normalizedToDate,
     guests,
+    pricing_quantity: pricingQuantity,
     product: sanitizedProduct,
   };
 };

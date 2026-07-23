@@ -43,6 +43,7 @@ module.exports.checkDateRange = async ({
   estimateId,
 }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
+  const pricingQuantity = payload.pricing_quantity;
 
   /**
    * Validate Dates
@@ -90,7 +91,7 @@ module.exports.checkDateRange = async ({
     pickupDate: payload.pickup_date,
     returnDate: payload.return_date,
     pickupTime: payload.pickup_time,
-    guests: payload.quantity,
+    guests: pricingQuantity,
     selectedSlotToken:
       payload.selected_slot_token || null,
   });
@@ -212,7 +213,7 @@ module.exports.checkDateRange = async ({
       drop_time: availability.drop_time,
       rental_days: availability.rental_days,
       guests: payload.guests,
-      quantity: payload.quantity,
+      quantity: pricingQuantity,
     },
 
     pricing: {

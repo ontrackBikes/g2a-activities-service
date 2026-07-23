@@ -71,6 +71,7 @@ const sanitizeProduct = (product) => {
     slug: plainProduct.slug,
     name: plainProduct.name,
     booking_mode: plainProduct.booking_mode,
+    pricing_mode: plainProduct.pricing_mode,
     thumbnail_url: plainProduct.thumbnail_url,
     bookingTemplate: sanitizeBookingTemplate(
       plainProduct.bookingTemplate,
