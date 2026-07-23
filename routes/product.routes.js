@@ -14,6 +14,7 @@ const {
 const {
   checkProductAvailability,
   getProductAvailableDates,
+  getAirportTransferAvailableLocations,
 } = require(
   "../controllers/productAvailability.controller"
 );
@@ -38,6 +39,11 @@ router.get(
 router.get(
   "/app/products-list/:slug",
   getProductDetailsForApp
+);
+
+router.get(
+  "/app/airport-transfers/available-locations",
+  getAirportTransferAvailableLocations,
 );
 
 router.get(

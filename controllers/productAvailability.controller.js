@@ -319,7 +319,29 @@ const getProductAvailableDates = async (req, res) => {
   }
 };
 
+
+
+const airportTransferLocations = require("../constants/airportTransferLocations");
+
+const getAirportTransferAvailableLocations = async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      data: airportTransferLocations,
+    });
+  } catch (error) {
+    console.error("getAirportTransferAvailableLocations:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch airport transfer locations.",
+    });
+  }
+};
+
 module.exports = {
   checkProductAvailability,
   getProductAvailableDates,
+  getAirportTransferAvailableLocations
+  
 };

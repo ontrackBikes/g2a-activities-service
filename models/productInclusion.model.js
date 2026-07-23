@@ -84,5 +84,5 @@ ProductInclusion.init(
     ],
   },
 );
-ProductInclusion.sync({alter: true})
+//ProductInclusion.sync({alter: true})
 module.exports = ProductInclusion;
