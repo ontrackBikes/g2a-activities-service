@@ -7,6 +7,7 @@ const {
   Category,
   BookingTemplate,
   ProductTerm,
+  ProductFaq,
   ProductCancellationPolicy,
   ProductInclusion,
   ProductHighlight,
@@ -109,6 +110,18 @@ const checkProductAvailability = async (req, res) => {
         {
           model: ProductTerm,
           as: "terms",
+        },
+        {
+          model: ProductFaq,
+          as: "faqs",
+          required: false,
+          separate: true,
+          where: { active: true },
+          attributes: ["question", "answer", "sort_order"],
+          order: [
+            ["sort_order", "ASC"],
+            ["id", "ASC"],
+          ],
         },
         {
           model: ProductCancellationPolicy,
