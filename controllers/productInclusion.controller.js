@@ -261,9 +261,7 @@ const deleteProductInclusion = async (req, res) => {
       });
     }
 
-    await inclusion.update({
-      active: false,
-    });
+    await inclusion.destroy();
 
     return res.json({
       success: true,

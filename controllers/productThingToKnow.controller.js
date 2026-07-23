@@ -261,9 +261,7 @@ const deleteProductThingToKnow = async (req, res) => {
       });
     }
 
-    await thingToKnow.update({
-      active: false,
-    });
+    await thingToKnow.destroy();
 
     return res.json({
       success: true,

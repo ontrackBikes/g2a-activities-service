@@ -261,9 +261,7 @@ const deleteProductExclusion = async (req, res) => {
       });
     }
 
-    await exclusion.update({
-      active: false,
-    });
+    await exclusion.destroy();
 
     return res.json({
       success: true,

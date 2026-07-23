@@ -189,7 +189,7 @@ const deleteProductCancellationPolicy = async (req, res) => {
       });
     }
 
-    await policy.update({ active: false });
+    await policy.destroy();
 
     return res.json({
       success: true,

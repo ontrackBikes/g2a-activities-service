@@ -261,9 +261,7 @@ const deleteProductHighlight = async (req, res) => {
       });
     }
 
-    await highlight.update({
-      active: false,
-    });
+    await highlight.destroy();
 
     return res.json({
       success: true,

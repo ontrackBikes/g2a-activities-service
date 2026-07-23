@@ -243,9 +243,7 @@ const deleteProductFaq = async (req, res) => {
       });
     }
 
-    await faq.update({
-      active: false,
-    });
+    await faq.destroy();
 
     return res.json({
       success: true,
