@@ -112,15 +112,6 @@ const customer_details = Joi.object({
       return helpers.error("customer_details.alternate_phone.invalid");
     }
 
-    if (
-      !value.alternate_phone &&
-      value.alternate_country_code
-    ) {
-      return helpers.error(
-        "customer_details.alternate_country_code.forbidden",
-      );
-    }
-
     return value;
   })
   .messages({
@@ -130,8 +121,6 @@ const customer_details = Joi.object({
       '"alternate_phone" must be valid for the supplied alternate_country_code.',
     "customer_details.alternate_country_code.required":
       '"alternate_country_code" is required when "alternate_phone" is provided.',
-    "customer_details.alternate_country_code.forbidden":
-      '"alternate_country_code" is not allowed without "alternate_phone".',
   })
   .unknown(false);
 
