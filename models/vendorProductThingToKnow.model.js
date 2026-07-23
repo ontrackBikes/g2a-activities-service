@@ -16,6 +16,11 @@ VendorProductThingToKnow.init(
     allowNull: false,
   },
 
+  title: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+
   content: {
     type: DataTypes.TEXT,
     allowNull: false,

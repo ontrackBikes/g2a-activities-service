@@ -25,6 +25,12 @@ ProductThingToKnow.init(
       onUpdate: "CASCADE",
     },
 
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Information title",
+    },
+
     content: {
       type: DataTypes.TEXT,
       allowNull: false,

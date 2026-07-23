@@ -1318,6 +1318,7 @@ const getProductDetailsForApp = async (req, res) => {
     
     const formatContentItems = (items = []) =>
       items.map((item) => ({
+        title: item.title,
         content: item.content,
         sort_order: item.sort_order,
       }));

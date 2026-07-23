@@ -25,6 +25,12 @@ ProductExclusion.init(
       onUpdate: "CASCADE",
     },
 
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Exclusion title",
+    },
+
     content: {
       type: DataTypes.TEXT,
       allowNull: false,

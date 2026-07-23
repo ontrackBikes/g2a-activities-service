@@ -3,6 +3,8 @@ const Joi = require("joi");
 const createProductExclusionSchema = Joi.object({
   product_id: Joi.number().integer().positive().required(),
 
+  title: Joi.string().trim().min(1).max(5000),
+
   content: Joi.string().trim().min(1).max(5000).required(),
 
   sort_order: Joi.number().integer().min(0).default(0),
@@ -11,6 +13,8 @@ const createProductExclusionSchema = Joi.object({
 });
 
 const updateProductExclusionSchema = Joi.object({
+  title: Joi.string().trim().min(1).max(5000),
+
   content: Joi.string().trim().min(1).max(5000),
 
   sort_order: Joi.number().integer().min(0),
