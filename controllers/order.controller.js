@@ -115,6 +115,19 @@ const formatRentalDetails = (rentalDetails) => {
   return details;
 };
 
+const formatTransferLocation = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  return {
+    id: location.id || null,
+    name: location.name || null,
+    type: location.type || null,
+    address: location.address || null,
+  };
+};
+
 const getInventorySlotIdsForOrderItem = ({ orderItem, estimate }) => {
   const inventorySlots = estimate?.metadata?.inventory_slots;
 
@@ -200,6 +213,22 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
 
   if (bookingData.rental_days) {
     snapshot.rental_days = bookingData.rental_days;
+  }
+
+  if (bookingData.transfer_type) {
+    snapshot.transfer_type = bookingData.transfer_type;
+  }
+
+  if (bookingData.pickup_location) {
+    snapshot.pickup_location = formatTransferLocation(
+      bookingData.pickup_location,
+    );
+  }
+
+  if (bookingData.drop_location) {
+    snapshot.drop_location = formatTransferLocation(
+      bookingData.drop_location,
+    );
   }
 
   if (selectedSlot) {
@@ -1251,11 +1280,15 @@ const getOrder = async (req, res) => {
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,
+        travel_date: item.booking_data?.travel_date,
         pickup_date: item.booking_data?.pickup_date,
         pickup_time: item.booking_data?.pickup_time,
         return_date: item.booking_data?.return_date,
         drop_time: item.booking_data?.drop_time,
         rental_days: item.booking_data?.rental_days,
+        transfer_type: item.booking_data?.transfer_type,
+        pickup_location: item.booking_data?.pickup_location,
+        drop_location: item.booking_data?.drop_location,
         booking_mode: item.booking_data?.booking_mode,
         selected_slot: item.booking_data?.selected_slot,
       },

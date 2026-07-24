@@ -5,6 +5,8 @@ module.exports = {
   QUANTITY: "quantity",
   PICKUP_LOCATION: "pickup_location",
   DROP_LOCATION: "drop_location",
+  PICKUP_TIME: "pickup_time",
+  TRANSFER_TYPE: "transfer_type",
 
   PICKUP_DATE: "pickup_date",
   RETURN_DATE: "return_date",

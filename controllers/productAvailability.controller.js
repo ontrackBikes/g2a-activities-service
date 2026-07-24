@@ -16,6 +16,7 @@ const {
 const {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
+  checkAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
@@ -31,6 +32,9 @@ const {
 const {
   checkSingleDate,
 } = require("../services/availability/singleDate.service.js");
+const {
+  checkAirportTransfer,
+} = require("../services/availability/airportTransfer.service.js");
 const {
   AvailableDatesError,
   getAvailableDates,
@@ -165,7 +169,14 @@ const checkProductAvailability = async (req, res) => {
       date_range: checkDateRangeAvailabilitySchema,
     };
 
-    const schema = schemaMap[product.booking_mode];
+    const isAirportTransfer =
+      product.bookingTemplate?.product_page_schema?.fields?.some(
+        ({ field }) => field === "transfer_type",
+      );
+
+    const schema = isAirportTransfer
+      ? checkAirportTransferAvailabilitySchema
+      : schemaMap[product.booking_mode];
 
     if (!schema) {
       return res.status(400).json({
@@ -187,7 +198,7 @@ const checkProductAvailability = async (req, res) => {
     }
 
     const pricingField =
-      product.pricing_mode === "quantity"
+      isAirportTransfer || product.pricing_mode === "quantity"
         ? "quantity"
         : "guests";
 
@@ -229,7 +240,9 @@ const checkProductAvailability = async (req, res) => {
       date_range: checkDateRange,
     };
 
-    const handler = handlers[product.booking_mode];
+    const handler = isAirportTransfer
+      ? checkAirportTransfer
+      : handlers[product.booking_mode];
 
     const result = await handler({
       product,

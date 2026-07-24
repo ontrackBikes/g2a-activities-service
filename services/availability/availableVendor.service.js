@@ -61,6 +61,9 @@ const getAvailableVendorForProduct = async ({
           product_id: productId,
           location_id: locationId,
           active: true,
+          max_bookable_per_booking: {
+            [Op.gte]: guests,
+          },
         },
       },
 
@@ -118,6 +121,7 @@ const getAvailableVendorForProduct = async ({
       ) {
         selected = {
           vendorProduct,
+          schedule,
 
           pricing: {
             price_type: "SLOT",
@@ -151,6 +155,7 @@ const getAvailableVendorForProduct = async ({
       ) {
         selected = {
           vendorProduct,
+          schedule,
 
           pricing: {
             price_type: "FIXED",
