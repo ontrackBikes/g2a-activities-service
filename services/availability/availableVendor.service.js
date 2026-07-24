@@ -17,6 +17,7 @@ const getAvailableVendorForProduct = async ({
   locationId,
   date,
   guests,
+  ignoreSameDaySlotStartTime = false,
 }) => {
   const now = moment().tz(APP_TIMEZONE);
   const today = now.format("YYYY-MM-DD");
@@ -31,7 +32,7 @@ const getAvailableVendorForProduct = async ({
     },
   };
 
-  if (date === today) {
+  if (date === today && !ignoreSameDaySlotStartTime) {
     slotWhere[Op.or] = [
       {
         start_time: null,

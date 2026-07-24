@@ -34,6 +34,39 @@ const getEffectiveMaxBookable = ({ vendorProduct, scheduleSlot }) =>
     Number(scheduleSlot.available),
   );
 
+const getTimeOnDate = (date, time) =>
+  moment.tz(
+    `${date} ${time}`,
+    ["YYYY-MM-DD HH:mm", "YYYY-MM-DD HH:mm:ss"],
+    true,
+    APP_TIMEZONE,
+  );
+
+const getPickupTimeError = ({ date, pickupTime, scheduleSlot }) => {
+  const pickupAt = getTimeOnDate(date, pickupTime);
+
+  if (date === moment().tz(APP_TIMEZONE).format("YYYY-MM-DD")) {
+    const now = moment().tz(APP_TIMEZONE);
+
+    if (!pickupAt.isAfter(now)) {
+      return "pickup_time must be in the future for today's airport transfer.";
+    }
+  }
+
+  if (!scheduleSlot.start_time || !scheduleSlot.end_time) {
+    return null;
+  }
+
+  const startsAt = getTimeOnDate(date, scheduleSlot.start_time);
+  const endsAt = getTimeOnDate(date, scheduleSlot.end_time);
+
+  if (pickupAt.isBefore(startsAt) || !pickupAt.isBefore(endsAt)) {
+    return "pickup_time is outside the available service hours.";
+  }
+
+  return null;
+};
+
 const buildTransferBooking = (payload) => ({
   travel_date: payload.date,
   guests: payload.guests,
@@ -95,6 +128,7 @@ const checkAirportTransfer = async ({
     locationId: location.id,
     date: payload.date,
     guests: payload.quantity,
+    ignoreSameDaySlotStartTime: true,
   });
 
   if (!availability) {
@@ -108,6 +142,22 @@ const checkAirportTransfer = async ({
   }
 
   const scheduleSlot = availability.slots[0];
+  const pickupTimeError = getPickupTimeError({
+    date: payload.date,
+    pickupTime: payload.pickup_time,
+    scheduleSlot,
+  });
+
+  if (pickupTimeError) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: pickupTimeError,
+      data: buildBookingQuote({ product, location, booking }),
+    };
+  }
+
   const maxBookablePerBooking = getEffectiveMaxBookable({
     vendorProduct: availability.vendorProduct,
     scheduleSlot,
