@@ -6,24 +6,33 @@ const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
-const AIRPORT_TRANSFER_PRICE = 450;
 
-const getLocationSnapshot = (locationId) => {
-  if (locationId == null) {
+const getLocationSnapshot = (location) => {
+  if (location == null) {
     return null;
   }
 
-  const location = airportTransferLocations.find(({ id }) => id === locationId);
+  if (location.type === "custom") {
+    return {
+      name: location.name,
+      type: "custom",
+      address: location.address,
+    };
+  }
 
-  if (!location) {
+  const configuredLocation = airportTransferLocations.find(
+    ({ id }) => id === location,
+  );
+
+  if (!configuredLocation) {
     return null;
   }
 
   return {
-    id: location.id,
-    name: location.name,
-    type: location.type,
-    address: location.address,
+    id: configuredLocation.id,
+    name: configuredLocation.name,
+    type: configuredLocation.type,
+    address: configuredLocation.address,
   };
 };
 
@@ -173,7 +182,10 @@ const checkAirportTransfer = async ({
     };
   }
 
-  const subtotal = AIRPORT_TRANSFER_PRICE * payload.quantity;
+  const unitPrice = Number(
+    scheduleSlot.price ?? availability.vendorProduct.base_price,
+  );
+  const subtotal = unitPrice * payload.quantity;
   const quotation = buildBookingQuote({
     product,
     location,
@@ -181,7 +193,7 @@ const checkAirportTransfer = async ({
     pricing: {
       currency: "INR",
       pricing_type: "FIXED",
-      unit_price: AIRPORT_TRANSFER_PRICE,
+      unit_price: unitPrice,
       quantity: payload.quantity,
       subtotal,
       discount: 0,

@@ -21,6 +21,22 @@ const time24Hour = Joi.string()
     "string.pattern.base": "pickup_time must be in HH:mm format",
   });
 
+const customAirportTransferLocationSchema = Joi.object({
+  type: Joi.string().valid("custom").required(),
+
+  name: Joi.string().trim().min(1).max(150).required(),
+
+  address: Joi.string().trim().min(1).max(500).required(),
+}).unknown(false);
+
+const airportTransferLocationSchema = Joi.alternatives()
+  .try(
+    Joi.number().integer().positive(),
+    customAirportTransferLocationSchema,
+  )
+  .allow(null)
+  .default(null);
+
 const checkSingleDateAvailabilitySchema = Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100).required(),
 
@@ -100,9 +116,9 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
     .valid("airport_to_location", "location_to_airport")
     .default("airport_to_location"),
 
-  pickup_location: Joi.number().integer().positive().allow(null).default(null),
+  pickup_location: airportTransferLocationSchema,
 
-  drop_location: Joi.number().integer().positive().allow(null).default(null),
+  drop_location: airportTransferLocationSchema,
 
   pickup_time: time24Hour.default("10:00"),
 
@@ -118,27 +134,35 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
       return value;
     }
 
-    const pickupLocation = airportTransferLocations.find(
-      ({ id }) => id === value.pickup_location,
-    );
-    const dropLocation = airportTransferLocations.find(
-      ({ id }) => id === value.drop_location,
-    );
+    const pickupLocation = Number.isInteger(value.pickup_location)
+      ? airportTransferLocations.find(({ id }) => id === value.pickup_location)
+      : null;
+    const dropLocation = Number.isInteger(value.drop_location)
+      ? airportTransferLocations.find(({ id }) => id === value.drop_location)
+      : null;
 
-    if (!pickupLocation || !dropLocation) {
+    if (
+      (Number.isInteger(value.pickup_location) && !pickupLocation) ||
+      (Number.isInteger(value.drop_location) && !dropLocation)
+    ) {
       return helpers.error("airport_transfer.invalid_location");
     }
 
-    if (pickupLocation.id === dropLocation.id) {
+    if (
+      pickupLocation &&
+      dropLocation &&
+      pickupLocation.id === dropLocation.id
+    ) {
       return helpers.error("airport_transfer.same_location");
     }
 
+    const pickupIsAirport = pickupLocation?.type === "airport";
+    const dropIsAirport = dropLocation?.type === "airport";
     const invalidRoute =
       (value.transfer_type === "airport_to_location" &&
-        (pickupLocation.type !== "airport" ||
-          dropLocation.type === "airport")) ||
+        (!pickupIsAirport || dropIsAirport)) ||
       (value.transfer_type === "location_to_airport" &&
-        (pickupLocation.type === "airport" || dropLocation.type !== "airport"));
+        (pickupIsAirport || !dropIsAirport));
 
     if (invalidRoute) {
       return helpers.error("airport_transfer.invalid_route");
@@ -148,7 +172,7 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
   })
   .messages({
     "airport_transfer.invalid_location":
-      "Pickup and drop locations must be valid airport transfer locations.",
+      "Selected airport transfer location is invalid.",
     "airport_transfer.same_location":
       "Pickup and drop locations must be different.",
     "airport_transfer.invalid_route":
