@@ -1,21 +1,23 @@
 const moment = require("moment-timezone");
 
 const airportTransferLocations = require("../../constants/airportTransferLocations");
-const {
-  getAvailableVendorForProduct,
-} = require("./availableVendor.service");
+const { getAvailableVendorForProduct } = require("./availableVendor.service");
 const buildBookingQuote = require("./buildBookingQuote");
-const {
-  saveBookingEstimate,
-} = require("./createBookingEstimate.service");
+const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 const AIRPORT_TRANSFER_PRICE = 450;
 
 const getLocationSnapshot = (locationId) => {
-  const location = airportTransferLocations.find(
-    ({ id }) => id === locationId,
-  );
+  if (locationId == null) {
+    return null;
+  }
+
+  const location = airportTransferLocations.find(({ id }) => id === locationId);
+
+  if (!location) {
+    return null;
+  }
 
   return {
     id: location.id,
@@ -63,6 +65,27 @@ const checkAirportTransfer = async ({
       status: 400,
       success: false,
       message: "date cannot be in the past",
+    };
+  }
+
+  // Pickup/drop haven't been selected yet (e.g. the initial availability
+  // check fired on page load, before the user has interacted with the
+  // transfer_type field). Nothing to quote yet - ask for a selection
+  // instead of erroring out. Still return `data` (product/bookingTemplate)
+  // so the frontend can render the transfer_type field and its location
+  // pickers; without this the page has no way to let the user select
+  // anything in the first place.
+  if (payload.pickup_location == null || payload.drop_location == null) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: "Please select a pickup and drop location to continue.",
+      data: buildBookingQuote({
+        product,
+        location,
+        booking: buildTransferBooking(payload),
+      }),
     };
   }
 
