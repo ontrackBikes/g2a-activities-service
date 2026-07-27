@@ -206,6 +206,107 @@ async function confirmOrderItems({ orderId, transaction }) {
   );
 }
 
+const formatEmailAmount = (value) => {
+  const amount = Number(value);
+
+  return Number.isFinite(amount) ? amount.toFixed(2) : "";
+};
+
+const formatEmailLocation = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  if (typeof location === "string") {
+    return {
+      name: location,
+      address: "",
+      type: "",
+    };
+  }
+
+  return {
+    name: location.name || "",
+    address: location.address || "",
+    type: location.type || "",
+  };
+};
+
+const formatEmailLocationLabel = (location) =>
+  [location?.name, location?.address].filter(Boolean).join(", ");
+
+const formatEmailParticipant = (participant) => ({
+  first_name: participant.first_name || "",
+  last_name: participant.last_name || "",
+  age: participant.age ?? "",
+  gender: participant.gender || "",
+  nationality: participant.nationality || "",
+});
+
+const buildEmailItem = ({ item, order }) => {
+  const booking = item.booking_data || item.quotation?.booking || {};
+  const pricing = item.pricing || item.quotation?.pricing || {};
+  const rentalDetails = item.booking_payload?.rental_details || null;
+  const pickupLocation = formatEmailLocation(
+    booking.pickup_location || rentalDetails?.pickup_point,
+  );
+  const dropLocation = formatEmailLocation(
+    booking.drop_location || rentalDetails?.drop_point,
+  );
+  const selectedSlot = booking.selected_slot || null;
+
+  return {
+    product_name: item.product_name,
+    location_name: item.location_name,
+    booking: {
+      booking_mode: booking.booking_mode || item.booking_mode || "",
+      travel_date: booking.travel_date || "",
+      pickup_date: booking.pickup_date || "",
+      return_date: booking.return_date || "",
+      rental_days: booking.rental_days ?? "",
+      guests: booking.guests ?? "",
+      quantity: booking.quantity ?? "",
+      pickup_time: booking.pickup_time || rentalDetails?.pickup_time || "",
+      drop_time: booking.drop_time || "",
+      return_time: booking.drop_time || "",
+      transfer_type: booking.transfer_type || "",
+      selected_slot: selectedSlot
+        ? {
+            name: selectedSlot.name || "",
+            start_time: selectedSlot.start_time || "",
+            end_time: selectedSlot.end_time || "",
+            price: formatEmailAmount(selectedSlot.price),
+          }
+        : null,
+      pickup_location: formatEmailLocationLabel(pickupLocation),
+      pickup_location_details: pickupLocation,
+      drop_location: formatEmailLocationLabel(dropLocation),
+      drop_location_details: dropLocation,
+      rental_details: rentalDetails
+        ? {
+            pickup_type: rentalDetails.pickup_type || "",
+            pickup_point: formatEmailLocation(rentalDetails.pickup_point),
+            pickup_hotel_name: rentalDetails.pickup_hotel_name || "",
+            drop_type: rentalDetails.drop_type || "",
+            drop_point: formatEmailLocation(rentalDetails.drop_point),
+            drop_hotel_name: rentalDetails.drop_hotel_name || "",
+          }
+        : null,
+    },
+    participants: (item.participants || []).map(formatEmailParticipant),
+    pricing: {
+      currency: pricing.currency || order.currency,
+      unit_price: formatEmailAmount(pricing.unit_price),
+      subtotal: formatEmailAmount(pricing.subtotal),
+      discount: formatEmailAmount(pricing.discount),
+      tax: formatEmailAmount(pricing.tax),
+      grand_total: formatEmailAmount(
+        pricing.grand_total ?? pricing.subtotal,
+      ),
+    },
+  };
+};
+
 /**
  * Send booking confirmation email
  *
@@ -226,14 +327,13 @@ async function sendConfirmationEmail({ payment, order }) {
     };
   }
 
-  /**
-   * Build booking summary from Order Items
-   */
-  const itemsHtml = (order.items || [])
-    .map((item) => {
-      const booking = item.quotation?.booking || item.booking_data || {};
+  const emailItems = (order.items || []).map((item) =>
+    buildEmailItem({ item, order }),
+  );
 
-      const pricing = item.quotation?.pricing || item.pricing || {};
+  const itemsHtml = emailItems
+    .map((item) => {
+      const { booking, pricing } = item;
 
       return `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px;">
@@ -286,8 +386,7 @@ async function sendConfirmationEmail({ payment, order }) {
 
           <div>
             <strong>Price:</strong>
-            ${pricing.currency || order.currency}
-            ${pricing.grand_total || pricing.subtotal || ""}
+            ${pricing.currency} ${pricing.grand_total}
           </div>
         </div>
       `;
@@ -307,7 +406,7 @@ async function sendConfirmationEmail({ payment, order }) {
     paymentId: payment.gateway_payment_id,
     paymentStatus: payment.status,
 
-    items: order.items || [],
+    items: emailItems,
   };
 
   /**
@@ -318,119 +417,47 @@ async function sendConfirmationEmail({ payment, order }) {
       `[PaymentSettlement] Sending booking confirmation to ${customerEmail}`,
     );
 
+    const customerName =
+      order.customer_details?.name ||
+      [
+        order.customer_details?.first_name,
+        order.customer_details?.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ") ||
+      "Customer";
+
     const emailTemplateModel = {
-  customerName:
-    order.customer_details?.name ||
-    [
-      order.customer_details?.first_name,
-      order.customer_details?.last_name,
-    ]
-      .filter(Boolean)
-      .join(" ") ||
-    "Customer",
-
-  customerEmail: customerEmail,
-
-  customerPhone:
-    order.customer_details?.phone || "",
-
-  orderId: order.order_id,
-
-  // Optional since your template currently uses orderId
-  order_id: order.order_id,
-
-  paymentId:
-    payment.gateway_payment_id ||
-    payment.payment_id,
-
-  paymentStatus: payment.status,
-
-  bookingDate: new Date(order.created_at).toLocaleDateString(
-    "en-IN",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    },
-  ),
-
-  currency: order.currency,
-
-  amount: Number(order.grand_total).toFixed(2),
-
-  subtotal: Number(order.subtotal).toFixed(2),
-
-  discount: Number(order.discount).toFixed(2),
-
-  tax: Number(order.tax).toFixed(2),
-
-  items: (order.items || []).map((item) => {
-    const booking =
-      item.booking_data ||
-      item.quotation?.booking ||
-      {};
-
-    const pricing =
-      item.pricing ||
-      item.quotation?.pricing ||
-      {};
-
-    const delivery =
-      item.booking_payload?.bike_delivery ||
-      {};
-
-    return {
-      product_name: item.product_name,
-
-      location_name: item.location_name,
-
-      booking: {
-        travel_date:
-          booking.travel_date || "",
-
-        pickup_date:
-          booking.pickup_date || "",
-
-        return_date:
-          booking.return_date || "",
-
-        rental_days:
-          booking.rental_days || "",
-
-        guests:
-          booking.guests || "",
-
-        quantity:
-          booking.quantity || "",
-
-        pickup_time:
-          delivery.pickup_time || "",
-
-        return_time:
-          delivery.return_time || "",
-
-        pickup_location:
-          delivery.pickup_location || "",
-
-        drop_location:
-          delivery.drop_location || "",
+      customerName,
+      customerEmail,
+      customerPhone: order.customer_details?.phone || "",
+      orderId: order.order_id,
+      order_id: order.order_id,
+      paymentId: payment.gateway_payment_id || payment.payment_id,
+      paymentStatus: payment.status,
+      bookingDate: new Date(order.created_at).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      currency: order.currency,
+      amount: formatEmailAmount(order.grand_total),
+      subtotal: formatEmailAmount(order.subtotal),
+      discount: formatEmailAmount(order.discount),
+      tax: formatEmailAmount(order.tax),
+      customer: {
+        first_name: order.customer_details?.first_name || "",
+        last_name: order.customer_details?.last_name || "",
+        email: customerEmail,
+        country: order.customer_details?.country || "",
+        country_code: order.customer_details?.country_code || "",
+        phone: order.customer_details?.phone || "",
+        alternate_country_code:
+          order.customer_details?.alternate_country_code || "",
+        alternate_phone: order.customer_details?.alternate_phone || "",
       },
-
-      pricing: {
-        currency:
-          pricing.currency ||
-          order.currency,
-
-        grand_total:
-          Number(
-            pricing.grand_total ??
-              pricing.subtotal ??
-              0,
-          ).toFixed(2),
-      },
+      items: emailItems,
     };
-  }),
-};
 
     return sendTemplateEmail({
       orderId: order.id,
@@ -657,6 +684,11 @@ const settlePayment = async ({ paymentId } = {}) => {
         include: [
           {
             association: "items",
+            include: [
+              {
+                association: "participants",
+              },
+            ],
           },
         ],
       }
