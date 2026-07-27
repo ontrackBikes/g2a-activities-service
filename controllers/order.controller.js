@@ -18,6 +18,7 @@ const {
 } = require("../models");
 
 const { validateBookingPayload } = require("../schemas/bookingPayload.schema");
+const BOOKING_SECTIONS = require("../constants/bookingSections");
 const sequelize = require("../config/sequelize");
 
 const parsePositiveInteger = (value, defaultValue, maxValue = null) => {
@@ -688,23 +689,33 @@ const createOrderService = async ({ estimateId, payload }) => {
       };
     }
 
-    const rentalDetailsValidation =
-      bikeRentalService.bikeRentals.validateCheckoutRentalDetails({
-        locationSlug: estimate.quotation?.location?.slug,
-        rentalDetails: payload.rental_details,
-      });
+    const hasRentalDetails = product.bookingTemplate.booking_page_schema?.sections?.some(
+      (section) =>
+        section.enabled &&
+        section.section === BOOKING_SECTIONS.RENTAL_DETAILS,
+    );
 
-    if (!rentalDetailsValidation.success) {
-      throw {
-        status: 422,
-        message: "Validation failed.",
-        errors: [
-          {
-            section: "rental_details",
-            errors: [rentalDetailsValidation.message],
-          },
-        ],
-      };
+    if (hasRentalDetails) {
+      const rentalDetailsValidation =
+        bikeRentalService.bikeRentals.validateCheckoutRentalDetails({
+          locationSlug: estimate.quotation?.location?.slug,
+          rentalDetails: payload.rental_details,
+        });
+
+      if (!rentalDetailsValidation.success) {
+        throw {
+          status: 422,
+          message: "Validation failed.",
+          errors: [
+            {
+              section: "rental_details",
+              errors: [rentalDetailsValidation.message],
+            },
+          ],
+        };
+      }
+    } else {
+      delete payload.rental_details;
     }
 
     /*
