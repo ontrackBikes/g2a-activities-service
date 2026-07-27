@@ -550,6 +550,87 @@ async function sendConfirmationEmail({ payment, order }) {
   });
 }
 
+
+
+/**
+ * Test booking confirmation email
+ *
+ * Usage:
+ * await testSendConfirmationEmail({
+ *   orderId: "ORD1784307434075",
+ * });
+ */
+
+// const testSendConfirmationEmail = async ({ orderId }) => {
+//   if (!orderId) {
+//     throw new Error("orderId is required.");
+//   }
+
+//   console.log(
+//     `[TestEmail] Preparing booking confirmation for order ${orderId}`
+//   );
+
+//   const order = await Order.findOne({
+//     where: {
+//       order_id: orderId, // use id if you want DB id instead
+//     },
+//     include: [
+//       {
+//         association: "items",
+//         include: [
+//           {
+//             association: "participants",
+//           },
+//         ],
+//       },
+//     ],
+//   });
+
+//   if (!order) {
+//     throw new Error(`Order '${orderId}' not found.`);
+//   }
+
+//   const payment = await Payment.findOne({
+//     where: {
+//       order_id: order.id,
+//       status: "captured", // optional
+//     },
+//     order: [["created_at", "DESC"]],
+//   });
+
+//   if (!payment) {
+//     throw new Error(
+//       `No payment found for order '${orderId}'.`
+//     );
+//   }
+
+//   console.log(
+//     `[TestEmail] Sending booking confirmation to ${order.customer_details?.email}`
+//   );
+
+//   const result = await sendConfirmationEmail({
+//     payment,
+//     order,
+//   });
+
+//   console.log("[TestEmail] Done.", result);
+
+//   return result;
+// };
+
+// (async () => {
+//   try {
+//     await testSendConfirmationEmail({
+//       orderId: "1d39edb3-a311-491b-b846-d70fd9f5a550",
+//     });
+
+//     process.exit(0);
+//   } catch (err) {
+//     console.error(err);
+//     process.exit(1);
+//   }
+// })();
+
 /**
  * Send notifications
  *
