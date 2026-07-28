@@ -1,4 +1,6 @@
 const { Op, fn, col, literal } = require("sequelize");
+const sequelize = require("../config/sequelize");
+const BookingEstimate = require("../models/bookingEstimate.model");
 
 const {
   Product,
@@ -18,6 +20,18 @@ const {
   ProductExclusion,
   ProductThingToKnow,
   ProductCancellationPolicy,
+  ProductCollectionProduct,
+  VendorProductImage,
+  VendorProductFaq,
+  VendorProductTerm,
+  VendorProductHighlight,
+  VendorProductInclusion,
+  VendorProductExclusion,
+  VendorProductThingToKnow,
+  VendorProductSlot,
+  VendorSchedule,
+  VendorScheduleSlot,
+  OrderItem,
   BookingTemplate,
 } = require("../models");
 
@@ -339,9 +353,7 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    await product.update({
-      active: false,
-    });
+    await product.update({ active: false });
 
     return res.json({
       success: true,
@@ -349,6 +361,219 @@ const deleteProduct = async (req, res) => {
     });
   } catch (error) {
     console.error("[ProductController] deleteProduct", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const permanentlyDeleteProduct = async (req, res) => {
+  try {
+    const productId = Number(req.params.id);
+
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const result = await sequelize.transaction(async (transaction) => {
+      const product = await Product.findByPk(productId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!product) {
+        return null;
+      }
+
+      const orderItemCount = await OrderItem.count({
+        where: { product_id: product.id },
+        transaction,
+      });
+
+      if (orderItemCount) {
+        return {
+          blocked: true,
+          reason: "orders",
+        };
+      }
+
+      const vendorProducts = await VendorProduct.findAll({
+        attributes: ["id"],
+        where: { product_id: product.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      const vendorProductIds = vendorProducts.map(({ id }) => id);
+
+      if (vendorProductIds.length) {
+        const schedules = await VendorSchedule.findAll({
+          attributes: ["id"],
+          where: {
+            vendor_product_id: { [Op.in]: vendorProductIds },
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        const scheduleIds = schedules.map(({ id }) => id);
+
+        if (scheduleIds.length) {
+          const bookedSlotCount = await VendorScheduleSlot.count({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+              booked: { [Op.gt]: 0 },
+            },
+            transaction,
+          });
+
+          if (bookedSlotCount) {
+            return {
+              blocked: true,
+              reason: "bookings",
+            };
+          }
+
+          await VendorScheduleSlot.destroy({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+            },
+            transaction,
+          });
+        }
+
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+
+        await Promise.all([
+          VendorProductImage.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductFaq.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductTerm.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductHighlight.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductInclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductExclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductThingToKnow.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductSlot.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorSchedule.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+        ]);
+
+        await VendorProduct.destroy({
+          where: { id: { [Op.in]: vendorProductIds } },
+          transaction,
+        });
+      } else {
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+      }
+
+      await Promise.all([
+        ProductImage.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductFaq.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTerm.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductHighlight.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductInclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductExclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductThingToKnow.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCancellationPolicy.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTagMapping.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCollectionProduct.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+      ]);
+
+      await product.destroy({ transaction });
+
+      return {
+        product_id: product.id,
+      };
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    if (result.blocked) {
+      return res.status(409).json({
+        success: false,
+        message:
+          result.reason === "orders"
+            ? "Product cannot be deleted because orders exist"
+            : "Product cannot be deleted because booked inventory exists",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Product permanently deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("[ProductController] permanentlyDeleteProduct", error);
 
     return res.status(500).json({
       success: false,
@@ -1410,6 +1635,7 @@ module.exports = {
   getProduct,
   updateProduct,
   deleteProduct,
+  permanentlyDeleteProduct,
   searchProducts,
   getProductsListForApp,
   getRecommendedProductsForApp,

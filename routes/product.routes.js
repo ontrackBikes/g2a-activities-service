@@ -6,6 +6,7 @@ const {
   getProduct,
   updateProduct,
   deleteProduct,
+  permanentlyDeleteProduct,
   searchProducts,
   getProductsListForApp,
   getRecommendedProductsForApp,
@@ -68,6 +69,8 @@ router.delete("/:productId/tags/:tagId", removeTagFromProduct);
 router.get("/:id", getProduct);
 
 router.patch("/:id", updateProduct);
+
+router.delete("/:id/permanent", permanentlyDeleteProduct);
 
 router.delete("/:id", deleteProduct);
 

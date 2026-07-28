@@ -1,5 +1,21 @@
-const { Sequelize } = require("sequelize");
-const { Location, VendorProduct } = require("../models");
+const { Sequelize, Op } = require("sequelize");
+const sequelize = require("../config/sequelize");
+const BookingEstimate = require("../models/bookingEstimate.model");
+const {
+  Location,
+  VendorProduct,
+  VendorProductImage,
+  VendorProductFaq,
+  VendorProductTerm,
+  VendorProductHighlight,
+  VendorProductInclusion,
+  VendorProductExclusion,
+  VendorProductThingToKnow,
+  VendorProductSlot,
+  VendorSchedule,
+  VendorScheduleSlot,
+  OrderItem,
+} = require("../models");
 
 const {
   createLocationSchema,
@@ -361,6 +377,182 @@ const deleteLocation = async (req, res) => {
   }
 };
 
+const permanentlyDeleteLocation = async (req, res) => {
+  try {
+    const locationId = Number(req.params.id);
+
+    if (!Number.isInteger(locationId) || locationId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid location ID",
+      });
+    }
+
+    const result = await sequelize.transaction(async (transaction) => {
+      const location = await Location.findByPk(locationId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!location) {
+        return null;
+      }
+
+      const orderItemCount = await OrderItem.count({
+        where: { location_id: location.id },
+        transaction,
+      });
+
+      if (orderItemCount) {
+        return {
+          blocked: true,
+          reason: "orders",
+        };
+      }
+
+      const vendorProducts = await VendorProduct.findAll({
+        attributes: ["id"],
+        where: { location_id: location.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      const vendorProductIds = vendorProducts.map(({ id }) => id);
+
+      if (vendorProductIds.length) {
+        const schedules = await VendorSchedule.findAll({
+          attributes: ["id"],
+          where: {
+            vendor_product_id: { [Op.in]: vendorProductIds },
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        const scheduleIds = schedules.map(({ id }) => id);
+
+        if (scheduleIds.length) {
+          const bookedSlotCount = await VendorScheduleSlot.count({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+              booked: { [Op.gt]: 0 },
+            },
+            transaction,
+          });
+
+          if (bookedSlotCount) {
+            return {
+              blocked: true,
+              reason: "bookings",
+            };
+          }
+
+          await VendorScheduleSlot.destroy({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+            },
+            transaction,
+          });
+        }
+
+        await BookingEstimate.destroy({
+          where: { location_id: location.id },
+          transaction,
+        });
+
+        await Promise.all([
+          VendorProductImage.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductFaq.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductTerm.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductHighlight.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductInclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductExclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductThingToKnow.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductSlot.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorSchedule.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+        ]);
+
+        await VendorProduct.destroy({
+          where: { id: { [Op.in]: vendorProductIds } },
+          transaction,
+        });
+      } else {
+        await BookingEstimate.destroy({
+          where: { location_id: location.id },
+          transaction,
+        });
+      }
+
+      await Location.update(
+        { parent_location_id: null },
+        {
+          where: { parent_location_id: location.id },
+          transaction,
+        },
+      );
+
+      await location.destroy({ transaction });
+
+      return { location_id: location.id };
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found",
+      });
+    }
+
+    if (result.blocked) {
+      return res.status(409).json({
+        success: false,
+        message:
+          result.reason === "orders"
+            ? "Location cannot be permanently deleted because orders exist"
+            : "Location cannot be permanently deleted because booked inventory exists",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Location permanently deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("[LocationController] permanentlyDeleteLocation", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createLocation,
   getLocations,
@@ -369,5 +561,6 @@ module.exports = {
   getLocationTree,
   updateLocation,
   deleteLocation,
+  permanentlyDeleteLocation,
   getLocationApp,
 };

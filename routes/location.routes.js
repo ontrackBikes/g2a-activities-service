@@ -8,6 +8,7 @@ const {
   getLocationOptions,
   updateLocation,
   deleteLocation,
+  permanentlyDeleteLocation,
   getLocationApp,
 } = require("../controllers/location.controller");
 
@@ -24,6 +25,8 @@ router.get("/options", getLocationOptions);
 router.get("/:id", getLocation);
 
 router.patch("/:id", updateLocation);
+
+router.delete("/:id/permanent", permanentlyDeleteLocation);
 
 router.delete("/:id", deleteLocation);
 
