@@ -1289,6 +1289,7 @@ const getOrder = async (req, res) => {
       rental_details: formatRentalDetails(
         item.booking_payload?.rental_details,
       ),
+      medical_declaration: item.booking_payload?.medical,
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,
