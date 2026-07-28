@@ -235,6 +235,7 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
   if (selectedSlot) {
     snapshot.selected_slot = compactObject({
       name: selectedSlot.name,
+      slot_type: selectedSlot.slot_type,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time,
       price: selectedSlot.price,

@@ -273,6 +273,7 @@ const buildEmailItem = ({ item, order }) => {
       selected_slot: selectedSlot
         ? {
             name: selectedSlot.name || "",
+            slot_type: selectedSlot.slot_type || "",
             start_time: selectedSlot.start_time || "",
             end_time: selectedSlot.end_time || "",
             price: formatEmailAmount(selectedSlot.price),
