@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "activities-service",
+      name: "activities-service-staging",
       script: "server.js",
       env: {
         NODE_ENV: "development",
