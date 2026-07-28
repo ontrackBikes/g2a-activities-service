@@ -49,6 +49,33 @@ const {
   getNextAvailableSlotsForProductLocations,
 } = require("../services/nextAvailableSlot.service");
 
+const authorizePermanentDelete = (req, res) => {
+  const token = process.env.PERMANENT_DELETE_TOKEN;
+  const authorization = req.get("authorization");
+
+  if (!token) {
+    console.error("[ProductController] PERMANENT_DELETE_TOKEN is not configured");
+
+    res.status(500).json({
+      success: false,
+      message: "Permanent delete is not configured",
+    });
+
+    return false;
+  }
+
+  if (authorization !== `Bearer ${token}`) {
+    res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+
+    return false;
+  }
+
+  return true;
+};
+
 const findActiveProductType = (productTypeId) =>
   ProductType.findOne({
     where: {
@@ -370,6 +397,10 @@ const deleteProduct = async (req, res) => {
 };
 
 const permanentlyDeleteProduct = async (req, res) => {
+  if (!authorizePermanentDelete(req, res)) {
+    return;
+  }
+
   try {
     const productId = Number(req.params.id);
 

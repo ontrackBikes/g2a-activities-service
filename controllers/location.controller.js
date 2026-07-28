@@ -22,6 +22,33 @@ const {
   updateLocationSchema,
 } = require("../schemas/location.schema");
 
+const authorizePermanentDelete = (req, res) => {
+  const token = process.env.PERMANENT_DELETE_TOKEN;
+  const authorization = req.get("authorization");
+
+  if (!token) {
+    console.error("[LocationController] PERMANENT_DELETE_TOKEN is not configured");
+
+    res.status(500).json({
+      success: false,
+      message: "Permanent delete is not configured",
+    });
+
+    return false;
+  }
+
+  if (authorization !== `Bearer ${token}`) {
+    res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+
+    return false;
+  }
+
+  return true;
+};
+
 const createLocation = async (req, res) => {
   try {
     const { error, value } = createLocationSchema.validate(req.body);
@@ -378,6 +405,10 @@ const deleteLocation = async (req, res) => {
 };
 
 const permanentlyDeleteLocation = async (req, res) => {
+  if (!authorizePermanentDelete(req, res)) {
+    return;
+  }
+
   try {
     const locationId = Number(req.params.id);
 
