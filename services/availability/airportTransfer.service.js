@@ -6,6 +6,7 @@ const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
+const SAME_DAY_BOOKING_LEAD_TIME_HOURS = 2;
 
 const getLocationSnapshot = (location) => {
   if (location == null) {
@@ -56,9 +57,13 @@ const getPickupTimeError = ({ date, pickupTime, scheduleSlot }) => {
 
   if (date === moment().tz(APP_TIMEZONE).format("YYYY-MM-DD")) {
     const now = moment().tz(APP_TIMEZONE);
+    const earliestPickupAt = now
+      .clone()
+      .add(SAME_DAY_BOOKING_LEAD_TIME_HOURS, "hours")
+      .startOf("minute");
 
-    if (!pickupAt.isAfter(now)) {
-      return "pickup_time must be in the future for today's airport transfer.";
+    if (pickupAt.isBefore(earliestPickupAt)) {
+      return "pickup_time must be at least 2 hours from now for today's airport transfer.";
     }
   }
 

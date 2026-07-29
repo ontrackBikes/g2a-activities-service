@@ -5,6 +5,8 @@ const fieldSchema = Joi.object({
 
   label: Joi.string().allow("", null),
 
+  description: Joi.string().trim().max(500).allow("", null),
+
   required: Joi.boolean().default(false),
 
   hidden: Joi.boolean().default(false),
