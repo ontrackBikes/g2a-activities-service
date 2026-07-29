@@ -16,4 +16,5 @@ module.exports = Object.freeze({
   // Checkout
   REVIEW: "review",
   PAYMENT: "payment",
+  FLIGHTDETAILS: "flight_details",
 });
