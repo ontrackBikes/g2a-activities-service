@@ -233,6 +233,21 @@ const ferry_seat_selection = Joi.object({
   travel_class: Joi.string().required(),
 }).unknown(false);
 
+const flight_details = Joi.object({
+  airline: Joi.string().trim().required(),
+
+  custom_airline: Joi.string()
+    .trim()
+    .allow("", null)
+    .when("airline", {
+      is: Joi.string().valid("other").insensitive(),
+      then: Joi.string().trim().min(2).required(),
+      otherwise: Joi.optional(),
+    }),
+
+  flight_number: Joi.string().trim().max(20).required(),
+}).unknown(false);
+
 /*
 |--------------------------------------------------------------------------
 | Registry
@@ -251,6 +266,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.RENTAL_DETAILS]: rental_details,
 
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
+
+  [BOOKING_SECTIONS.FLIGHTDETAILS]: flight_details,
 };
 
 /*
