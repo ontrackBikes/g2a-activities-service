@@ -1413,7 +1413,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "terms",
           required: false,
           separate: true,
-          attributes: ["content", "sort_order"],
+          attributes: ["title", "content", "sort_order"],
         },
 
         {
@@ -1421,7 +1421,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "highlights",
           required: false,
           separate: true,
-          attributes: ["content", "sort_order"],
+          attributes: ["title", "content", "sort_order"],
         },
 
         {
@@ -1429,7 +1429,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "inclusions",
           required: false,
           separate: true,
-          attributes: ["content", "sort_order"],
+          attributes: ["title","content", "sort_order"],
         },
 
         {
@@ -1437,7 +1437,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "exclusions",
           required: false,
           separate: true,
-          attributes: ["content", "sort_order"],
+          attributes: ["title","content", "sort_order"],
         },
 
         {
@@ -1445,7 +1445,7 @@ const getProductDetailsForApp = async (req, res) => {
           as: "thingsToKnow",
           required: false,
           separate: true,
-          attributes: ["content", "sort_order"],
+          attributes: ["title","content", "sort_order"],
         },
 
         {
