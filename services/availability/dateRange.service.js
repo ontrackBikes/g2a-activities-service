@@ -11,16 +11,7 @@ const { saveBookingEstimate } = require("./createBookingEstimate.service");
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
 const isBikeRentalProduct = (product) => {
-  const identifiers = [
-    product?.slug,
-    product?.name,
-    product?.productType?.slug,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return /bike\s*-?\s*rental/.test(identifiers);
+  return product?.productType?.slug === "bike-rentals";
 };
 
 const getEffectiveMaxBookable = ({
@@ -88,9 +79,22 @@ module.exports.checkDateRange = async ({
 
   if (isBikeRentalProduct(product) && payload.pickup_date === today) {
     return {
-      status: 400,
-      success: false,
+      status: 200,
+      success: true,
+      available: false,
       message: "Bike rentals can be booked from tomorrow onwards.",
+      data: buildBookingQuote({
+        product,
+        location,
+        booking: {
+          pickup_date: payload.pickup_date,
+          pickup_time: payload.pickup_time,
+          return_date: payload.return_date,
+          drop_time: payload.pickup_time,
+          guests: payload.guests,
+          quantity: pricingQuantity,
+        },
+      }),
     };
   }
 

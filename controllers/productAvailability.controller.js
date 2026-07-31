@@ -42,20 +42,14 @@ const {
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
+const isBikeRentalProduct = (product) =>
+  product?.productType?.slug === "bike-rentals";
+
 const checkProductAvailability = async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // Default travel date
-    const payload = {
-      ...req.body,
-      date: req.body.date || moment().format("YYYY-MM-DD"),
-      pickup_date: req.body.pickup_date || moment().format("YYYY-MM-DD"),
-      return_date:
-        req.body.return_date ||
-        moment(req.body.pickup_date).add(1, "d").format("YYYY-MM-DD"),
-      pickup_time: req.body.pickup_time || "10:00",
-    };
+    const payload = { ...req.body };
 
     // Parse "<product>-in-<location>"
     const match = slug.match(/^(.*)-in-(.*)$/);
@@ -160,6 +154,23 @@ const checkProductAvailability = async (req, res) => {
         message: "Product not found.",
       });
     }
+
+    const today = moment().tz(APP_TIMEZONE).startOf("day");
+    const defaultPickupDate = isBikeRentalProduct(product)
+      ? today.clone().add(1, "day")
+      : today;
+
+    payload.date = payload.date || today.format("YYYY-MM-DD");
+    payload.pickup_date =
+      payload.pickup_date ||
+      defaultPickupDate.format("YYYY-MM-DD");
+    payload.return_date =
+      payload.return_date ||
+      moment
+        .tz(payload.pickup_date, "YYYY-MM-DD", true, APP_TIMEZONE)
+        .add(1, "day")
+        .format("YYYY-MM-DD");
+    payload.pickup_time = payload.pickup_time || "10:00";
 
     /**
      * Validate request
