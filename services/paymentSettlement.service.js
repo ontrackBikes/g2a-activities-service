@@ -301,9 +301,7 @@ const buildEmailItem = ({ item, order }) => {
       subtotal: formatEmailAmount(pricing.subtotal),
       discount: formatEmailAmount(pricing.discount),
       tax: formatEmailAmount(pricing.tax),
-      grand_total: formatEmailAmount(
-        pricing.grand_total ?? pricing.subtotal,
-      ),
+      grand_total: formatEmailAmount(pricing.grand_total ?? pricing.subtotal),
     },
   };
 };
@@ -420,10 +418,7 @@ async function sendConfirmationEmail({ payment, order }) {
 
     const customerName =
       order.customer_details?.name ||
-      [
-        order.customer_details?.first_name,
-        order.customer_details?.last_name,
-      ]
+      [order.customer_details?.first_name, order.customer_details?.last_name]
         .filter(Boolean)
         .join(" ") ||
       "Customer";
@@ -435,7 +430,12 @@ async function sendConfirmationEmail({ payment, order }) {
       orderId: order.order_id,
       order_id: order.order_id,
       paymentId: payment.gateway_payment_id || payment.payment_id,
-      paymentStatus: payment.status,
+      paymentStatus:
+        payment.status === "captured"
+          ? "Successful"
+          : payment.status === "authorized"
+            ? "Pending"
+            : payment.status,
       bookingDate: new Date(order.created_at).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "short",
@@ -551,8 +551,6 @@ async function sendConfirmationEmail({ payment, order }) {
   });
 }
 
-
-
 /**
  * Test booking confirmation email
  *
@@ -646,12 +644,9 @@ const settlePayment = async ({ paymentId } = {}) => {
     throw new Error("paymentId is required.");
   }
 
-  console.log(
-    `[PaymentSettlement] Processing payment ${paymentId}`
-  );
+  console.log(`[PaymentSettlement] Processing payment ${paymentId}`);
 
-  const transaction =
-    await sequelize.transaction();
+  const transaction = await sequelize.transaction();
 
   let payment = null;
   let order = null;
@@ -671,9 +666,7 @@ const settlePayment = async ({ paymentId } = {}) => {
       case "not_found":
         await transaction.rollback();
 
-        console.warn(
-          `[PaymentSettlement] Payment ${paymentId} not found.`
-        );
+        console.warn(`[PaymentSettlement] Payment ${paymentId} not found.`);
 
         return {
           success: false,
@@ -684,7 +677,7 @@ const settlePayment = async ({ paymentId } = {}) => {
         await transaction.rollback();
 
         console.log(
-          `[PaymentSettlement] Payment ${paymentId} already settled.`
+          `[PaymentSettlement] Payment ${paymentId} already settled.`,
         );
 
         return {
@@ -697,9 +690,7 @@ const settlePayment = async ({ paymentId } = {}) => {
         break;
 
       default:
-        throw new Error(
-          `Unknown payment status '${result.status}'.`
-        );
+        throw new Error(`Unknown payment status '${result.status}'.`);
     }
 
     /**
@@ -745,8 +736,7 @@ const settlePayment = async ({ paymentId } = {}) => {
     /**
      * Settlement completed.
      */
-    payment.settlement_status =
-      "completed";
+    payment.settlement_status = "completed";
 
     await payment.save({
       transaction,
@@ -760,30 +750,24 @@ const settlePayment = async ({ paymentId } = {}) => {
     /**
      * Reload order for notifications.
      */
-    order = await Order.findByPk(
-      order.id,
-      {
-        include: [
-          {
-            association: "items",
-            include: [
-              {
-                association: "participants",
-              },
-            ],
-          },
-        ],
-      }
-    );
+    order = await Order.findByPk(order.id, {
+      include: [
+        {
+          association: "items",
+          include: [
+            {
+              association: "participants",
+            },
+          ],
+        },
+      ],
+    });
   } catch (error) {
     if (!transaction.finished) {
       await transaction.rollback();
     }
 
-    console.error(
-      "[PaymentSettlement]",
-      error
-    );
+    console.error("[PaymentSettlement]", error);
 
     /**
      * Mark settlement failed.
@@ -798,13 +782,10 @@ const settlePayment = async ({ paymentId } = {}) => {
             where: {
               id: payment.id,
             },
-          }
+          },
         );
       } catch (updateError) {
-        console.error(
-          "[PaymentSettlement][FailedUpdate]",
-          updateError
-        );
+        console.error("[PaymentSettlement][FailedUpdate]", updateError);
       }
     }
 
@@ -828,14 +809,11 @@ const settlePayment = async ({ paymentId } = {}) => {
       order,
     });
   } catch (error) {
-    console.error(
-      "[PaymentSettlement][Notification]",
-      error
-    );
+    console.error("[PaymentSettlement][Notification]", error);
   }
 
   console.log(
-    `[PaymentSettlement] Payment ${payment.payment_id} settled successfully.`
+    `[PaymentSettlement] Payment ${payment.payment_id} settled successfully.`,
   );
 
   return {

@@ -505,15 +505,15 @@ module.exports = Object.freeze([
    "lng": 93.03477,
    "place": "neil island"
  },
- {
-   "id": 57,
-   "type": "jetty",
-   "name": "Neil Island Jetty",
-   "address": "Neil Kendra, Shaheed Dweep",
-   "lat": 11.82674,
-   "lng": 93.03622,
-   "place": "neil island"
- },
+//  {
+//    "id": 57,
+//    "type": "jetty",
+//    "name": "Neil Island Jetty",
+//    "address": "Neil Kendra, Shaheed Dweep",
+//    "lat": 11.82674,
+//    "lng": 93.03622,
+//    "place": "neil island"
+//  },
  {
    "id": 58,
    "type": "attraction",
@@ -730,15 +730,15 @@ module.exports = Object.freeze([
    "lng": 92.9728,
    "place": "havelock island"
  },
- {
-   "id": 82,
-   "type": "jetty",
-   "name": "Havelock Jetty",
-   "address": "Govind Nagar, Swaraj Dweep",
-   "lat": 11.9849,
-   "lng": 92.9873,
-   "place": "havelock island"
- },
+//  {
+//    "id": 82,
+//    "type": "jetty",
+//    "name": "Havelock Jetty",
+//    "address": "Govind Nagar, Swaraj Dweep",
+//    "lat": 11.9849,
+//    "lng": 92.9873,
+//    "place": "havelock island"
+//  },
  {
    "id": 83,
    "type": "jetty",
