@@ -844,6 +844,7 @@ const getProductsListForApp = async (req, res) => {
             {
               model: Location,
               as: "location",
+              attributes: [],
               where: Object.keys(locationWhere).length
                 ? locationWhere
                 : undefined,
