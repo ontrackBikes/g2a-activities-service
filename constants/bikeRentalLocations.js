@@ -8,7 +8,7 @@ module.exports = Object.freeze([
     image:
       "https://go2andaman.com/wp-content/uploads/2025/10/AIRPORT-IMG2025-2-e1766661382781.jpg",
     address:
-      "Veer Savarkar International Airport, Lamba Line, Port Blair, Andaman & Nicobar Islands",
+      "Veer Savarkar International Airport, Port Blair, Andaman & Nicobar Islands",
     gmapLink: "https://maps.app.goo.gl/FoV9GgE1QmMN9pXe6",
     pickup: true,
     drop: true,
