@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
+const { generateOrderId } = require("../utils/shortId");
 
 class Order extends Model {}
 
@@ -18,9 +19,8 @@ Order.init(
      * Public Order ID
      */
     order_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING(16),
       allowNull: false,
-      defaultValue: DataTypes.UUIDV4,
       unique: true,
     },
 
@@ -169,6 +169,30 @@ Order.init(
         fields: ["order_status"],
       },
     ],
+
+    hooks: {
+      async beforeValidate(order) {
+        if (order.order_id) return;
+
+        const MAX_ATTEMPTS = 5;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          const candidate = generateOrderId();
+          // eslint-disable-next-line no-await-in-loop
+          const existing = await Order.findOne({
+            where: { order_id: candidate },
+            attributes: ["id"],
+          });
+          if (!existing) {
+            order.order_id = candidate;
+            return;
+          }
+        }
+
+        throw new Error(
+          "Failed to generate a unique order_id after multiple attempts",
+        );
+      },
+    },
   },
 );
 
