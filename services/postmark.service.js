@@ -17,6 +17,8 @@ const sendEmail = async ({
   customerId = null,
 
   to,
+  cc = null,
+  bcc = null,
 
   subject,
 
@@ -47,6 +49,8 @@ const sendEmail = async ({
     const response = await client.sendEmail({
       From: FROM_EMAIL,
       To: to,
+      Cc: cc || process.env.EMAIL_CC_TEAM, // Use provided CC or default from .env
+      Bcc: bcc || process.env.EMAIL_BCC_TEAM, // Use provided BCC or default from .env
       Subject: subject,
       HtmlBody: html,
       TextBody: text,
@@ -86,6 +90,8 @@ const sendTemplateEmail = async ({
   customerId = null,
 
   to,
+  cc = null,
+  bcc = null,
 
   templateId = null,
   templateAlias = null,
@@ -122,6 +128,8 @@ const sendTemplateEmail = async ({
     const payload = {
       From: FROM_EMAIL,
       To: to,
+      Cc: cc || process.env.EMAIL_CC_TEAM, // Use provided CC or default from .env
+      Bcc: bcc || process.env.EMAIL_BCC_TEAM, // Use provided BCC or default from .env
       TemplateModel: templateModel,
       MessageStream: MESSAGE_STREAM,
     };
