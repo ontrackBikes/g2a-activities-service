@@ -8,6 +8,8 @@ const {
 const JOBS = require("../../constants/jobNames");
 const { baseRedisConfig } = require("../../config/redis");
 
+const QUEUE_OPERATION_TIMEOUT_MS = 10000;
+
 const connection = new IORedis({
   ...baseRedisConfig,
   maxRetriesPerRequest: null,
