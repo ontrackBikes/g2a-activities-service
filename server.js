@@ -48,10 +48,10 @@ async function bootstrap() {
 
     console.log("✅ Database connected");
 
-    await sequelize.sync({
-      alter: true,
-    });
-    console.log("✅ Models synced");
+    // await sequelize.sync({
+    //   alter: true,
+    // });
+    // console.log("✅ Models synced");
 
     registerCrons();
     const PORT = process.env.PORT || 3000;
