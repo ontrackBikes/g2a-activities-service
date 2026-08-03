@@ -6,7 +6,7 @@ const createProductTermSchema = Joi.object({
     .positive()
     .required(),
 
-  title: Joi.string().trim().min(1).max(5000),
+  title: Joi.string().trim().empty("").max(5000),
 
   content: Joi.string()
     .trim()
@@ -23,7 +23,7 @@ const createProductTermSchema = Joi.object({
 
 const updateProductTermSchema =
   Joi.object({
-    title: Joi.string().trim().min(1).max(5000),
+    title: Joi.string().trim().empty("").max(5000),
 
     content: Joi.string().trim(),
 
