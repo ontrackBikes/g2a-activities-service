@@ -1588,6 +1588,8 @@ const getProductDetailsForApp = async (req, res) => {
 
         name: product.name,
 
+        pricing_mode: product.pricing_mode,
+
         short_description: product.short_description,
 
         thumbnail_url: product.thumbnail_url,
