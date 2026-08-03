@@ -30,3 +30,4 @@ yarn-error.log*
 *.seed
 *.pid.lock
 data/google-service-account.json
+uploads/

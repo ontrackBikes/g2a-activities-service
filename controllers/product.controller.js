@@ -1,122 +1,274 @@
-const { Op } = require("sequelize");
-const productSchema = require("../schemas/product.schema");
-const { Product, ProductConfig, ProductContent } = require("../models");
-const { parseError } = require("../services/error.service");
-const productPatchSchema = require("../schemas/productPatch.schema");
-const pricingOverrideSchema = require("../schemas/pricingOverride.schema");
-const { getPrice } = require("../services/pricing.service");
+const { Op, fn, col, literal } = require("sequelize");
+const sequelize = require("../config/sequelize");
+const BookingEstimate = require("../models/bookingEstimate.model");
 
-// USERE FACING
+const {
+  Product,
+  ProductGroup,
+  ProductImage,
+  ProductType,
+  Vendor,
+  VendorProduct,
+  Category,
+  ProductTag,
+  ProductTagMapping,
+  Location,
+  ProductFaq,
+  ProductTerm,
+  ProductHighlight,
+  ProductInclusion,
+  ProductExclusion,
+  ProductThingToKnow,
+  ProductCancellationPolicy,
+  ProductCollectionProduct,
+  VendorProductImage,
+  VendorProductFaq,
+  VendorProductTerm,
+  VendorProductHighlight,
+  VendorProductInclusion,
+  VendorProductExclusion,
+  VendorProductThingToKnow,
+  VendorProductSlot,
+  VendorSchedule,
+  VendorScheduleSlot,
+  OrderItem,
+  BookingTemplate,
+} = require("../models");
 
-const searchProducts = async (req, res) => {
+const {
+  createProductSchema,
+  updateProductSchema,
+} = require("../schemas/product.schema");
+const {
+  getAvailableVendorForProduct,
+  getAvailableVendorsForProductLocations,
+  getLowestUpcomingPricesForProductLocations,
+} = require("../services/availableVendor.service");
+const {
+  getNextAvailableSlotForProduct,
+  getNextAvailableSlotsForProductLocations,
+} = require("../services/nextAvailableSlot.service");
+
+const authorizePermanentDelete = (req, res) => {
+  const token = process.env.PERMANENT_DELETE_TOKEN;
+  const authorization = req.get("authorization");
+
+  if (!token) {
+    console.error("[ProductController] PERMANENT_DELETE_TOKEN is not configured");
+
+    res.status(500).json({
+      success: false,
+      message: "Permanent delete is not configured",
+    });
+
+    return false;
+  }
+
+  if (authorization !== `Bearer ${token}`) {
+    res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+
+    return false;
+  }
+
+  return true;
+};
+
+const findActiveProductType = (productTypeId) =>
+  ProductType.findOne({
+    where: {
+      id: productTypeId,
+      active: true,
+    },
+    include: [
+      {
+        model: Category,
+        as: "category",
+        attributes: [],
+        required: true,
+        where: {
+          active: true,
+        },
+      },
+    ],
+  });
+
+const createProduct = async (req, res) => {
+  try {
+    const { error, value } = createProductSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    /**
+     * Validate Product Group
+     */
+    if (value.group_id) {
+      const group = await ProductGroup.findByPk(value.group_id);
+
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          message: "Product group not found",
+        });
+      }
+    }
+
+    /**
+     * Validate Product Type
+     */
+    const productType = await findActiveProductType(
+      value.product_type_id,
+    );
+
+    if (!productType) {
+      return res.status(404).json({
+        success: false,
+        message: "Product type not found",
+      });
+    }
+
+    /**
+     * Duplicate Slug Check
+     */
+    const existingSlug = await Product.findOne({
+      where: {
+        slug: value.slug,
+      },
+    });
+
+    if (existingSlug) {
+      return res.status(409).json({
+        success: false,
+        message: "Slug already exists",
+      });
+    }
+
+    /**
+     * Duplicate Code Check
+     */
+    if (value.code) {
+      const existingCode = await Product.findOne({
+        where: {
+          code: value.code,
+        },
+      });
+
+      if (existingCode) {
+        return res.status(409).json({
+          success: false,
+          message: "Code already exists",
+        });
+      }
+    }
+
+    const product = await Product.create(value);
+
+    return res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("[ProductController] createProduct", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create product",
+    });
+  }
+};
+
+const getProducts = async (req, res) => {
   try {
     const {
-      location,
-      bookingDate,
-      quantity = 1,
-      category,
-      productType,
-      source = "website",
-    } = req.body;
+      active,
+      group_id,
+      product_type_id,
+      category_id,
+      search,
+    } = req.query;
 
-    const where = {
-      active: true,
-    };
+    const where = {};
 
-    if (category) {
-      where.category = category;
+    if (active !== undefined && active !== "") {
+      where.active = active === "true";
     }
 
-    if (productType) {
-      where.product_type = productType;
+    if (group_id) {
+      where.group_id = group_id;
     }
 
-    const include = [
-      {
-        association: "config",
-      },
-      {
-        association: "locations",
-        through: {
-          attributes: [],
-        },
-      },
-    ];
+    if (product_type_id) {
+      where.product_type_id = product_type_id;
+    }
 
-    // location search
-    if (location) {
-      const normalizedLocation = location
-        .trim()
-        .replace(/[-_]/g, " ")
-        .replace(/\s+/g, " ");
+    if (search && search.trim()) {
+      const term = search.trim();
 
-      include[1].required = true;
+      // Only search columns that actually exist on the Product model.
+      // Prevents 500s if the schema changes (e.g. no `slug` column).
+      const searchableFields = ["name", "slug", "description"].filter(
+        (field) => Product.rawAttributes[field],
+      );
 
-      include[1].where = {
-        name: {
-          [Op.like]: `%${normalizedLocation}%`,
-        },
-      };
+      if (searchableFields.length) {
+        where[Op.or] = searchableFields.map((field) => ({
+          [field]: { [Op.like]: `%${term}%` },
+        }));
+      }
     }
 
     const products = await Product.findAll({
       where,
-      include,
-      order: [["name", "ASC"]],
+      include: [
+        { model: ProductGroup, as: "group" },
+        {
+          model: ProductType,
+          as: "productType",
+          attributes: ["id", "name", "slug"],
+          ...(category_id
+            ? {
+                where: {
+                  category_id,
+                },
+              }
+            : {}),
+          include: [
+            {
+              model: Category,
+              as: "category",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        { model: VendorProduct, as: "vendorProducts" },
+      ],
+      order: [
+        ["sort_order", "ASC"],
+        ["name", "ASC"],
+      ],
     });
 
     const data = products.map((product) => {
-      const pricing =
-        product.config?.pricing || {};
+      const productData = product.toJSON();
+      const category =
+        productData.productType?.category ||
+        null;
 
-      const bookingDay = bookingDate
-        ? new Date(bookingDate)
-            .toLocaleDateString("en-US", {
-              weekday: "short",
-            })
-            .toUpperCase()
-        : null;
-
-      const context = {
-        location,
-        quantity,
-        booking_date: bookingDate,
-        day_of_week: bookingDay,
-        source,
-      };
-
-      const finalPrice = getPrice({
-        pricing,
-        context,
-      });
+      if (productData.productType) {
+        delete productData.productType.category;
+      }
 
       return {
-        id: product.id,
-
-        name: product.name,
-
-        slug: product.slug,
-
-        category: product.category,
-
-        product_type: product.product_type,
-
-        thumbnail_url:
-          product.thumbnail_url,
-
-        locations: product.locations.map(
-          (l) => l.name
-        ),
-
-        price: {
-          currency:
-            pricing.currency || "INR",
-
-          basePrice:
-            pricing.basePrice || 0,
-
-          finalPrice,
-        },
+        ...productData,
+        category,
       };
     });
 
@@ -126,723 +278,1222 @@ const searchProducts = async (req, res) => {
       data,
     });
   } catch (error) {
-    const parsed = parseError(error);
-
-    return res.status(
-      parsed.statusCode || 500
-    ).json({
-      success: false,
-      message: parsed.message,
-      tech_message:
-        parsed.tech_message,
-    });
+    console.error("[ProductController] getProducts", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// USER FACING END
-
-const getProducts = async (req, res) => {
+const getProduct = async (req, res) => {
   try {
-    const {
-      locationId,
-      productType,
-      status,
-      search,
-      category,
-      page = 1,
-      limit = 10,
-    } = req.query;
-
-    const where = {};
-
-    // filters
-    if (productType) where.product_type = productType;
-    if (status !== undefined) where.active = status === "true";
-    if (category) where.category = category;
-
-    // search (name / slug)
-    if (search) {
-      where[require("sequelize").Op.or] = [
-        { name: { [require("sequelize").Op.like]: `%${search}%` } },
-        { slug: { [require("sequelize").Op.like]: `%${search}%` } },
-      ];
-    }
-
-    const offset = (page - 1) * limit;
-
-    const include = [
-      {
-        association: "config",
-      },
-      {
-        association: "locations",
-        through: { attributes: [] },
-        ...(locationId ? { where: { id: locationId } } : {}),
-      },
-    ];
-
-    const { rows, count } = await Product.findAndCountAll({
-      where,
-      include,
-      limit: Number(limit),
-      offset: Number(offset),
-      order: [["createdAt", "DESC"]],
-      distinct: true,
-    });
-
-    return res.json({
-      success: true,
-      data: rows,
-      pagination: {
-        total: count,
-        page: Number(page),
-        limit: Number(limit),
-        pages: Math.ceil(count / limit),
-      },
-    });
-  } catch (error) {
-    console.error("getProducts error:", error);
-
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json({
-      success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
-    });
-  }
-};
-
-const getProductById = async (req, res) => {
-  const product = await Product.findByPk(
-    req.params.id,
-    {
-      include: [
-        { association: "config" },
-        { association: "content" },
-        { association: "locations" },
-      ],
-    }
-  );
-
-  if (!product) {
-    return res.status(404).json({
-      success: false,
-      message: "Product not found",
-    });
-  }
-
-  return res.json({
-    success: true,
-    data: product,
-  });
-};
-
-const createProduct = async (req, res) => {
-  let transaction;
-  try {
-    // 1. VALIDATE FIRST
-    const { error, value } = productSchema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true,
-    });
-
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: error.details.map((e) => e.message),
-      });
-    }
-
-    // 2. SAFE DESTRUCTURE
-    const { locationIds = [], config, content, ...productData } = value;
-
-    transaction = await Product.sequelize.transaction();
-
-    // 3. CREATE PRODUCT
-    const product = await Product.create(productData, { transaction });
-
-    // 4. CONFIG
-    await ProductConfig.create(
-      {
-        product_id: product.id,
-        ...config,
-      },
-      { transaction },
-    );
-
-    // 5. CONTENT
-    await ProductContent.create(
-      {
-        product_id: product.id,
-        sections: content?.sections || [],
-      },
-      { transaction },
-    );
-
-    // 6. LOCATIONS
-    if (locationIds.length) {
-      await product.setLocations(locationIds, { transaction });
-    }
-
-    await transaction.commit();
-
-    return res.status(201).json({
-      success: true,
-      data: {
-        id: product.id,
-      },
-    });
-  } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
-    }
-
-    console.error("createProduct error:", error);
-
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json({
-      success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
-    });
-  }
-};
-
-const getAvailableAddons = async (req, res) => {
-  try {
-    const { locationId } = req.query;
-
-    if (!locationId) {
-      return res.status(400).json({
-        success: false,
-        message: "locationId is required",
-      });
-    }
-
-    const products = await Product.findAll({
-      where: { active: true },
+    const product = await Product.findByPk(req.params.id, {
       include: [
         {
-          association: "locations",
-          where: { id: locationId },
-          through: { attributes: [] },
+          model: ProductGroup,
+          as: "group",
+        },
+        {
+          model: ProductImage,
+          as: "images",
         },
       ],
     });
 
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
     return res.json({
       success: true,
-      data: products,
+      data: product,
     });
   } catch (error) {
-    console.error(error);
+    console.error("[ProductController] getProduct", error);
 
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json({
+    return res.status(500).json({
       success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
+      message: error.message,
     });
   }
-};
-
-const getProductBySlug = async (req, res) => {
-  const product = await Product.findOne({
-    where: {
-      slug: req.params.slug,
-    },
-
-    include: [
-      {
-        association: "config",
-      },
-      {
-        association: "content",
-      },
-      {
-        association: "locations",
-      },
-    ],
-  });
-
-  if (!product) {
-    return res.status(404).json({
-      success: false,
-      message: "Product not found",
-    });
-  }
-
-  return res.json({
-    success: true,
-    data: product,
-  });
 };
 
 const updateProduct = async (req, res) => {
-  let transaction;
-
   try {
-    const productId = req.params.id;
-
-    const { error, value } = productSchema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true,
-    });
+    const { error, value } = updateProductSchema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
         success: false,
-        message: "Validation error",
-        errors: error.details.map((e) => e.message),
+        message: error.details[0].message,
       });
     }
 
-    const {
-      locationIds = [],
-      config,
-      content,
-      ...productData
-    } = value;
-
-    transaction = await Product.sequelize.transaction();
-
-    const product = await Product.findByPk(productId, {
-      transaction,
-    });
+    const product = await Product.findByPk(req.params.id);
 
     if (!product) {
-      await transaction.rollback();
-
       return res.status(404).json({
         success: false,
         message: "Product not found",
       });
     }
 
-    // update main product
-    await product.update(productData, {
-      transaction,
-    });
-
-    // update config
-    await ProductConfig.update(
-      config,
-      {
-        where: {
-          product_id: product.id,
-        },
-        transaction,
-      },
-    );
-
-    // update content
-    await ProductContent.update(
-      {
-        sections: content?.sections || [],
-      },
-      {
-        where: {
-          product_id: product.id,
-        },
-        transaction,
-      },
-    );
-
-    // replace locations
-    await product.setLocations(locationIds, {
-      transaction,
-    });
-
-    await transaction.commit();
-
-    return res.json({
-      success: true,
-      message: "Product updated successfully",
-      data: {
-        id: product.id,
-      },
-    });
-  } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
-    }
-
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json({
-      success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
-    });
-  }
-};
-
-const patchProduct = async (req, res) => {
-  let transaction;
-
-  try {
-    const { error, value } = productPatchSchema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true,
-    });
-
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: error.details.map((e) => e.message),
-      });
-    }
-
-    const {
-      locationIds,
-      config,
-      content,
-      ...productFields
-    } = value;
-    
-
-    // Prevent override management through PATCH product
-    if (
-      config?.pricing &&
-      Object.prototype.hasOwnProperty.call(
-        config.pricing,
-        "overrides"
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Use pricing override APIs to manage overrides",
-      });
-    }
-
-    transaction = await Product.sequelize.transaction();
-
-    const product = await Product.findByPk(req.params.id, {
-      include: [
-        { association: "config" },
-        { association: "content" },
-      ],
-      transaction,
-    });
-
-    if (!product) {
-      await transaction.rollback();
-
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
-    }
-
-   
-
-    // Product table
-    if (Object.keys(productFields).length) {
-      await product.update(productFields, {
-        transaction,
-      });
-    }
-
-    // Product Config
-    if (config) {
-      await product.config.update(
-        {
-          ...product.config.toJSON(),
-          ...config,
-        },
-        {
-          transaction,
-        }
+    if (value.product_type_id) {
+      const productType = await findActiveProductType(
+        value.product_type_id,
       );
-    }
 
-    // Product Content
-    if (content) {
-      await product.content.update(
-        {
-          ...product.content.toJSON(),
-          ...content,
-        },
-        {
-          transaction,
-        }
-      );
-    }
-
-    // Locations
-    if (locationIds) {
-      await product.setLocations(locationIds, {
-        transaction,
-      });
-    }
-
-    await transaction.commit();
-
-    return res.json({
-      success: true,
-      message: "Product updated successfully",
-    });
-  } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
-    }
-
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json({
-      success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
-    });
-  }
-};
-
-const addPricingOverride = async (req, res) => {
-  let transaction;
-
-  try {
-    const { error, value } =
-      pricingOverrideSchema.validate(req.body);
-
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: error.details.map(d => d.message),
-      });
-    }
-
-    transaction =
-      await Product.sequelize.transaction();
-
-    const product = await Product.findByPk(
-      req.params.id,
-      {
-        include: [{ association: "config" }],
-        transaction,
+      if (!productType) {
+        return res.status(404).json({
+          success: false,
+          message: "Product type not found",
+        });
       }
-    );
+    }
+
+    await product.update(value);
+
+    return res.json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("[ProductController] updateProduct", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findByPk(req.params.id);
 
     if (!product) {
-      await transaction.rollback();
-
       return res.status(404).json({
         success: false,
         message: "Product not found",
       });
     }
 
-    const config = product.config.toJSON();
+    await product.update({ active: false });
 
-    config.pricing.overrides =
-      config.pricing.overrides || [];
+    return res.json({
+      success: true,
+      message: "Product deleted successfully",
+    });
+  } catch (error) {
+    console.error("[ProductController] deleteProduct", error);
 
-    const exists =
-      config.pricing.overrides.find(
-        o => o.id === value.id
-      );
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
-    if (exists) {
-      await transaction.rollback();
+const permanentlyDeleteProduct = async (req, res) => {
+  if (!authorizePermanentDelete(req, res)) {
+    return;
+  }
 
+  try {
+    const productId = Number(req.params.id);
+
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const result = await sequelize.transaction(async (transaction) => {
+      const product = await Product.findByPk(productId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!product) {
+        return null;
+      }
+
+      const orderItemCount = await OrderItem.count({
+        where: { product_id: product.id },
+        transaction,
+      });
+
+      if (orderItemCount) {
+        return {
+          blocked: true,
+          reason: "orders",
+        };
+      }
+
+      const vendorProducts = await VendorProduct.findAll({
+        attributes: ["id"],
+        where: { product_id: product.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      const vendorProductIds = vendorProducts.map(({ id }) => id);
+
+      if (vendorProductIds.length) {
+        const schedules = await VendorSchedule.findAll({
+          attributes: ["id"],
+          where: {
+            vendor_product_id: { [Op.in]: vendorProductIds },
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        const scheduleIds = schedules.map(({ id }) => id);
+
+        if (scheduleIds.length) {
+          const bookedSlotCount = await VendorScheduleSlot.count({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+              booked: { [Op.gt]: 0 },
+            },
+            transaction,
+          });
+
+          if (bookedSlotCount) {
+            return {
+              blocked: true,
+              reason: "bookings",
+            };
+          }
+
+          await VendorScheduleSlot.destroy({
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+            },
+            transaction,
+          });
+        }
+
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+
+        await Promise.all([
+          VendorProductImage.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductFaq.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductTerm.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductHighlight.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductInclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductExclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductThingToKnow.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductSlot.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorSchedule.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+        ]);
+
+        await VendorProduct.destroy({
+          where: { id: { [Op.in]: vendorProductIds } },
+          transaction,
+        });
+      } else {
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+      }
+
+      await Promise.all([
+        ProductImage.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductFaq.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTerm.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductHighlight.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductInclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductExclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductThingToKnow.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCancellationPolicy.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTagMapping.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCollectionProduct.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+      ]);
+
+      await product.destroy({ transaction });
+
+      return {
+        product_id: product.id,
+      };
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    if (result.blocked) {
       return res.status(409).json({
         success: false,
-        message: "Override already exists",
+        message:
+          result.reason === "orders"
+            ? "Product cannot be deleted because orders exist"
+            : "Product cannot be deleted because booked inventory exists",
       });
     }
 
-    config.pricing.overrides.push(value);
-
-    await product.config.update(config, {
-      transaction,
-    });
-
-    await transaction.commit();
-
-    return res.status(201).json({
+    return res.json({
       success: true,
-      message: "Pricing override added",
+      message: "Product permanently deleted successfully",
+      data: result,
     });
   } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
-    }
+    console.error("[ProductController] permanentlyDeleteProduct", error);
 
-    const parsed = parseError(error);
-
-    return res.status(parsed.statusCode).json(parsed);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const updatePricingOverride = async (req, res) => {
-  let transaction;
+const searchProducts = async (req, res) => {
+  const query = String(req.query.q || "").trim();
 
+  if (query.length < 2 || query.length > 100) {
+    return res.status(400).json({
+      success: false,
+      message: "Search query must be between 2 and 100 characters",
+    });
+  }
+
+  return getProductsListForApp(req, res);
+};
+
+const getProductsListForApp = async (req, res) => {
   try {
-    transaction =
-      await Product.sequelize.transaction();
+    const {
+      search: searchQuery,
+      q,
+      featured,
+      category_slug,
+      product_type_slug,
+      tag_slug,
+      tag_slugs,
+      location_slug,
+      location_id,
+      location_slugs,
+      location_ids,
+      date,
+      guests = 1,
+      min_price,
+      max_price,
+      sort = "recommended",
+      page = 1,
+      limit = 20,
+    } = req.query;
+    const search = String(searchQuery || q || "").trim();
 
-    const product = await Product.findByPk(
-      req.params.id,
-      {
-        include: [{ association: "config" }],
-        transaction,
-      }
-    );
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
-    }
-
-    const config = product.config.toJSON();
-
-    const index =
-      config.pricing.overrides.findIndex(
-        o => o.id === req.params.overrideId
-      );
-
-    if (index === -1) {
-      return res.status(404).json({
-        success: false,
-        message: "Override not found",
-      });
-    }
-
-    config.pricing.overrides[index] = {
-      ...config.pricing.overrides[index],
-      ...req.body,
+    const where = {
+      active: true,
     };
 
-    await product.config.update(config, {
-      transaction,
-    });
-
-    await transaction.commit();
-
-    return res.json({
-      success: true,
-      message: "Override updated",
-    });
-  } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
+    if (featured !== undefined) {
+      where.featured = featured === "true";
     }
 
-    const parsed = parseError(error);
+    if (search) {
+      const searchPattern = `%${search}%`;
 
-    return res.status(parsed.statusCode).json(parsed);
-  }
-};
+      where[Op.or] = [
+        {
+          name: {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          slug: {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          short_description: {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.name$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.slug$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.category.name$": {
+            [Op.like]: searchPattern,
+          },
+        },
+        {
+          "$productType.category.slug$": {
+            [Op.like]: searchPattern,
+          },
+        },
+      ];
+    }
 
-const deletePricingOverride = async (req, res) => {
-  let transaction;
+    const productTypeWhere = {
+      active: true,
+    };
 
-  try {
-    transaction =
-      await Product.sequelize.transaction();
+    const categoryWhere = {
+      active: true,
+    };
 
-    const product = await Product.findByPk(
-      req.params.id,
-      {
-        include: [{ association: "config" }],
-        transaction,
+    if (product_type_slug) {
+      productTypeWhere.slug = product_type_slug;
+    }
+
+    if (category_slug) {
+      categoryWhere.slug = category_slug;
+    }
+
+    const parseQueryList = (value) => {
+      if (!value) {
+        return [];
       }
-    );
 
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return (Array.isArray(value) ? value : [value])
+        .flatMap((item) => String(item).split(","))
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+
+    const selectedLocationIds = [
+      ...new Set([
+        ...parseQueryList(location_id),
+        ...parseQueryList(location_ids),
+      ]),
+    ];
+
+    const selectedLocationSlugs = [
+      ...new Set([
+        ...parseQueryList(location_slug),
+        ...parseQueryList(location_slugs),
+      ]),
+    ];
+
+    const selectedTagSlugs = [
+      ...new Set([
+        ...parseQueryList(tag_slug),
+        ...parseQueryList(tag_slugs),
+      ]),
+    ];
+
+    const vendorProductWhere = {
+      active: true,
+    };
+
+    const locationWhere = {};
+
+    if (selectedLocationIds.length) {
+      vendorProductWhere.location_id = {
+        [Op.in]: selectedLocationIds,
+      };
     }
 
-    const config = product.config.toJSON();
-
-    config.pricing.overrides =
-      config.pricing.overrides.filter(
-        o => o.id !== req.params.overrideId
-      );
-
-    await product.config.update(config, {
-      transaction,
-    });
-
-    await transaction.commit();
-
-    return res.json({
-      success: true,
-      message: "Override removed",
-    });
-  } catch (error) {
-    if (transaction) {
-      await transaction.rollback();
+    if (selectedLocationSlugs.length) {
+      locationWhere.slug = {
+        [Op.in]: selectedLocationSlugs,
+      };
     }
 
-    const parsed = parseError(error);
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
 
-    return res.status(parsed.statusCode).json(parsed);
-  }
-};
+    const pageSize = Math.min(parseInt(limit, 10) || 20, 100);
 
-const getPricingOverrides = async (req, res) => {
-  try {
-    const product = await Product.findByPk(
-      req.params.id,
-      {
+    const offset = (pageNumber - 1) * pageSize;
+
+    let order = [];
+
+    switch (sort) {
+      case "price_low":
+        order.push([literal("starting_price"), "ASC"]);
+        break;
+
+      case "price_high":
+        order.push([literal("starting_price"), "DESC"]);
+        break;
+
+      case "newest":
+        order.push(["createdAt", "DESC"]);
+        break;
+
+      default:
+        order.push(["featured", "DESC"], ["sort_order", "ASC"]);
+        break;
+    }
+
+    const products = await Product.findAll({
+      subQuery: false,
+
+      attributes: [
+        "id",
+        "slug",
+        "name",
+        "short_description",
+        "thumbnail_url",
+        "thumbnail_url_sm",
+        "featured",
+
+        [fn("MIN", col("vendorProducts.base_price")), "starting_price"],
+      ],
+
+      where,
+
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+
+          attributes: ["id", "name", "slug"],
+
+          where: productTypeWhere,
+
+          include: [
+            {
+              model: Category,
+              as: "category",
+
+              attributes: ["id", "name", "slug"],
+
+              where: categoryWhere,
+            },
+          ],
+        },
+
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+
+          attributes: [],
+
+          where: vendorProductWhere,
+
+          required: true,
+
+          include: [
+            {
+              model: Location,
+              as: "location",
+
+              attributes: ["id", "name", "slug"],
+              where: Object.keys(locationWhere).length
+                ? locationWhere
+                : undefined,
+              required: selectedLocationSlugs.length > 0,
+            },
+          ],
+        },
+
+        ...(selectedTagSlugs.length
+          ? [
+              {
+                model: ProductTagMapping,
+                as: "tagMappings",
+                attributes: [],
+                required: true,
+                include: [
+                  {
+                    model: ProductTag,
+                    as: "tag",
+                    attributes: [],
+                    required: true,
+                    where: {
+                      active: true,
+                      slug: {
+                        [Op.in]: selectedTagSlugs,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
+
+        {
+          model: ProductTag,
+          as: "tags",
+
+          attributes: ["id", "name", "slug"],
+
+          through: {
+            attributes: [],
+          },
+
+          required: false,
+        },
+      ],
+
+      group: [
+        "Product.id",
+
+        "productType.id",
+
+        "productType->category.id",
+
+        "tags.id",
+      ],
+
+      order,
+
+      limit: pageSize,
+      offset,
+    });
+
+    const productIds = products.map((product) => product.id);
+    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
+
+    let locationMap = {};
+
+    if (productIds.length) {
+      const vendorProductLocations = await VendorProduct.findAll({
+        attributes: ["product_id", "location_id"],
+        where: {
+          product_id: productIds,
+          active: true,
+          ...(selectedLocationIds.length
+            ? {
+                location_id: {
+                  [Op.in]: selectedLocationIds,
+                },
+              }
+            : {}),
+        },
         include: [
           {
-            association: "config",
+            model: Location,
+            as: "location",
+            attributes: ["id", "name", "slug"],
+            where: Object.keys(locationWhere).length
+              ? locationWhere
+              : undefined,
+            required: selectedLocationSlugs.length > 0,
           },
         ],
-      }
-    );
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
       });
+
+      locationMap = vendorProductLocations.reduce((acc, vendorProduct) => {
+        if (!vendorProduct.location) {
+          return acc;
+        }
+
+        if (!acc[vendorProduct.product_id]) {
+          acc[vendorProduct.product_id] = new Map();
+        }
+
+        acc[vendorProduct.product_id].set(vendorProduct.location.id, {
+          id: vendorProduct.location.id,
+          name: vendorProduct.location.name,
+          slug: vendorProduct.location.slug,
+        });
+
+        return acc;
+      }, {});
     }
 
-    return res.json({
+    const productLocationPairs = Object.entries(locationMap).flatMap(
+      ([productId, locations]) =>
+        Array.from(locations.values()).map((location) => ({
+          productId: Number(productId),
+          locationId: Number(location.id),
+        })),
+    );
+    const availableLocationIds = [
+      ...new Set(
+        productLocationPairs.map(({ locationId }) => locationId),
+      ),
+    ];
+    const priceRequests = [
+        getAvailableVendorsForProductLocations({
+          productLocations: productLocationPairs,
+          date,
+          guests: requestedGuests,
+        }),
+        getNextAvailableSlotsForProductLocations({
+          productIds,
+          locationIds: availableLocationIds,
+          locationSlugs: selectedLocationSlugs,
+          guests: requestedGuests,
+        }),
+      ];
+
+    if (!date) {
+      priceRequests.push(
+        getLowestUpcomingPricesForProductLocations({
+          productLocations: productLocationPairs,
+          guests: requestedGuests,
+        }),
+      );
+    }
+
+    const [
+      locationAvailabilityMap,
+      locationNextAvailableSlotMap,
+      locationStartingPriceMap = new Map(),
+    ] = await Promise.all(priceRequests);
+
+    const data = products.map((product) => {
+      const json = product.toJSON();
+
+      const locationsForProduct = locationMap[product.id]
+        ? Array.from(locationMap[product.id].values())
+        : [];
+      const locationResults = locationsForProduct.map((location) => {
+        const key = `${Number(product.id)}:${Number(location.id)}`;
+        const availability = locationAvailabilityMap.get(key) || null;
+        const pricing = date
+          ? availability?.pricing || null
+          : locationStartingPriceMap.get(key) || availability?.pricing || null;
+
+        return {
+          location,
+          availability,
+          pricing,
+          nextAvailableSlot: date
+            ? availability?.schedule?.schedule_date ||
+              locationNextAvailableSlotMap.get(key) ||
+              null
+            : locationNextAvailableSlotMap.get(key) || null,
+        };
+      });
+      const availableLocationResults = locationResults
+        .filter(({ availability, pricing }) => availability && pricing)
+        .sort(
+          (first, second) =>
+            first.pricing.display_price -
+            second.pricing.display_price,
+        );
+      const selectedLocationResult = availableLocationResults[0] || null;
+      const availability = selectedLocationResult?.availability || null;
+      const pricing = selectedLocationResult?.pricing || null;
+      const nextAvailableSlot =
+        locationResults
+          .map(({ nextAvailableSlot: slotDate }) => slotDate)
+          .filter(Boolean)
+          .sort()[0] || null;
+      const locations = locationResults.map(
+        ({
+          location,
+          availability: locationAvailability,
+          pricing: locationPricing,
+        }) => ({
+          name: location.name,
+          slug: location.slug,
+          available: Boolean(locationAvailability),
+          starting_price: locationPricing
+            ? locationPricing.display_price
+            : null,
+        }),
+      );
+
+      return {
+        slug: json.slug,
+
+        name: json.name,
+
+        short_description: json.short_description,
+
+        thumbnail_url: json.thumbnail_url,
+
+        thumbnail_url_sm: json.thumbnail_url_sm,
+
+        featured: json.featured,
+
+        available: Boolean(availability),
+
+        out_of_stock: !availability,
+
+        starting_price: pricing
+          ? pricing.display_price
+          : null,
+
+        price_type: pricing ? pricing.price_type : null,
+
+        next_available_slot: date
+          ? availability?.schedule?.schedule_date || nextAvailableSlot
+          : nextAvailableSlot,
+
+        category: json.productType?.category
+          ? {
+              name: json.productType.category.name,
+              slug: json.productType.category.slug,
+            }
+          : null,
+
+        product_type: json.productType
+          ? {
+              name: json.productType.name,
+              slug: json.productType.slug,
+            }
+          : null,
+
+        locations,
+
+        tags:
+          json.tags?.map((tag) => ({
+            name: tag.name,
+            slug: tag.slug,
+          })) || [],
+      };
+    });
+
+    return res.status(200).json({
       success: true,
-      data:
-        product.config?.pricing?.overrides || [],
+
+      page: pageNumber,
+
+      limit: pageSize,
+
+      count: data.length,
+
+      data,
     });
   } catch (error) {
-    const parsed = parseError(error);
+    console.error("[ProductController] getProductsListForApp", error);
 
-    return res.status(parsed.statusCode).json({
+    return res.status(500).json({
       success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
+      message: "Failed to fetch products",
     });
   }
 };
 
-const getPricingOverrideById = async (
-  req,
-  res
-) => {
+const getRecommendedProductsForApp = async (req, res) => {
   try {
-    const product = await Product.findByPk(
-      req.params.id,
-      {
-        include: [
-          {
-            association: "config",
-          },
-        ],
-      }
+    const match = req.params.slug.match(/^(.*)-in-(.*)$/);
+
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product URL.",
+      });
+    }
+
+    const [, productSlug, locationSlug] = match;
+    const guests = Math.max(
+      Number.parseInt(req.query.guests, 10) || 1,
+      1,
     );
+    const limit = Math.min(
+      Math.max(Number.parseInt(req.query.limit, 10) || 8, 1),
+      20,
+    );
+
+    const location = await Location.findOne({
+      attributes: ["id", "name", "slug"],
+      where: {
+        slug: locationSlug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
+    const product = await Product.findOne({
+      attributes: ["id", "product_type_id"],
+      where: {
+        slug: productSlug,
+        active: true,
+      },
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+          attributes: ["category_id"],
+          required: true,
+          where: { active: true },
+        },
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+          attributes: [],
+          required: true,
+          where: {
+            location_id: location.id,
+            active: true,
+          },
+          include: [
+            {
+              model: Vendor,
+              as: "vendor",
+              attributes: [],
+              required: true,
+              where: { active: true },
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Product is not available at this location.",
+      });
+    }
+
+    const categoryId = product.productType.category_id;
+
+    const vendorProducts = await VendorProduct.findAll({
+      attributes: ["product_id", "location_id"],
+      where: {
+        location_id: location.id,
+        active: true,
+      },
+      include: [
+        {
+          model: Vendor,
+          as: "vendor",
+          attributes: [],
+          required: true,
+          where: { active: true },
+        },
+        {
+          model: Product,
+          as: "product",
+          required: true,
+          where: {
+            active: true,
+            id: { [Op.ne]: product.id },
+          },
+          attributes: [
+            "id",
+            "slug",
+            "name",
+            "short_description",
+            "thumbnail_url",
+            "thumbnail_url_sm",
+          ],
+          include: [
+            {
+              model: ProductType,
+              as: "productType",
+              attributes: ["name", "slug"],
+              required: true,
+              where: {
+                category_id: categoryId,
+                active: true,
+              },
+            },
+          ],
+        },
+      ],
+      order: [[{ model: Product, as: "product" }, "sort_order", "ASC"]],
+    });
+
+    const candidates = new Map();
+
+    for (const vendorProduct of vendorProducts) {
+      if (!candidates.has(vendorProduct.product_id)) {
+        candidates.set(vendorProduct.product_id, {
+          product: vendorProduct.product,
+          productId: vendorProduct.product_id,
+          locationId: vendorProduct.location_id,
+        });
+      }
+    }
+
+    const candidatePairs = Array.from(candidates.values()).map(
+      ({ productId, locationId }) => ({ productId, locationId }),
+    );
+    const availabilityByProductLocation =
+      await getAvailableVendorsForProductLocations({
+        productLocations: candidatePairs,
+        date: req.query.date,
+        guests,
+      });
+
+    const recommendations = Array.from(candidates.values())
+      .map(({ product: candidate, productId, locationId }) => {
+        const availability =
+          availabilityByProductLocation.get(
+            `${Number(productId)}:${Number(locationId)}`,
+          ) || null;
+
+        if (!availability) {
+          return null;
+        }
+
+        return {
+          slug: candidate.slug,
+          name: candidate.name,
+          short_description: candidate.short_description,
+          thumbnail_url: candidate.thumbnail_url,
+          thumbnail_url_sm: candidate.thumbnail_url_sm,
+          product_type: candidate.productType
+            ? {
+                name: candidate.productType.name,
+                slug: candidate.productType.slug,
+              }
+            : null,
+          starting_price: availability.pricing.display_price,
+          price_type: availability.pricing.price_type,
+          available: true,
+          next_available_slot:
+            availability.schedule?.schedule_date || null,
+        };
+      })
+      .filter(Boolean)
+      .sort(
+        (first, second) =>
+          first.starting_price - second.starting_price ||
+          first.name.localeCompare(second.name),
+      )
+      .slice(0, limit);
+
+    return res.status(200).json({
+      success: true,
+      location,
+      count: recommendations.length,
+      data: recommendations,
+    });
+  } catch (error) {
+    console.error(
+      "[ProductController] getRecommendedProductsForApp",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch recommended products.",
+    });
+  }
+};
+
+const getProductDetailsForApp = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const match = slug.match(/^(.*)-in-(.*)$/);
+    let productSlug = slug;
+    let location_slug = null;
+    if (match) {
+      productSlug = match[1];
+      location_slug = match[2];
+    }
+     let selectedLocation = null
+
+    const { date, guests = 1 } = req.query;
+    if(location_slug) {
+      selectedLocation = await Location.findOne({
+        where:{
+          slug:  location_slug
+        }
+      })
+
+    }
+    
+    const product = await Product.findOne({
+      where: {
+        slug: productSlug,
+        active: true,
+      },
+
+      include: [
+        {
+          model: ProductType,
+          as: "productType",
+
+          include: [ {
+            model: Category,
+            as: "category"
+          }]
+        },
+        {
+          model: ProductImage,
+          as: "images",
+          required: false,
+          separate: true,
+          where: [
+            {
+              active: 1,
+            },
+          ],
+          attributes: ["image_url", "sort_order", "alt_text"],
+        },
+
+        {
+          model: ProductFaq,
+          as: "faqs",
+          required: false,
+          separate: true,
+          attributes: ["question", "answer", "sort_order"],
+        },
+        {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+          attributes: [
+            "name",
+            "slug",
+            "description",
+            "product_page_schema",
+            "booking_page_schema",
+            "version",
+            "active",
+          ],
+        },
+
+        {
+          model: ProductTerm,
+          as: "terms",
+          required: false,
+          separate: true,
+          attributes: ["title", "content", "sort_order"],
+        },
+
+        {
+          model: ProductHighlight,
+          as: "highlights",
+          required: false,
+          separate: true,
+          attributes: ["title", "content", "sort_order"],
+        },
+
+        {
+          model: ProductInclusion,
+          as: "inclusions",
+          required: false,
+          separate: true,
+          attributes: ["title","content", "sort_order"],
+        },
+
+        {
+          model: ProductExclusion,
+          as: "exclusions",
+          required: false,
+          separate: true,
+          attributes: ["title","content", "sort_order"],
+        },
+
+        {
+          model: ProductThingToKnow,
+          as: "thingsToKnow",
+          required: false,
+          separate: true,
+          attributes: ["title","content", "sort_order"],
+        },
+
+        {
+          model: ProductCancellationPolicy,
+          as: "cancellationPolicies",
+          required: false,
+          separate: true,
+          where: { active: true },
+          attributes: ["title", "content", "sort_order"],
+          order: [["sort_order", "ASC"], ["id", "ASC"]],
+        },
+
+        {
+          model: ProductTag,
+          as: "tags",
+          through: {
+            attributes: [],
+          },
+          required: false,
+          attributes: {
+            exclude: ["id"],
+          },
+        },
+
+        {
+          model: VendorProduct,
+          as: "vendorProducts",
+
+          required: false,
+          separate: true,
+
+          where: {
+            active: true,
+          },
+
+          include: [
+            {
+              model: Location,
+              as: "location",
+              required: true,
+              where: {
+                active: true,
+              },
+            },
+          ],
+        },
+      ],
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -851,47 +1502,173 @@ const getPricingOverrideById = async (
       });
     }
 
-    const override =
-      product.config?.pricing?.overrides?.find(
-        (o) =>
-          o.id === req.params.overrideId
-      );
-
-    if (!override) {
+    if (!product.vendorProducts?.length) {
       return res.status(404).json({
         success: false,
-        message: "Pricing override not found",
+        message: "Product is not available from any vendor",
       });
     }
 
+    const locationsMap = new Map();
+
+    for (const vp of product.vendorProducts) {
+      if (vp.location && !locationsMap.has(vp.location.id)) {
+        locationsMap.set(vp.location.id, {
+          name: vp.location.name,
+          slug: vp.location.slug,
+        });
+      }
+    }
+
+    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
+
+    const selectedVendorLocation = product.vendorProducts.find(
+      (vendorProduct) => vendorProduct.location?.slug === location_slug,
+    );
+
+    const lowestPricePromise =
+      !date && selectedVendorLocation
+        ? getLowestUpcomingPricesForProductLocations({
+            productLocations: [
+              {
+                productId: product.id,
+                locationId: selectedVendorLocation.location_id,
+              },
+            ],
+            guests: requestedGuests,
+          })
+        : Promise.resolve(null);
+
+    const [availability, nextAvailableSlot, lowestPrices] =
+      await Promise.all([
+        getAvailableVendorForProduct({
+          productId: product.id,
+          locationSlug: location_slug,
+          date,
+          guests: requestedGuests,
+        }),
+
+        getNextAvailableSlotForProduct({
+          productId: product.id,
+          locationSlug: location_slug,
+          guests: requestedGuests,
+        }),
+        lowestPricePromise,
+      ]);
+
+    const lowestPrice = selectedVendorLocation
+      ? lowestPrices?.get(
+          `${Number(product.id)}:${Number(selectedVendorLocation.location_id)}`,
+        )
+      : null;
+    const pricing = date
+      ? availability?.pricing
+      : lowestPrice || availability?.pricing;
+
+    const locations = Array.from(locationsMap.values()).map(location => ({
+      ...location,
+      selected: location.slug === location_slug,
+    }));
+
+    const max_bookable_per_booking = availability?.vendorProduct?.max_bookable_per_booking || 10
+    
+    const formatContentItems = (items = []) =>
+      items.map((item) => ({
+        title: item.title,
+        content: item.content,
+        sort_order: item.sort_order,
+      }));
+
     return res.json({
       success: true,
-      data: override,
+
+      data: {
+       
+        redirectUrl: `/${product.productType.category.slug}/${product.productType.slug}/${slug}/book` ,
+        slug: product.slug,
+
+        name: product.name,
+
+        short_description: product.short_description,
+
+        thumbnail_url: product.thumbnail_url,
+
+        thumbnail_url_sm: product.thumbnail_url_sm,
+
+        featured: product.featured,
+
+        available: Boolean(availability),
+
+        out_of_stock: !availability,
+
+        starting_price: pricing ? pricing.display_price : null,
+
+        price_type: pricing ? pricing.price_type : null,
+
+        max_bookable_per_booking,
+
+        next_available_slot:
+          availability?.schedule?.schedule_date ||
+          nextAvailableSlot,
+
+        images: (product.images || []).map((image) => ({
+          image_url: image.image_url,
+          sort_order: image.sort_order,
+          alt_text: image.alt_text,
+        })),
+
+        highlights: formatContentItems(product.highlights),
+
+        thingsToKnow: formatContentItems(product.thingsToKnow),
+
+        inclusions: formatContentItems(product.inclusions),
+
+        exclusions: formatContentItems(product.exclusions),
+
+        cancellation_policies: (product.cancellationPolicies || []).map(
+          (policy) => ({
+            title: policy.title,
+            content: policy.content,
+            sort_order: policy.sort_order,
+          }),
+        ),
+
+        faqs: (product.faqs || []).map((faq) => ({
+          question: faq.question,
+          answer: faq.answer,
+          sort_order: faq.sort_order,
+        })),
+
+        terms: formatContentItems(product.terms),
+
+        tags: product.tags || [],
+
+        locations: locations,
+
+        selectedLocation,
+
+         bookingTemplate: product.bookingTemplate,
+      },
     });
   } catch (error) {
-    const parsed = parseError(error);
+    console.error("[getProductDetailsForApp]", error);
 
-    return res.status(parsed.statusCode).json({
+    return res.status(500).json({
       success: false,
-      message: parsed.message,
-      tech_message: parsed.tech_message,
+      message: "Failed to fetch product",
     });
   }
 };
 
 module.exports = {
-  searchProducts,
   createProduct,
   getProducts,
-  getProductById,
-  getAvailableAddons,
-  getProductBySlug,
+  getProduct,
   updateProduct,
-  patchProduct,
-  addPricingOverride,
-  updatePricingOverride,
-  deletePricingOverride,
-  getPricingOverrides,
-  getPricingOverrideById
-
+  deleteProduct,
+  permanentlyDeleteProduct,
+  searchProducts,
+  getProductsListForApp,
+  getRecommendedProductsForApp,
+  getProductDetailsForApp,
 };

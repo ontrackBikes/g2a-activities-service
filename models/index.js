@@ -14,6 +14,26 @@ const VendorProductThingToKnow = require("./vendorProductThingToKnow.model");
 const VendorProductSlot = require("./vendorProductSlot.model");
 const VendorSchedule = require("./vendorSchedules.model");
 const VendorScheduleSlot = require("./vendorScheduleSlot.model");
+const ProductFaq = require("./productFaq.model");
+const ProductTerm = require("./productTerm.model");
+const ProductHighlight = require("./productHighlight.model");
+const ProductInclusion = require("./productInclusion.model");
+const ProductExclusion = require("./productExclusion.model");
+const ProductThingToKnow = require("./productThingToKnow.model");
+const ProductCancellationPolicy = require("./productCancellationPolicy.model");
+const MediaLibrary = require("./mediaLibrary.model");
+const ProductTag = require("./productTag.model");
+const ProductTagMapping = require("./productTagMapping.model");
+const ProductType = require("./productType.model");
+const Category = require("./category.model");
+const ProductCollection = require("./productCollection.model");
+const ProductCollectionProduct = require("./productCollectionProduct.model");
+const BookingTemplate = require("./bookingTemplates.model");
+const Order = require("./orders.model");
+const OrderItem = require("./orderItem.model");
+const Customer = require("./customer.model");
+const OrderParticipant = require("./orderParticipant.model");
+const Payment = require("./payment.model");
 
 ProductGroup.hasMany(Product, {
   foreignKey: "group_id",
@@ -185,14 +205,254 @@ VendorScheduleSlot.belongsTo(VendorProductSlot, {
   as: "templateSlot",
 });
 
+Product.hasMany(ProductFaq, {
+  foreignKey: "product_id",
+  as: "faqs",
+  onDelete: "CASCADE",
+});
 
+ProductFaq.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductTerm, {
+  foreignKey: "product_id",
+  as: "terms",
+  onDelete: "CASCADE",
+});
+
+ProductTerm.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductHighlight, {
+  foreignKey: "product_id",
+  as: "highlights",
+  onDelete: "CASCADE",
+});
+
+ProductHighlight.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductInclusion, {
+  foreignKey: "product_id",
+  as: "inclusions",
+  onDelete: "CASCADE",
+});
+
+ProductInclusion.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductExclusion, {
+  foreignKey: "product_id",
+  as: "exclusions",
+  onDelete: "CASCADE",
+});
+
+ProductExclusion.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductThingToKnow, {
+  foreignKey: "product_id",
+  as: "thingsToKnow",
+  onDelete: "CASCADE",
+});
+
+ProductThingToKnow.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.hasMany(ProductCancellationPolicy, {
+  foreignKey: "product_id",
+  as: "cancellationPolicies",
+  onDelete: "CASCADE",
+});
+
+ProductCancellationPolicy.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+/**
+ * Product Type -> Products
+ */
+ProductType.hasMany(Product, {
+  foreignKey: "product_type_id",
+  as: "products",
+});
+
+Product.belongsTo(ProductType, {
+  foreignKey: "product_type_id",
+  as: "productType",
+});
+
+/**
+ * Product <-> Tags
+ */
+Product.belongsToMany(ProductTag, {
+  through: ProductTagMapping,
+  foreignKey: "product_id",
+  otherKey: "tag_id",
+  as: "tags",
+});
+
+ProductTag.belongsToMany(Product, {
+  through: ProductTagMapping,
+  foreignKey: "tag_id",
+  otherKey: "product_id",
+  as: "products",
+});
+
+Product.hasMany(ProductTagMapping, {
+  foreignKey: "product_id",
+  as: "tagMappings",
+  onDelete: "CASCADE",
+});
+
+ProductTagMapping.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+ProductTag.hasMany(ProductTagMapping, {
+  foreignKey: "tag_id",
+  as: "tagMappings",
+  onDelete: "CASCADE",
+});
+
+ProductTagMapping.belongsTo(ProductTag, {
+  foreignKey: "tag_id",
+  as: "tag",
+});
+
+/**
+ * Category -> Product Types
+ */
+Category.hasMany(ProductType, {
+  foreignKey: "category_id",
+  as: "productTypes",
+});
+
+ProductType.belongsTo(Category, {
+  foreignKey: "category_id",
+  as: "category",
+});
+
+ProductCollection.hasMany(ProductCollectionProduct, {
+  foreignKey: "collection_id",
+  as: "productMappings",
+  onDelete: "CASCADE",
+});
+
+ProductCollectionProduct.belongsTo(ProductCollection, {
+  foreignKey: "collection_id",
+  as: "collection",
+});
+
+Product.hasMany(ProductCollectionProduct, {
+  foreignKey: "product_id",
+  as: "collectionMappings",
+  onDelete: "CASCADE",
+});
+
+ProductCollectionProduct.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
+
+Product.belongsToMany(ProductCollection, {
+  through: ProductCollectionProduct,
+  foreignKey: "product_id",
+  otherKey: "collection_id",
+  as: "collections",
+});
+
+ProductCollection.belongsToMany(Product, {
+  through: ProductCollectionProduct,
+  foreignKey: "collection_id",
+  otherKey: "product_id",
+  as: "productsList",
+});
+
+BookingTemplate.hasMany(Product, {
+  foreignKey: "booking_template_id",
+  as: "products",
+});
+
+Product.belongsTo(BookingTemplate, {
+  foreignKey: "booking_template_id",
+  as: "bookingTemplate",
+});
+
+
+Order.hasMany(OrderItem, {
+  foreignKey: "order_id",
+  as: "items",
+  onDelete: "CASCADE",
+});
+
+OrderItem.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+Order.belongsTo(Customer, {
+  foreignKey: "customer_id",
+  as: "customer",
+});
+
+Customer.hasMany(Order, {
+  foreignKey: "customer_id",
+  as: "orders",
+});
+
+Order.hasMany(OrderParticipant, {
+  foreignKey: "order_id",
+  as: "participants",
+  onDelete: "CASCADE",
+});
+
+OrderParticipant.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
+
+OrderItem.hasMany(OrderParticipant, {
+  foreignKey: "order_item_id",
+  as: "participants",
+  onDelete: "CASCADE",
+});
+
+OrderParticipant.belongsTo(OrderItem, {
+  foreignKey: "order_item_id",
+  as: "orderItem",
+});
+
+Order.hasMany(Payment, {
+  foreignKey: "order_id",
+  as: "payments",
+});
+
+Payment.belongsTo(Order, {
+  foreignKey: "order_id",
+  as: "order",
+});
 
 module.exports = {
   Product,
   ProductGroup,
   ProductImage,
   Location,
-  Vendor, 
+  Vendor,
   VendorProduct,
   VendorProductImage,
   VendorProductFaq,
@@ -203,5 +463,25 @@ module.exports = {
   VendorProductThingToKnow,
   VendorProductSlot,
   VendorSchedule,
-  VendorScheduleSlot
+  VendorScheduleSlot,
+  ProductFaq,
+  ProductTerm,
+  ProductHighlight,
+  ProductInclusion,
+  ProductExclusion,
+  ProductThingToKnow,
+  ProductCancellationPolicy,
+  MediaLibrary,
+  ProductTag,
+  ProductTagMapping,
+  ProductType,
+  Category,
+  ProductCollection,
+  ProductCollectionProduct,
+  BookingTemplate,
+  Order,
+  OrderItem,
+  OrderParticipant,
+  Customer,
+  Payment
 };

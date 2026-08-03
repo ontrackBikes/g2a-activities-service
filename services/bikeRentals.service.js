@@ -1,6 +1,14 @@
 const { products, bikeRentalLocations } = require("../data/productConfig");
+const checkoutPickupDropPoints = require("../constants/bikeRentalLocations");
 const moment = require("moment-timezone");
 moment.tz.setDefault("Asia/Kolkata");
+
+const normalizeLocationName = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/\bisland\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const bikeRentals = {
   /* -------------------- PRODUCT INFO -------------------- */
@@ -32,7 +40,9 @@ const bikeRentals = {
     if (!locationName) return null;
 
     return bikeRentalLocations.find(
-      (loc) => loc.name.toLowerCase() === locationName.toLowerCase(),
+      (loc) =>
+        normalizeLocationName(loc.name) ===
+        normalizeLocationName(locationName),
     );
   },
 
@@ -67,6 +77,49 @@ const bikeRentals = {
       success: true,
       data: location.pickupDropPoints || [],
     };
+  },
+
+  validateCheckoutRentalDetails({ locationSlug, rentalDetails }) {
+    if (!rentalDetails) {
+      return { success: true };
+    }
+
+    if (!locationSlug) {
+      return {
+        success: false,
+        message: "Pickup and drop points are not configured for this location.",
+      };
+    }
+
+    const isValidPoint = (point, capability) =>
+      checkoutPickupDropPoints.some(
+        (configuredPoint) =>
+          configuredPoint.slug === point?.slug &&
+          configuredPoint.location_slug === locationSlug &&
+          configuredPoint[capability],
+      );
+
+    if (
+      rentalDetails.pickup_type === "self" &&
+      !isValidPoint(rentalDetails.pickup_point, "pickup")
+    ) {
+      return {
+        success: false,
+        message: "Invalid self pickup point for the selected location.",
+      };
+    }
+
+    if (
+      rentalDetails.drop_type === "self" &&
+      !isValidPoint(rentalDetails.drop_point, "drop")
+    ) {
+      return {
+        success: false,
+        message: "Invalid self drop point for the selected location.",
+      };
+    }
+
+    return { success: true };
   },
 
   /* -------------------- PICKUP / DROP VALIDATION -------------------- */

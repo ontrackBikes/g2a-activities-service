@@ -3,17 +3,23 @@ const {
   getinfoBikeRentals,
   checkAvailabilityBikeRentals,
   getPickupDropPointsByLocation,
+  getBikeRentalPickupDropPointsByLocationSlug,
   getBikeRentalLocationByName,
 } = require("../controllers/bikeRentals.controller");
 const router = express.Router();
 
-router.get("/bike-rentals/product-info", getinfoBikeRentals);
-router.post("/bike-rentals/check-availability", checkAvailabilityBikeRentals);
+router.get("/product-info", getinfoBikeRentals);
+router.post("/check-availability", checkAvailabilityBikeRentals);
 router.get(
-  "/bike-rentals/pickup-drop-points/:locationName",
+  "/pickup-drop-points/:locationName",
   getPickupDropPointsByLocation,
 );
 
-router.get("/bike-rentals/location/:locationName", getBikeRentalLocationByName);
+router.get(
+  "/locations/:locationSlug/pickup-drop-points",
+  getBikeRentalPickupDropPointsByLocationSlug,
+);
+
+router.get("/location/:locationName", getBikeRentalLocationByName);
 
 module.exports = router;

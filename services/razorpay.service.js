@@ -1,5 +1,5 @@
 const Razorpay = require("razorpay");
-
+const crypto = require("crypto");
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -105,8 +105,33 @@ async function fetchPaymentByOrderId(orderId) {
   }
 }
 
+/**
+ * Verify Razorpay Webhook Signature
+ */
+function verifyWebhookSignature(payload, signature) {
+  try {
+    const expectedSignature = crypto
+      .createHmac(
+        "sha256",
+        process.env.RAZORPAY_WEBHOOK_SECRET,
+      )
+      .update(payload)
+      .digest("hex");
+
+    return expectedSignature === signature;
+  } catch (error) {
+    console.error(
+      "Webhook signature verification failed:",
+      error,
+    );
+
+    return false;
+  }
+}
+
 module.exports = {
   createRazorpayOrder,
   createPaymentLink,
   fetchPaymentByOrderId,
+  verifyWebhookSignature
 };

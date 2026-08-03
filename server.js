@@ -1,10 +1,13 @@
 require("dotenv").config();
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const sequelize = require("./config/sequelize");
+const routes = require("./routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const registerCrons = require("./crons");
 
 app.use(
   cors({
@@ -15,20 +18,23 @@ app.use(
   }),
 );
 
+
+
 // JSON parser (for normal APIs)
 app.use(express.json());
 
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // Routes
 app.use("/api", require("./routes/bikeRentals.routes"));
-app.use("/api/products", require("./routes/product.routes"));
-app.use("/api/order", require("./routes/order.routes"));
-app.use("/api", require("./routes/razorpay.routes"));
-app.use("/api/locations", require("./routes/location.routes"));
+app.use("/api/v1", routes);
 
 // Health check
 app.get("/health", (_, res) => {
   res.json({ status: "ok" });
 });
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -47,10 +53,11 @@ async function bootstrap() {
     // });
     // console.log("✅ Models synced");
 
+    registerCrons();
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {
-      console.log(`🚀 Activities Service running on port ${PORT}`);
+      console.log(`Activities Service running on port ${PORT}`);
     });
   } catch (error) {
     console.error("❌ Bootstrap failed");
@@ -60,7 +67,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});

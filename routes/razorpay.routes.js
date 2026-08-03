@@ -6,5 +6,11 @@ const webhookController = require("../controllers/webhook.controller");
 router.post("/razorpay/webhook", webhookController.razorpayWebhook);
 router.get("/razorpay/order-info", webhookController.getOrderInfo);
 
+
+router.post(
+  "/webhook",
+  webhookController.razorpayWebhookv1,
+);
+
 module.exports = router;
 

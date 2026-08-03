@@ -1,82 +1,77 @@
 const express = require("express");
-const { validateUser } = require("../middlewares/auth.middleware");
 
 const {
   createProduct,
-  getProductBySlug,
   getProducts,
-  getAvailableAddons,
+  getProduct,
   updateProduct,
-  patchProduct,
-  addPricingOverride,
-  updatePricingOverride,
-  deletePricingOverride,
-  getPricingOverrides,
-  getPricingOverrideById,
-  getProductById,
+  deleteProduct,
+  permanentlyDeleteProduct,
   searchProducts,
+  getProductsListForApp,
+  getRecommendedProductsForApp,
+  getProductDetailsForApp,
 } = require("../controllers/product.controller");
+const {
+  checkProductAvailability,
+  getProductAvailableDates,
+  getAirportTransferAvailableLocations,
+} = require(
+  "../controllers/productAvailability.controller"
+);
+const {
+  getTagsByProduct,
+  removeTagFromProduct,
+} = require("../controllers/productTagMapping.controller");
 
 const router = express.Router();
 
-// routes/product.routes.js
-
-router.post("/search", searchProducts);
-
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN APIS
-|--------------------------------------------------------------------------
-*/
+router.post("/", createProduct);
 
 router.get("/", getProducts);
 
-router.get("/addons-available", getAvailableAddons);
+router.get("/search", searchProducts);
 
-/*
-|--------------------------------------------------------------------------
-| Pricing Overrides
-|--------------------------------------------------------------------------
-*/
 
-router.get("/:id/pricing/overrides", getPricingOverrides);
-
-router.get("/:id/pricing/overrides/:overrideId", getPricingOverrideById);
-
-router.post("/:id/pricing/overrides", validateUser, addPricingOverride);
-
-router.patch(
-  "/:id/pricing/overrides/:overrideId",
-  validateUser,
-  updatePricingOverride,
+router.get(
+  "/app/products-list",
+  getProductsListForApp
+);
+router.get(
+  "/app/products-list/:slug",
+  getProductDetailsForApp
 );
 
-router.delete(
-  "/:id/pricing/overrides/:overrideId",
-  validateUser,
-  deletePricingOverride,
+router.get(
+  "/app/airport-transfers/available-locations",
+  getAirportTransferAvailableLocations,
 );
 
-/*
-|--------------------------------------------------------------------------
-| Product CRUD
-|--------------------------------------------------------------------------
-*/
-router.get("/:id", getProductById);
+router.get(
+  "/app/:slug/recommended",
+  getRecommendedProductsForApp,
+);
 
-router.post("/", validateUser, createProduct);
+router.get(
+  "/app/:slug/available-dates",
+  getProductAvailableDates,
+);
 
-router.put("/:id", validateUser, updateProduct);
+router.post(
+  "/app/:slug/check-available",
+  checkProductAvailability,
+);
 
-router.patch("/:id", validateUser, patchProduct);
+router.get("/:id/tags", getTagsByProduct);
 
-/*
-|--------------------------------------------------------------------------
-| Slug Route (Always Last)
-|--------------------------------------------------------------------------
-*/
+router.delete("/:productId/tags/:tagId", removeTagFromProduct);
 
-router.get("/:slug", getProductBySlug);
+router.get("/:id", getProduct);
+
+router.patch("/:id", updateProduct);
+
+router.delete("/:id/permanent", permanentlyDeleteProduct);
+
+router.delete("/:id", deleteProduct);
 
 module.exports = router;

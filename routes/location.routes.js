@@ -1,18 +1,35 @@
-// routes/location.routes.js
+const express = require("express");
 
 const {
   createLocation,
   getLocations,
-  getLocationById,
+  getLocation,
+  getLocationTree,
+  getLocationOptions,
+  updateLocation,
+  deleteLocation,
+  permanentlyDeleteLocation,
+  getLocationApp,
 } = require("../controllers/location.controller");
-const { validateUser } = require("../middlewares/auth.middleware");
 
-const router = require("express").Router();
+const router = express.Router();
 
-router.post("/", validateUser, createLocation);
+router.post("/", createLocation);
 
-router.get("/", validateUser, getLocations);
+router.get("/", getLocations);
 
-router.get("/:id", validateUser, getLocationById);
+router.get("/tree", getLocationTree);
+
+router.get("/options", getLocationOptions);
+
+router.get("/:id", getLocation);
+
+router.patch("/:id", updateLocation);
+
+router.delete("/:id/permanent", permanentlyDeleteLocation);
+
+router.delete("/:id", deleteLocation);
+
+router.get("/app/:slug", getLocationApp);
 
 module.exports = router;

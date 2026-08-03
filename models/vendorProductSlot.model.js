@@ -21,7 +21,25 @@ VendorProductSlot.init(
     slot_name: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      comment: "Slot Name",
+      set(value) {
+        this.setDataValue(
+          "slot_name",
+          value?.trim()
+        );
+      },
+    },
+
+    slot_type: {
+      type: DataTypes.ENUM("TIME", "VARIANT"),
+      allowNull: false,
+      defaultValue: "TIME",
+      comment: "TIME for timed activity slots, VARIANT for vehicle/equipment variants",
+      set(value) {
+        this.setDataValue(
+          "slot_type",
+          value ? String(value).toUpperCase() : value,
+        );
+      },
     },
 
     start_time: {
@@ -51,6 +69,16 @@ VendorProductSlot.init(
       allowNull: false,
       defaultValue: 0,
       comment: "Default Capacity",
+      validate: {
+        min: 0,
+      },
+    },
+
+    max_bookable_per_booking: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      comment: "Maximum units allowed per booking",
       validate: {
         min: 0,
       },
@@ -95,6 +123,9 @@ VendorProductSlot.init(
       },
       {
         fields: ["vendor_product_id"],
+      },
+      {
+        fields: ["slot_type"],
       },
       {
         fields: ["active"],

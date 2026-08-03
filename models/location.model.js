@@ -12,17 +12,16 @@ Location.init(
       comment: "Primary Key",
     },
 
-    code: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: true,
-      comment: "Unique location code",
-    },
-
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
       comment: "Location name",
+    },
+
+    image: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      comment: "Location Image",
     },
 
     slug: {
@@ -94,10 +93,7 @@ Location.init(
     updatedAt: "updated_at",
 
     indexes: [
-      {
-        unique: true,
-        fields: ["code"],
-      },
+      
       {
         unique: true,
         fields: ["slug"],
@@ -117,5 +113,5 @@ Location.init(
     ],
   }
 );
-
+// Location.sync({alter: true})
 module.exports = Location;

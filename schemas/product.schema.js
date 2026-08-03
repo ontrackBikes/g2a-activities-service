@@ -1,218 +1,69 @@
 const Joi = require("joi");
 
-
-const conditionRuleSchema = Joi.object({
-  field: Joi.string()
-    .valid(
-      "day_of_week",
-      "date",
-      "location_id",
-      "quantity",
-      "customer_type",
-      "source",
-      "booking_date"
-    )
-    .required(),
-
-  operator: Joi.string()
-    .valid(
-      "EQ",
-      "NEQ",
-      "GT",
-      "GTE",
-      "LT",
-      "LTE",
-      "IN",
-      "NOT_IN",
-      "BETWEEN"
-    )
-    .required(),
-
-  value: Joi.any().required(),
-});
+const createProductSchema = Joi.object({
+  group_id: Joi.number().integer().positive().optional(),
 
 
-const conditionsSchema = Joi.object({
-  operator: Joi.string()
-    .valid("AND", "OR")
-    .default("AND"),
+  product_type_id: Joi.number().integer().positive().required(),
 
-  rules: Joi.array()
-    .items(conditionRuleSchema)
-    .min(1)
-    .required(),
-});
+  featured: Joi.boolean().default(false),
 
+  name: Joi.string().trim().max(255).required(),
 
-const pricingActionSchema = Joi.object({
-  type: Joi.string()
-    .valid(
-      "FIXED_PRICE",
-      "PERCENTAGE",
-      "AMOUNT"
-    )
-    .required(),
+  slug: Joi.string().trim().lowercase().max(255).required(),
 
-  value: Joi.number().required(),
-});
+  short_description: Joi.string().allow("", null),
 
-const pricingOverrideSchema = Joi.object({
-  id: Joi.string().required(),
+  thumbnail_url: Joi.string().allow("", null),
 
-  name: Joi.string().optional(),
+  thumbnail_url_sm: Joi.string().allow("", null),
 
-  priority: Joi.number()
-    .integer()
-    .default(0),
+  sort_order: Joi.number().integer().min(0).default(0),
+  booking_mode: Joi.string()
+  .valid(
+    "single_date",
+    "date_range",
+    "open",
+  )
+  .default("single_date"),
 
-  enabled: Joi.boolean()
-    .default(true),
-
-  valid_from: Joi.date()
-    .optional(),
-
-  valid_to: Joi.date()
-    .optional(),
-
-  conditions: conditionsSchema.required(),
-
-  action: pricingActionSchema.required(),
-});
-
-
-const pricingSchema = Joi.object({
-  currency: Joi.string()
-    .default("INR"),
-
-  basePrice: Joi.number()
-    .min(0)
-    .required(),
-
-  overrides: Joi.array()
-    .items(pricingOverrideSchema)
-    .default([]),
-});
-
-const availabilitySchema = Joi.object({
-  enabled: Joi.boolean()
-    .default(true),
-
-  minQuantity: Joi.number()
-    .integer()
-    .min(1)
-    .default(1),
-
-  maxQuantity: Joi.number()
-    .integer()
-    .min(1)
-    .default(1),
-
-  operatingDays: Joi.array()
-    .items(
-      Joi.string().valid(
-        "MON",
-        "TUE",
-        "WED",
-        "THU",
-        "FRI",
-        "SAT",
-        "SUN"
-      )
-    )
-    .default([]),
-
-  blackoutDates: Joi.array().default([]),
-
-  advanceBookingHours: Joi.number()
-    .default(0),
-});
-
-const bookingFieldSchema = Joi.object({
-  key: Joi.string().required(),
-
-  label: Joi.string().required(),
-
-  type: Joi.string()
-    .valid(
-      "text",
-      "textarea",
-      "number",
-      "date",
-      "datetime",
-      "email",
-      "phone",
-      "select",
-      "radio",
-      "checkbox"
-    )
-    .required(),
-
-  required: Joi.boolean().default(false),
-
-  dataSource: Joi.string()
-    .valid(
-      "static",
-      "locations",
-      "products",
-      "recommendations"
-    )
-    .optional(),
-
-  options: Joi.array().optional(),
-});
-
-module.exports = Joi.object({
-  name: Joi.string().required(),
-
-  slug: Joi.string().required(),
-
-  code: Joi.string().required(),
-
-  product_type: Joi.string()
-    .valid(
-      "activity",
-      "rental",
-      "transfer",
-      "other"
-    )
-    .required(),
-
-  category: Joi.string().required(),
-
-  short_description: Joi.string()
-    .allow("")
-    .optional(),
-
-  thumbnail_url: Joi.string()
-    .allow("")
-    .optional(),
+  pricing_mode: Joi.string()
+    .valid("quantity", "guest")
+    .default("guest"),
 
   active: Joi.boolean().default(true),
-
-  locationIds: Joi.array()
-    .items(Joi.number())
-    .default([]),
-
-  config: Joi.object({
-    pricing: pricingSchema.required(),
-
-    availability: availabilitySchema,
-
-    booking_schema: Joi.array()
-      .items(bookingFieldSchema)
-      .default([]),
-
-    recommendation_rules: Joi.array()
-      .default([]),
-
-    addons_rules: Joi.array()
-      .default([]),
-
-    source_rules: Joi.array()
-      .default([]),
-  }).required(),
-
-  content: Joi.object({
-    sections: Joi.array().default([]),
-  }).default(),
+  booking_template_id: Joi.number().integer().positive().required(),
 });
+
+const updateProductSchema = Joi.object({
+  group_id: Joi.number().integer().positive(),
+
+
+  product_type_id: Joi.number().integer().positive(),
+
+  name: Joi.string().trim().max(255),
+
+  slug: Joi.string().trim().lowercase().max(255),
+
+  short_description: Joi.string().allow("", null),
+
+  thumbnail_url: Joi.string().allow("", null),
+
+  thumbnail_url_sm: Joi.string().allow("", null),
+
+  sort_order: Joi.number().integer().min(0),
+  booking_mode: Joi.string().valid(
+  "single_date",
+  "date_range",
+  "open",
+),
+
+  pricing_mode: Joi.string().valid("quantity", "guest"),
+
+  active: Joi.boolean(),
+}).min(1);
+
+module.exports = {
+  createProductSchema,
+  updateProductSchema,
+};
