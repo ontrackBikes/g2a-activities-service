@@ -6,17 +6,10 @@ const {
   VENDOR_SCHEDULE_QUEUE,
 } = require("../../constants/queues");
 const JOBS = require("../../constants/jobNames");
+const { baseRedisConfig } = require("../../config/redis");
 
-const REDIS_URL =
-  process.env.REDIS_URL || "redis://localhost:6379";
-const QUEUE_OPERATION_TIMEOUT_MS = Math.max(
-  Number(
-    process.env.QUEUE_OPERATION_TIMEOUT_MS,
-  ) || 5000,
-  1000,
-);
-
-const connection = new IORedis(REDIS_URL, {
+const connection = new IORedis({
+  ...baseRedisConfig,
   maxRetriesPerRequest: null,
 });
 

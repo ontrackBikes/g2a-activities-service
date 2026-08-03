@@ -4,11 +4,10 @@ const IORedis = require("ioredis");
 const {
   PAYMENT_SETTLEMENT_QUEUE,
 } = require("../../constants/queues");
+const { baseRedisConfig } = require("../../config/redis");
 
-const REDIS_URL =
-  process.env.REDIS_URL || "redis://localhost:6379";
-
-const connection = new IORedis(REDIS_URL, {
+const connection = new IORedis({
+  ...baseRedisConfig,
   maxRetriesPerRequest: null,
 });
 

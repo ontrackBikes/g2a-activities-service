@@ -1,10 +1,13 @@
 const { Queue } = require("bullmq");
 const IORedis = require("ioredis");
 const { MEDIA_PROCESSING_QUEUE } = require("../../constants/queues");
+const { baseRedisConfig } = require("../../config/redis");
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const MEDIA_QUEUE_NAME = MEDIA_PROCESSING_QUEUE;
-const connection = new IORedis(REDIS_URL, {
+
+
+const connection = new IORedis({
+  ...baseRedisConfig,
   maxRetriesPerRequest: null,
 });
 
@@ -29,6 +32,5 @@ const mediaQueue = new Queue(MEDIA_QUEUE_NAME, {
 module.exports = {
   mediaQueue,
   MEDIA_QUEUE_NAME,
-  REDIS_URL,
   connection,
 };
