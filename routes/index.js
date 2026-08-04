@@ -31,6 +31,7 @@ const bookingEstimate = require("./bookingEstimate.routes");
 const order = require("./order.routes");
 const bikeRentalsRoutes = require("./bikeRentals.routes");
 const razorpayRoutes = require("./razorpay.routes");
+const authRoutes = require("./auth.routes");
 
 const productCollectionRoutes =
   require("./productCollection.routes");
@@ -38,6 +39,8 @@ const productCollectionRoutes =
 const productCollectionProductRoutes =
   require("./productCollectionProduct.routes");
 const router = express.Router();
+
+router.use("/auth", authRoutes);
 
 router.use("/rzp", razorpayRoutes);
 

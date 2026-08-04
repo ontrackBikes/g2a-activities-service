@@ -12,10 +12,13 @@ const {
   getVendorProductCalendar,
   syncVendorProductSchedules,
 } = require("../controllers/vendorSchedule.controller");
+const { validateUser } = require("../middlewares/auth.middleware");
 
 const router = express.Router({
   mergeParams: true,
 });
+
+router.use(validateUser);
 
 router.post(
   "/schedules",
