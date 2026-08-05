@@ -8,7 +8,7 @@ module.exports = Object.freeze([
    "address": "Rangachang",
    "lat": 11.6424704,
    "lng": 92.7268864,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 2,
@@ -17,7 +17,7 @@ module.exports = Object.freeze([
    "address": "Chidyatapu",
    "lat": 11.5080247,
    "lng": 92.7039744,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 3,
@@ -26,7 +26,7 @@ module.exports = Object.freeze([
    "address": "South Point",
    "lat": 11.6543933,
    "lng": 92.7202053,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 4,
@@ -35,7 +35,7 @@ module.exports = Object.freeze([
    "address": "New Wandoor",
    "lat": 11.598726,
    "lng": 92.610582,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 5,
@@ -44,7 +44,7 @@ module.exports = Object.freeze([
    "address": "Marine Hill",
    "lat": 11.6757343,
    "lng": 92.739726,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 6,
@@ -53,7 +53,7 @@ module.exports = Object.freeze([
    "address": "Minnie Bay",
    "lat": 11.6424704,
    "lng": 92.7268864,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 7,
@@ -62,7 +62,7 @@ module.exports = Object.freeze([
    "address": "Bhathu Basti",
    "lat": 11.6422305,
    "lng": 92.7268864,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 8,
@@ -71,7 +71,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.6548583,
    "lng": 92.7231932,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 9,
@@ -80,7 +80,7 @@ module.exports = Object.freeze([
    "address": "Haddo",
    "lat": 11.6619913,
    "lng": 92.7108097,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 10,
@@ -89,7 +89,7 @@ module.exports = Object.freeze([
    "address": "Marine Hill",
    "lat": 11.6582085,
    "lng": 92.7128934,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 11,
@@ -98,7 +98,7 @@ module.exports = Object.freeze([
    "address": "Atlanta Point",
    "lat": 11.672179,
    "lng": 92.745544,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 12,
@@ -107,7 +107,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.6650582,
    "lng": 92.7228668,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 13,
@@ -116,7 +116,7 @@ module.exports = Object.freeze([
    "address": "Burmanalla",
    "lat": 11.5561801,
    "lng": 92.7273354,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 14,
@@ -125,7 +125,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.6548583,
    "lng": 92.7231932,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 15,
@@ -134,7 +134,7 @@ module.exports = Object.freeze([
    "address": "South Point",
    "lat": 11.6638864,
    "lng": 92.7531016,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 16,
@@ -143,7 +143,7 @@ module.exports = Object.freeze([
    "address": "Marine Hill",
    "lat": 11.6761772,
    "lng": 92.7376255,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 17,
@@ -152,7 +152,7 @@ module.exports = Object.freeze([
    "address": "Lamba Line",
    "lat": 11.6145,
    "lng": 92.7247,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 18,
@@ -161,7 +161,7 @@ module.exports = Object.freeze([
    "address": "Atlanta Point",
    "lat": 11.6710801,
    "lng": 92.7414428,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 19,
@@ -170,7 +170,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.66996,
    "lng": 92.731918,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 20,
@@ -179,7 +179,7 @@ module.exports = Object.freeze([
    "address": "Corbyns Cove Rd",
    "lat": 11.6472938,
    "lng": 92.7510245,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 21,
@@ -188,7 +188,7 @@ module.exports = Object.freeze([
    "address": "Civil Enclave Road",
    "lat": 11.64075,
    "lng": 92.72931,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 22,
@@ -197,7 +197,7 @@ module.exports = Object.freeze([
    "address": "Atlanta Point, Port Blair",
    "lat": 11.673356,
    "lng": 92.750973,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 23,
@@ -206,7 +206,7 @@ module.exports = Object.freeze([
    "address": "Aberdeen Jetty",
    "lat": 11.67464,
    "lng": 92.75217,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 24,
@@ -215,7 +215,7 @@ module.exports = Object.freeze([
    "address": "Corbyn's Cove Road",
    "lat": 11.64887,
    "lng": 92.74973,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 25,
@@ -224,7 +224,7 @@ module.exports = Object.freeze([
    "address": "Chatham Island",
    "lat": 11.67869,
    "lng": 92.73727,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 26,
@@ -233,7 +233,7 @@ module.exports = Object.freeze([
    "address": "Delanipur",
    "lat": 11.66697,
    "lng": 92.72951,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 27,
@@ -242,7 +242,7 @@ module.exports = Object.freeze([
    "address": "Middle Point",
    "lat": 11.66737,
    "lng": 92.73443,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 28,
@@ -251,7 +251,7 @@ module.exports = Object.freeze([
    "address": "Rajiv Gandhi Water Sports Complex",
    "lat": 11.67514,
    "lng": 92.75009,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 29,
@@ -260,7 +260,7 @@ module.exports = Object.freeze([
    "address": "Chatham Island",
    "lat": 11.67802,
    "lng": 92.73783,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 30,
@@ -269,7 +269,7 @@ module.exports = Object.freeze([
    "address": "Prothrapur",
    "lat": 11.62451,
    "lng": 92.71602,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 31,
@@ -278,7 +278,7 @@ module.exports = Object.freeze([
    "address": "Rajiv Gandhi Water Sports Complex",
    "lat": 11.6757,
    "lng": 92.75098,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 32,
@@ -287,7 +287,7 @@ module.exports = Object.freeze([
    "address": "Delanipur",
    "lat": 11.66822,
    "lng": 92.73481,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 33,
@@ -296,7 +296,7 @@ module.exports = Object.freeze([
    "address": "Goodwill Estate",
    "lat": 11.66404,
    "lng": 92.72887,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 34,
@@ -305,7 +305,7 @@ module.exports = Object.freeze([
    "address": "Aberdeen",
    "lat": 11.67553,
    "lng": 92.75098,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 35,
@@ -314,7 +314,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.65486,
    "lng": 92.72319,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 36,
@@ -323,7 +323,7 @@ module.exports = Object.freeze([
    "address": "Haddo",
    "lat": 11.66664,
    "lng": 92.71335,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 37,
@@ -332,7 +332,7 @@ module.exports = Object.freeze([
    "address": "Chatham Island",
    "lat": 11.67848,
    "lng": 92.73664,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 38,
@@ -341,7 +341,7 @@ module.exports = Object.freeze([
    "address": "Junglighat",
    "lat": 11.65082,
    "lng": 92.73183,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 39,
@@ -350,7 +350,7 @@ module.exports = Object.freeze([
    "address": "Aberdeen",
    "lat": 11.67464,
    "lng": 92.75217,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 40,
@@ -359,7 +359,7 @@ module.exports = Object.freeze([
    "address": "Aberdeen",
    "lat": 11.67553,
    "lng": 92.75098,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 41,
@@ -368,7 +368,7 @@ module.exports = Object.freeze([
    "address": "Airport Road",
    "lat": 11.64658,
    "lng": 92.7209,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 42,
@@ -377,7 +377,7 @@ module.exports = Object.freeze([
    "address": "Phoenix Bay",
    "lat": 11.65723,
    "lng": 92.72612,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 43,
@@ -386,7 +386,7 @@ module.exports = Object.freeze([
    "address": "Middle Point",
    "lat": 11.66712,
    "lng": 92.73354,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 44,
@@ -395,7 +395,7 @@ module.exports = Object.freeze([
    "address": "Goal Ghar",
    "lat": 11.66674,
    "lng": 92.73258,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 45,
@@ -404,7 +404,7 @@ module.exports = Object.freeze([
    "address": "Corbyn's Cove",
    "lat": 11.65038,
    "lng": 92.75289,
-   "place": "port blair"
+   "place": "port-blair"
  },
  {
    "id": 46,
@@ -539,7 +539,7 @@ module.exports = Object.freeze([
    "address": "Radha Nagar, Beach Number 7, Havelock Island, Andaman and Nicobar Islands 744211",
    "lat": 11.984243,
    "lng": 92.956863,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 61,
@@ -548,7 +548,7 @@ module.exports = Object.freeze([
    "address": "Radha Nagar, Beach Number 7, Havelock Island, Andaman and Nicobar Islands 744211",
    "lat": 11.989714,
    "lng": 92.954893,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 62,
@@ -557,7 +557,7 @@ module.exports = Object.freeze([
    "address": "Beach No. 7, Radhanagar Village, Havelock Island, Andaman and Nicobar Islands 744211",
    "lat": 11.986947,
    "lng": 92.948328,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 63,
@@ -566,7 +566,7 @@ module.exports = Object.freeze([
    "address": "No. 7, Radha Nagar Village, Swaraj Dweep, Andaman and Nicobar Islands 744211",
    "lat": 12.0047102,
    "lng": 92.9597832,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 64,
@@ -575,7 +575,7 @@ module.exports = Object.freeze([
    "address": "Beach No. 3, Govind Nagar, Havelock, Andaman and Nicobar Islands 744211",
    "lat": 11.968,
    "lng": 92.99011,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 65,
@@ -584,7 +584,7 @@ module.exports = Object.freeze([
    "address": "No. 5, Govind Nagar, Havelock Island (Swaraj Dweep), Andaman and Nicobar Islands 744211",
    "lat": 11.9678,
    "lng": 93.0035,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 66,
@@ -593,7 +593,7 @@ module.exports = Object.freeze([
    "address": "No. 2, Govind Nagar, Andaman and Nicobar Islands 744211",
    "lat": 11.9675,
    "lng": 92.9902,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 67,
@@ -602,7 +602,7 @@ module.exports = Object.freeze([
    "address": "No. 5, Vijay Nagar Beach, Swaraj Dweep (Havelock Island), Andaman and Nicobar Islands 744211",
    "lat": 12.0104239,
    "lng": 93.0068355,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 68,
@@ -611,7 +611,7 @@ module.exports = Object.freeze([
    "address": "Beach No. 5, Vijay Nagar, Swaraj Dweep (Havelock Island), Andaman and Nicobar Islands 744211",
    "lat": 11.9672,
    "lng": 92.9984,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 69,
@@ -620,7 +620,7 @@ module.exports = Object.freeze([
    "address": "Beach No. 5, Govind Nagar, Havelock Island (Swaraj Dweep), Andaman and Nicobar Islands 744211",
    "lat": 11.9806,
    "lng": 92.9839,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 70,
@@ -629,7 +629,7 @@ module.exports = Object.freeze([
    "address": "No. 5, Vijayanagar, Swaraj Dweep (Havelock Island), South Andaman District, Andaman and Nicobar Islands 744211",
    "lat": 12.0169,
    "lng": 93.0078,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 71,
@@ -638,7 +638,7 @@ module.exports = Object.freeze([
    "address": "5 Vijay Nagar, Govind Nagar, Andaman and Nicobar Islands 744211",
    "lat": 12.0107,
    "lng": 93.0066,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 72,
@@ -647,7 +647,7 @@ module.exports = Object.freeze([
    "address": "No. 1, Govind Nagar, Havelock Island (Swaraj Dweep), Port Blair Tehsil, South Andaman District, Andaman and Nicobar Islands 744211",
    "lat": 11.9722,
    "lng": 92.9904,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 73,
@@ -656,7 +656,7 @@ module.exports = Object.freeze([
    "address": "Beach No. 5, Havelock Island, Andaman and Nicobar Islands 744211",
    "lat": 12.0165,
    "lng": 93.0077,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 74,
@@ -665,7 +665,7 @@ module.exports = Object.freeze([
    "address": "Radhanagar, Swaraj Dweep",
    "lat": 11.9846,
    "lng": 92.9552,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 75,
@@ -674,7 +674,7 @@ module.exports = Object.freeze([
    "address": "West Coast, Swaraj Dweep",
    "lat": 12.0067,
    "lng": 92.9647,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 76,
@@ -683,7 +683,7 @@ module.exports = Object.freeze([
    "address": "Kalapathar Village, Swaraj Dweep",
    "lat": 11.9478,
    "lng": 93.0286,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 77,
@@ -692,7 +692,7 @@ module.exports = Object.freeze([
    "address": "Vijaynagar, Swaraj Dweep",
    "lat": 12.0105,
    "lng": 93.0068,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 78,
@@ -701,7 +701,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9682,
    "lng": 92.991,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 79,
@@ -710,7 +710,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar Beach",
    "lat": 11.9686,
    "lng": 92.9918,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 80,
@@ -719,7 +719,7 @@ module.exports = Object.freeze([
    "address": "Havelock Mangroves",
    "lat": 11.9819,
    "lng": 92.9989,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 81,
@@ -728,7 +728,7 @@ module.exports = Object.freeze([
    "address": "Northern Havelock",
    "lat": 12.0156,
    "lng": 92.9728,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
 //  {
 //    "id": 82,
@@ -737,7 +737,7 @@ module.exports = Object.freeze([
 //    "address": "Govind Nagar, Swaraj Dweep",
 //    "lat": 11.9849,
 //    "lng": 92.9873,
-//    "place": "havelock island"
+//    "place": "havelock-island"
 //  },
  {
    "id": 83,
@@ -746,7 +746,7 @@ module.exports = Object.freeze([
    "address": "Havelock Jetty",
    "lat": 11.9849,
    "lng": 92.9873,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 84,
@@ -755,7 +755,7 @@ module.exports = Object.freeze([
    "address": "Havelock Jetty",
    "lat": 11.9849,
    "lng": 92.9873,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 85,
@@ -764,7 +764,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9842,
    "lng": 92.9878,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 86,
@@ -773,7 +773,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9766,
    "lng": 92.9897,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 87,
@@ -782,7 +782,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9683,
    "lng": 92.9913,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 88,
@@ -791,7 +791,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9681,
    "lng": 92.9911,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 89,
@@ -800,7 +800,7 @@ module.exports = Object.freeze([
    "address": "Radhanagar",
    "lat": 11.9865,
    "lng": 92.9491,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 90,
@@ -809,7 +809,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.968,
    "lng": 92.9908,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 91,
@@ -818,7 +818,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9684,
    "lng": 92.9916,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 92,
@@ -827,7 +827,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9691,
    "lng": 92.9922,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 93,
@@ -836,7 +836,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9838,
    "lng": 92.9875,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 94,
@@ -845,7 +845,7 @@ module.exports = Object.freeze([
    "address": "Near Radhanagar Road",
    "lat": 11.9955,
    "lng": 92.9733,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 95,
@@ -854,7 +854,7 @@ module.exports = Object.freeze([
    "address": "Havelock Forest Road",
    "lat": 11.997,
    "lng": 92.9742,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 96,
@@ -863,7 +863,7 @@ module.exports = Object.freeze([
    "address": "Near Jetty",
    "lat": 11.9848,
    "lng": 92.9876,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 97,
@@ -872,7 +872,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9768,
    "lng": 92.989,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 98,
@@ -881,7 +881,7 @@ module.exports = Object.freeze([
    "address": "Govind Nagar",
    "lat": 11.9682,
    "lng": 92.991,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 99,
@@ -890,7 +890,7 @@ module.exports = Object.freeze([
    "address": "Vijaynagar",
    "lat": 12.0105,
    "lng": 93.0068,
-   "place": "havelock island"
+   "place": "havelock-island"
  },
  {
    "id": 100,
@@ -899,6 +899,6 @@ module.exports = Object.freeze([
    "address": "Radhanagar",
    "lat": 11.9846,
    "lng": 92.9552,
-   "place": "havelock island"
+   "place": "havelock-island"
  }
 ])

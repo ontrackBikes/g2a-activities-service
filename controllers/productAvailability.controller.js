@@ -362,9 +362,20 @@ const airportTransferLocations = require("../constants/airportTransferLocations"
 
 const getAirportTransferAvailableLocations = async (req, res) => {
   try {
+    const locationSlug = String(req.query.location_slug || "")
+      .trim()
+      .toLowerCase();
+
+    const data = locationSlug
+      ? airportTransferLocations.filter(
+          (location) =>
+            location.place.replace(/\s+/g, "-") === locationSlug,
+        )
+      : airportTransferLocations;
+
     return res.status(200).json({
       success: true,
-      data: airportTransferLocations,
+      data,
     });
   } catch (error) {
     console.error("getAirportTransferAvailableLocations:", error);
