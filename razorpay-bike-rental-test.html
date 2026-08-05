@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bike Rental Razorpay Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+      body {
+        align-items: center;
+        background: #f6f7fb;
+        color: #1f2937;
+        display: flex;
+        font-family: Arial, sans-serif;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      main {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.1);
+        max-width: 480px;
+        padding: 28px;
+        width: min(100% - 40px, 480px);
+      }
+
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      p { color: #4b5563; line-height: 1.5; }
+      label { display: block; font-size: 14px; font-weight: 700; margin: 20px 0 8px; }
+      input, button { border-radius: 8px; box-sizing: border-box; font: inherit; width: 100%; }
+      input { border: 1px solid #d1d5db; padding: 12px; }
+      button { background: #2563eb; border: 0; color: #fff; cursor: pointer; font-weight: 700; margin-top: 16px; padding: 12px; }
+      button:disabled { cursor: not-allowed; opacity: 0.65; }
+      pre { background: #111827; border-radius: 8px; color: #e5e7eb; font-size: 12px; margin: 20px 0 0; overflow: auto; padding: 14px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Bike Rental Razorpay Test</h1>
+      <p>Enter a pending order ID to create or reuse its Razorpay payment and open Checkout.</p>
+
+      <label for="orderId">Order ID</label>
+      <input id="orderId" value="13445d0a-3f8d-4095-a870-8ab001be7f92" />
+
+      <button id="payButton" type="button">Create Payment &amp; Open Razorpay</button>
+      <pre id="result">Ready.</pre>
+    </main>
+
+    <script>
+      const API_BASE_URL = "http://localhost:3000/api/v1";
+      const orderIdInput = document.getElementById("orderId");
+      const payButton = document.getElementById("payButton");
+      const result = document.getElementById("result");
+
+      const showResult = (value) => {
+        result.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      };
+
+      payButton.addEventListener("click", async () => {
+        const orderId = orderIdInput.value.trim();
+
+        if (!orderId) {
+          showResult("Enter an order ID.");
+          return;
+        }
+
+        payButton.disabled = true;
+        showResult("Creating Razorpay payment...");
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/create-payment`,
+            { method: "POST" },
+          );
+          const payload = await response.json();
+
+          if (!response.ok || !payload.success) {
+            throw new Error(payload.message || "Unable to create payment.");
+          }
+
+          const payment = payload.data;
+          const checkout = new Razorpay({
+            key: payment.key,
+            amount: payment.amount,
+            currency: payment.currency,
+            name: "Go2Andaman",
+            description: `Bike rental order ${payment.order_id}`,
+            order_id: payment.razorpay_order_id,
+            prefill: {
+              name: payment.customer.name,
+              email: payment.customer.email,
+              contact: payment.customer.contact,
+            },
+            handler: (paymentResponse) => {
+              showResult({
+                message: "Razorpay Checkout completed. Payment settlement is handled by the backend webhook.",
+                order_id: payment.order_id,
+                payment_id: payment.payment_id,
+                razorpay_response: paymentResponse,
+              });
+            },
+            modal: {
+              ondismiss: () => showResult("Razorpay Checkout closed without completing payment."),
+            },
+            theme: { color: "#2563eb" },
+          });
+
+          checkout.on("payment.failed", (event) => {
+            showResult({
+              message: "Payment failed.",
+              error: event.error,
+            });
+          });
+          checkout.open();
+        } catch (error) {
+          showResult(error.message || "Unable to start payment.");
+        } finally {
+          payButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
