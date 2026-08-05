@@ -44,6 +44,14 @@ const getEffectiveMaxBookable = ({ vendorProduct, scheduleSlot }) =>
     Number(scheduleSlot.available),
   );
 
+const getServiceHours = (scheduleSlot) =>
+  scheduleSlot.start_time && scheduleSlot.end_time
+    ? {
+        start_time: scheduleSlot.start_time,
+        end_time: scheduleSlot.end_time,
+      }
+    : null;
+
 const getTimeOnDate = (date, time) =>
   moment.tz(
     `${date} ${time}`,
@@ -115,13 +123,29 @@ const checkAirportTransfer = async ({
     };
   }
 
-  // Pickup/drop haven't been selected yet (e.g. the initial availability
-  // check fired on page load, before the user has interacted with the
-  // transfer_type field). Nothing to quote yet - ask for a selection
-  // instead of erroring out. Still return `data` (product/bookingTemplate)
-  // so the frontend can render the transfer_type field and its location
-  // pickers; without this the page has no way to let the user select
-  // anything in the first place.
+  const booking = buildTransferBooking(payload);
+  const availability = await getAvailableVendorForProduct({
+    productId: product.id,
+    locationId: location.id,
+    date: payload.date,
+    guests: payload.quantity,
+    ignoreSameDaySlotStartTime: true,
+  });
+
+  const scheduleSlot = availability?.slots[0] || null;
+  const availabilityDetails = scheduleSlot
+    ? {
+        inventory: {
+          available: scheduleSlot.available,
+          max_bookable_per_booking: getEffectiveMaxBookable({
+            vendorProduct: availability.vendorProduct,
+            scheduleSlot,
+          }),
+        },
+        service_hours: getServiceHours(scheduleSlot),
+      }
+    : {};
+
   if (payload.pickup_location == null || payload.drop_location == null) {
     return {
       status: 200,
@@ -131,19 +155,11 @@ const checkAirportTransfer = async ({
       data: buildBookingQuote({
         product,
         location,
-        booking: buildTransferBooking(payload),
+        booking,
+        availability: availabilityDetails,
       }),
     };
   }
-
-  const booking = buildTransferBooking(payload);
-  const availability = await getAvailableVendorForProduct({
-    productId: product.id,
-    locationId: location.id,
-    date: payload.date,
-    guests: payload.quantity,
-    ignoreSameDaySlotStartTime: true,
-  });
 
   if (!availability) {
     return {
@@ -155,7 +171,8 @@ const checkAirportTransfer = async ({
     };
   }
 
-  const scheduleSlot = availability.slots[0];
+  const maxBookablePerBooking =
+    availabilityDetails.inventory.max_bookable_per_booking;
   const pickupTimeError = getPickupTimeError({
     date: payload.date,
     pickupTime: payload.pickup_time,
@@ -168,14 +185,14 @@ const checkAirportTransfer = async ({
       success: true,
       available: false,
       message: pickupTimeError,
-      data: buildBookingQuote({ product, location, booking }),
+      data: buildBookingQuote({
+        product,
+        location,
+        booking,
+        availability: availabilityDetails,
+      }),
     };
   }
-
-  const maxBookablePerBooking = getEffectiveMaxBookable({
-    vendorProduct: availability.vendorProduct,
-    scheduleSlot,
-  });
 
   if (payload.quantity > maxBookablePerBooking) {
     return {
@@ -183,7 +200,12 @@ const checkAirportTransfer = async ({
       success: true,
       available: false,
       message: "Airport transfer is not available for the selected quantity.",
-      data: buildBookingQuote({ product, location, booking }),
+      data: buildBookingQuote({
+        product,
+        location,
+        booking,
+        availability: availabilityDetails,
+      }),
     };
   }
 
@@ -206,12 +228,7 @@ const checkAirportTransfer = async ({
       grand_total: subtotal,
       max_bookable_per_booking: maxBookablePerBooking,
     },
-    availability: {
-      inventory: {
-        available: scheduleSlot.available,
-        max_bookable_per_booking: maxBookablePerBooking,
-      },
-    },
+    availability: availabilityDetails,
   });
 
   const estimate = await saveBookingEstimate({

@@ -182,6 +182,8 @@ const buildBookingQuote = ({
 
       inventory: availability.inventory || null,
 
+      service_hours: availability.service_hours || null,
+
       next_available_date: availability.next_available_date || null,
     },
   };
