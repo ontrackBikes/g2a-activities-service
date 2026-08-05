@@ -7,8 +7,11 @@ const {
   updateVendorProduct,
   deleteVendorProduct,
 } = require("../controllers/vendorProduct.controller");
+const { validateUser } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
+
+router.use(validateUser);
 
 router.post("/", createVendorProduct);
 

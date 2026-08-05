@@ -4,8 +4,6 @@ const validateUser = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    return next();
-    
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
@@ -27,7 +25,7 @@ const validateUser = (req, res, next) => {
     // attach user to request
     req.user = decoded;
 
-    next();
+    return next();
   } catch (error) {
     return res.status(401).json({
       success: false,

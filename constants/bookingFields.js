@@ -18,5 +18,6 @@ module.exports = {
   VEHICLE: "vehicle",
 
   PROMO_CODE: "promo_code",
-  PICKUP_DROP: "pickup_and_drop_date"
+  PICKUP_DROP: "pickup_and_drop_date",
+  PICKUP_AND_DROP_LOCATION: "pickup_and_drop_location",
 };

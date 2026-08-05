@@ -7,8 +7,11 @@ const {
   updateVendorProductSlot,
   deleteVendorProductSlot,
 } = require("../controllers/vendorProductSlot.controller");
+const { validateUser } = require("../middlewares/auth.middleware");
 
 const router = express.Router({ mergeParams: true });
+
+router.use(validateUser);
 
 router.post(
   "/slots",

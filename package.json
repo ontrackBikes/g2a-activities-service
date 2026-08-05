@@ -13,6 +13,7 @@
     "dev:media-cleanup": "cross-env NODE_ENV=development nodemon workers/media-cleanup.js",
     "dev:vendor-schedule": "cross-env NODE_ENV=development nodemon workers/vendor-schedule.js",
     "dev:payment-settlement": "cross-env NODE_ENV=development nodemon workers/payment-settlement.js",
+    "create:admin-user": "node scripts/createAdminUser.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:start:staging": "pm2 start ecosystem.config.js --env staging",
     "pm2:start:prod": "pm2 start ecosystem.config.js --env production",
@@ -23,6 +24,7 @@
     "pm2:status": "pm2 status"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "bullmq": "^5.79.1",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
