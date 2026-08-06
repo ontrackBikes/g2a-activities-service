@@ -20,6 +20,10 @@ const {
   availableDatesQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
+  createCabServiceAvailabilitySchema,
+} = require("../schemas/cabServiceAvailability.schema");
+const cabServiceLocations = require("../constants/cabServiceLocations");
+const {
   getAvailableVendorForProduct,
 } = require("../services/availableVendor.service");
 const {
@@ -36,6 +40,9 @@ const {
   checkAirportTransfer,
 } = require("../services/availability/airportTransfer.service.js");
 const {
+  checkCabService,
+} = require("../services/availability/cabService.service.js");
+const {
   AvailableDatesError,
   getAvailableDates,
 } = require("../services/availability/availableDates.service");
@@ -44,6 +51,14 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
 const isBikeRentalProduct = (product) =>
   product?.productType?.slug === "bike-rentals";
+
+const normalizeLocationKey = (value) =>
+  value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+
+const getCabServiceLocationsForLocation = (locationSlug) =>
+  cabServiceLocations.filter(
+    ({ place }) => normalizeLocationKey(place) === locationSlug,
+  );
 
 const checkProductAvailability = async (req, res) => {
   try {
@@ -155,6 +170,21 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
+    const location = await Location.findOne({
+      attributes: ["id", "slug", "name"],
+      where: {
+        slug: payload.location_slug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
     const today = moment().tz(APP_TIMEZONE).startOf("day");
     const defaultPickupDate = isBikeRentalProduct(product)
       ? today.clone().add(1, "day")
@@ -179,22 +209,50 @@ const checkProductAvailability = async (req, res) => {
       single_date: checkSingleDateAvailabilitySchema,
       date_range: checkDateRangeAvailabilitySchema,
     };
+    const handlers = {
+      single_date: checkSingleDate,
+      date_range: checkDateRange,
+    };
 
-    const isAirportTransfer =
-      product.bookingTemplate?.product_page_schema?.fields?.some(
-        ({ field }) => field === "transfer_type",
-      );
+    const availabilityHandler =
+      product.bookingTemplate?.availability_handler || "standard";
+    const cabLocations =
+      availabilityHandler === "cab_service"
+        ? getCabServiceLocationsForLocation(location.slug)
+        : null;
+    const specialSchemas = {
+      airport_transfer: checkAirportTransferAvailabilitySchema,
+    };
 
-    const schema = isAirportTransfer
-      ? checkAirportTransferAvailabilitySchema
-      : schemaMap[product.booking_mode];
+    const isSingleDateBooking = product.booking_mode === "single_date";
 
-    if (!schema) {
+    if (!schemaMap[product.booking_mode]) {
       return res.status(400).json({
         success: false,
         message: `Unsupported booking mode '${product.booking_mode}'.`,
       });
     }
+
+    if (availabilityHandler !== "standard" && !isSingleDateBooking) {
+      return res.status(400).json({
+        success: false,
+        message: `Availability handler '${availabilityHandler}' requires single_date booking mode.`,
+      });
+    }
+
+    if (availabilityHandler === "cab_service" && !cabLocations.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Cab service is not configured for the selected location.",
+      });
+    }
+
+    const schema =
+      isSingleDateBooking && availabilityHandler === "cab_service"
+        ? createCabServiceAvailabilitySchema({ locations: cabLocations })
+        : isSingleDateBooking && specialSchemas[availabilityHandler]
+          ? specialSchemas[availabilityHandler]
+          : schemaMap[product.booking_mode];
 
     const { error, value } = schema.validate(payload, {
       abortEarly: true,
@@ -209,9 +267,7 @@ const checkProductAvailability = async (req, res) => {
     }
 
     const pricingField =
-      isAirportTransfer || product.pricing_mode === "quantity"
-        ? "quantity"
-        : "guests";
+      product.pricing_mode === "quantity" ? "quantity" : "guests";
 
     if (!value[pricingField]) {
       return res.status(400).json({
@@ -226,40 +282,25 @@ const checkProductAvailability = async (req, res) => {
     };
 
     /**
-     * Location
-     */
-    const location = await Location.findOne({
-      attributes: ["id", "slug", "name"],
-      where: {
-        slug: value.location_slug,
-        active: true,
-      },
-    });
-
-    if (!location) {
-      return res.status(404).json({
-        success: false,
-        message: "Location not found.",
-      });
-    }
-
-    /**
      * Booking Mode Dispatcher
      */
-    const handlers = {
-      single_date: checkSingleDate,
-      date_range: checkDateRange,
+    const specialHandlers = {
+      airport_transfer: checkAirportTransfer,
+      cab_service: checkCabService,
     };
-
-    const handler = isAirportTransfer
-      ? checkAirportTransfer
-      : handlers[product.booking_mode];
+    const handler =
+      isSingleDateBooking && specialHandlers[availabilityHandler]
+        ? specialHandlers[availabilityHandler]
+        : handlers[product.booking_mode];
 
     const result = await handler({
       product,
       location,
       payload: availabilityPayload,
       estimateId: availabilityPayload.estimate_id,
+      ...(availabilityHandler === "cab_service"
+        ? { locations: cabLocations }
+        : {}),
     });
 
     return res.status(result.status || 200).json({

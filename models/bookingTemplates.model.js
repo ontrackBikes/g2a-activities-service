@@ -27,6 +27,16 @@ BookingTemplate.init(
       allowNull: true,
     },
 
+    availability_handler: {
+      type: DataTypes.ENUM(
+        "standard",
+        "airport_transfer",
+        "cab_service",
+      ),
+      allowNull: false,
+      defaultValue: "standard",
+    },
+
     product_page_schema: {
       type: DataTypes.JSON,
       allowNull: false,
