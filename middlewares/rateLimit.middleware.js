@@ -15,6 +15,18 @@ const placesSearchLimiter = rateLimit({
   },
 });
 
+const distanceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many distance requests. Please slow down and try again shortly.",
+  },
+});
+
 module.exports = {
   placesSearchLimiter,
+  distanceLimiter,
 };
