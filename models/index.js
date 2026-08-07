@@ -12,8 +12,10 @@ const VendorProductInclusion = require("./vendorProductInclusion.model");
 const VendorProductExclusion = require("./vendorProductExclusion.model");
 const VendorProductThingToKnow = require("./vendorProductThingToKnow.model");
 const VendorProductSlot = require("./vendorProductSlot.model");
+const VendorProductDistanceTier = require("./vendorProductDistanceTier.model");
 const VendorSchedule = require("./vendorSchedules.model");
 const VendorScheduleSlot = require("./vendorScheduleSlot.model");
+const VendorScheduleSlotDistanceTier = require("./vendorScheduleSlotDistanceTier.model");
 const ProductFaq = require("./productFaq.model");
 const ProductTerm = require("./productTerm.model");
 const ProductHighlight = require("./productHighlight.model");
@@ -176,6 +178,16 @@ VendorProductSlot.belongsTo(VendorProduct, {
   as: "vendorProduct",
 });
 
+VendorProduct.hasMany(VendorProductDistanceTier, {
+  foreignKey: "vendor_product_id",
+  as: "distanceTiers",
+});
+
+VendorProductDistanceTier.belongsTo(VendorProduct, {
+  foreignKey: "vendor_product_id",
+  as: "vendorProduct",
+});
+
 VendorProduct.hasMany(VendorSchedule, {
   foreignKey: "vendor_product_id",
   as: "schedules",
@@ -204,6 +216,16 @@ VendorProductSlot.hasMany(VendorScheduleSlot, {
 VendorScheduleSlot.belongsTo(VendorProductSlot, {
   foreignKey: "vendor_product_slot_id",
   as: "templateSlot",
+});
+
+VendorScheduleSlot.hasMany(VendorScheduleSlotDistanceTier, {
+  foreignKey: "vendor_schedule_slot_id",
+  as: "distanceTiers",
+});
+
+VendorScheduleSlotDistanceTier.belongsTo(VendorScheduleSlot, {
+  foreignKey: "vendor_schedule_slot_id",
+  as: "scheduleSlot",
 });
 
 Product.hasMany(ProductFaq, {
@@ -463,8 +485,10 @@ module.exports = {
   VendorProductExclusion,
   VendorProductThingToKnow,
   VendorProductSlot,
+  VendorProductDistanceTier,
   VendorSchedule,
   VendorScheduleSlot,
+  VendorScheduleSlotDistanceTier,
   ProductFaq,
   ProductTerm,
   ProductHighlight,

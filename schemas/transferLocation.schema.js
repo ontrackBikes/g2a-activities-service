@@ -4,6 +4,8 @@ const customTransferLocationSchema = Joi.object({
   type: Joi.string().valid("custom").required(),
   name: Joi.string().trim().min(1).max(150).required(),
   address: Joi.string().trim().min(1).max(500).required(),
+  lat: Joi.number().min(-90).max(90),
+  lng: Joi.number().min(-180).max(180),
 }).unknown(false);
 
 const getLocationKey = (location) => {

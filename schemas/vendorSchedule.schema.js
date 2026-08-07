@@ -182,10 +182,32 @@ const createVendorScheduleSlotsForDatesSchema =
       .default("OPEN"),
   });
 
+const replaceScheduleSlotDistanceTiersSchema =
+  Joi.object({
+    tiers: Joi.array()
+      .items(
+        Joi.object({
+          min_distance_km: Joi.number()
+            .positive()
+            .required(),
+
+          price: Joi.number()
+            .min(0)
+            .required(),
+        }),
+      )
+      .unique("min_distance_km")
+      .required(),
+
+    allow_sync_updates:
+      Joi.boolean(),
+  });
+
 module.exports = {
   createVendorSchedulesSchema,
   updateVendorScheduleSchema,
   updateVendorScheduleSlotSchema,
   bulkUpdateVendorScheduleSlotsSchema,
   createVendorScheduleSlotsForDatesSchema,
+  replaceScheduleSlotDistanceTiersSchema,
 };

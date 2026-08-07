@@ -11,6 +11,8 @@ const {
   deleteVendorSchedule,
   getVendorProductCalendar,
   syncVendorProductSchedules,
+  getScheduleSlotDistanceTiers,
+  replaceScheduleSlotDistanceTiers,
 } = require("../controllers/vendorSchedule.controller");
 const { validateUser } = require("../middlewares/auth.middleware");
 
@@ -58,6 +60,16 @@ router.patch(
 router.patch(
   "/schedules/:scheduleId/slots/:slotId",
   updateVendorScheduleSlot
+);
+
+router.get(
+  "/schedules/:scheduleId/slots/:slotId/distance-tiers",
+  getScheduleSlotDistanceTiers
+);
+
+router.put(
+  "/schedules/:scheduleId/slots/:slotId/distance-tiers",
+  replaceScheduleSlotDistanceTiers
 );
 
 router.delete(

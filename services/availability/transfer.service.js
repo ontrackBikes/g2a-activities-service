@@ -1,8 +1,14 @@
 const moment = require("moment-timezone");
+const { Op } = require("sequelize");
 
 const { getAvailableVendorForProduct } = require("./availableVendor.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
+const { calculateDistance } = require("../googleMaps.service");
+const {
+  VendorProductDistanceTier,
+  VendorScheduleSlotDistanceTier,
+} = require("../../models");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 const SAME_DAY_BOOKING_LEAD_TIME_HOURS = 12;
@@ -17,6 +23,8 @@ const getLocationSnapshot = (location, locations) => {
       name: location.name,
       type: "custom",
       address: location.address,
+      latitude: location.lat ?? null,
+      longitude: location.lng ?? null,
     };
   }
 
@@ -28,6 +36,8 @@ const getLocationSnapshot = (location, locations) => {
         name: configuredLocation.name,
         type: configuredLocation.type,
         address: configuredLocation.address,
+        latitude: configuredLocation.lat ?? null,
+        longitude: configuredLocation.lng ?? null,
       }
     : null;
 };
@@ -202,7 +212,84 @@ const checkTransferAvailability = async ({
     };
   }
 
-  const unitPrice = Number(scheduleSlot.price ?? availability.vendorProduct.base_price);
+  let unitPrice;
+  let distanceKm = null;
+  let durationMinutes = null;
+
+  if (availability.vendorProduct.pricing_type === "KM_BASED") {
+    const pickupCoords = booking.pickup_location;
+    const dropCoords = booking.drop_location;
+
+    if (
+      pickupCoords?.latitude == null ||
+      pickupCoords?.longitude == null ||
+      dropCoords?.latitude == null ||
+      dropCoords?.longitude == null
+    ) {
+      return {
+        status: 200,
+        success: true,
+        available: false,
+        message:
+          "Distance-based pricing requires coordinates for both pickup and drop locations.",
+        data: buildBookingQuote({
+          product,
+          location,
+          booking,
+          availability: availabilityDetails,
+        }),
+      };
+    }
+
+    const distanceResult = await calculateDistance({
+      originLat: pickupCoords.latitude,
+      originLng: pickupCoords.longitude,
+      destinationLat: dropCoords.latitude,
+      destinationLng: dropCoords.longitude,
+    });
+
+    if (!distanceResult.success) {
+      return {
+        status: 200,
+        success: true,
+        available: false,
+        message: distanceResult.message,
+        data: buildBookingQuote({
+          product,
+          location,
+          booking,
+          availability: availabilityDetails,
+        }),
+      };
+    }
+
+    distanceKm = distanceResult.data.distance_km;
+    durationMinutes = distanceResult.data.duration_minutes;
+
+    let tier = await VendorScheduleSlotDistanceTier.findOne({
+      where: {
+        vendor_schedule_slot_id: scheduleSlot.id,
+        min_distance_km: { [Op.lt]: distanceKm },
+      },
+      order: [["min_distance_km", "DESC"]],
+    });
+
+    if (!tier && scheduleSlot.allow_sync_updates) {
+      tier = await VendorProductDistanceTier.findOne({
+        where: {
+          vendor_product_id: availability.vendorProduct.id,
+          active: true,
+          min_distance_km: { [Op.lt]: distanceKm },
+        },
+        order: [["min_distance_km", "DESC"]],
+      });
+    }
+
+    unitPrice = Number(tier ? tier.price : availability.vendorProduct.base_price);
+  } else {
+    unitPrice = Number(scheduleSlot.price ?? availability.vendorProduct.base_price);
+  }
+
   const subtotal = unitPrice * payload.quantity;
   const quotation = buildBookingQuote({
     product,
@@ -210,7 +297,7 @@ const checkTransferAvailability = async ({
     booking,
     pricing: {
       currency: "INR",
-      pricing_type: "FIXED",
+      pricing_type: availability.vendorProduct.pricing_type,
       unit_price: unitPrice,
       quantity: payload.quantity,
       subtotal,
@@ -218,6 +305,8 @@ const checkTransferAvailability = async ({
       tax: 0,
       grand_total: subtotal,
       max_bookable_per_booking: maxBookablePerBooking,
+      distance_km: distanceKm,
+      duration_minutes: durationMinutes,
     },
     availability: availabilityDetails,
   });
