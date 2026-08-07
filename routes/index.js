@@ -32,6 +32,7 @@ const order = require("./order.routes");
 const bikeRentalsRoutes = require("./bikeRentals.routes");
 const razorpayRoutes = require("./razorpay.routes");
 const authRoutes = require("./auth.routes");
+const paymentRoutes = require("./payment.routes");
 
 const productCollectionRoutes =
   require("./productCollection.routes");
@@ -123,6 +124,11 @@ router.use(
 router.use(
   "/orders",
   order,
+);
+
+router.use(
+  "/payments",
+  paymentRoutes,
 );
 
 router.use(

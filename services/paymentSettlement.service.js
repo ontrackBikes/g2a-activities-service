@@ -622,6 +622,85 @@ async function sendPaymentFailedEmail({ payment, order }) {
 }
 
 /**
+ * Resend the email for a payment, by public payment_id.
+ *
+ * Dispatches to the confirmation or failure email based on
+ * the payment's current status.
+ */
+async function resendPaymentEmail({ paymentId } = {}) {
+  if (!paymentId) {
+    throw new Error("paymentId is required.");
+  }
+
+  const payment = await Payment.findOne({
+    where: {
+      payment_id: paymentId,
+    },
+  });
+
+  if (!payment) {
+    return {
+      success: false,
+      reason: "not_found",
+    };
+  }
+
+  const order = await Order.findByPk(payment.order_id, {
+    include: [
+      {
+        association: "items",
+        include: [
+          {
+            association: "participants",
+          },
+        ],
+      },
+    ],
+  });
+
+  if (!order) {
+    return {
+      success: false,
+      reason: "order_not_found",
+    };
+  }
+
+  let type;
+  let result;
+
+  if (payment.status === "captured") {
+    type = "booking_confirmation";
+    result = await sendConfirmationEmail({ payment, order });
+  } else if (payment.status === "failed") {
+    type = "payment_failed";
+    result = await sendPaymentFailedEmail({ payment, order });
+  } else {
+    return {
+      success: false,
+      reason: "unsupported_status",
+      status: payment.status,
+    };
+  }
+
+  if (!result.success) {
+    return {
+      success: false,
+      reason:
+        result.message === "Customer email not found"
+          ? "no_customer_email"
+          : "send_failed",
+      type,
+    };
+  }
+
+  return {
+    success: true,
+    type,
+    data: result.data,
+  };
+}
+
+/**
  * Test booking confirmation email
  *
  * Usage:
@@ -896,4 +975,5 @@ const settlePayment = async ({ paymentId } = {}) => {
 module.exports = {
   settlePayment,
   sendPaymentFailedEmail,
+  resendPaymentEmail,
 };
