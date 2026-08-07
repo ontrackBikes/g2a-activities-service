@@ -1,14 +1,7 @@
 const Joi = require("joi");
-const airportTransferLocations = require("../constants/airportTransferLocations");
 const {
   createTransferLocationValidation,
 } = require("./transferLocation.schema");
-
-const {
-  getConfiguredTransferLocation,
-  getLocationPairError,
-  transferLocationSchema,
-} = createTransferLocationValidation({ locations: airportTransferLocations });
 
 const estimateId = Joi.string()
   .guid({
@@ -87,7 +80,14 @@ const checkDateRangeAvailabilitySchema = Joi.object({
   selected_slot_token: slotToken,
 });
 
-const checkAirportTransferAvailabilitySchema = Joi.object({
+const createAirportTransferAvailabilitySchema = ({ locations }) => {
+  const {
+    getConfiguredTransferLocation,
+    getLocationPairError,
+    transferLocationSchema,
+  } = createTransferLocationValidation({ locations });
+
+  return Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100).required(),
 
   date: Joi.string()
@@ -162,14 +162,7 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
     "airport_transfer.invalid_route":
       "Pickup and drop locations do not match the selected transfer_type.",
   });
-
-const checkOpenAvailabilitySchema = Joi.object({
-  location_slug: Joi.string().trim().lowercase().max(100).required(),
-
-  guests: Joi.number().integer().min(1).required(),
-
-  estimate_id: estimateId,
-});
+};
 
 const availableDatesQuerySchema = Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100),
@@ -194,7 +187,6 @@ const availableDatesQuerySchema = Joi.object({
 module.exports = {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
-  checkAirportTransferAvailabilitySchema,
-  checkOpenAvailabilitySchema,
+  createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
 };

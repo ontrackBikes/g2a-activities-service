@@ -16,19 +16,15 @@ const {
 const {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
-  checkAirportTransferAvailabilitySchema,
+  createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
   createCabServiceAvailabilitySchema,
 } = require("../schemas/cabServiceAvailability.schema");
-const cabServiceLocations = require("../constants/cabServiceLocations");
-const {
-  getAvailableVendorForProduct,
-} = require("../services/availableVendor.service");
+const transferLocations = require("../constants/transferLocations");
 const {
   DateRangeAvailabilityError,
-  getAvailableDateRangeVendor,
 } = require("../services/availability/availableVendorDateRange.service.js");
 const {
   checkDateRange,
@@ -55,10 +51,21 @@ const isBikeRentalProduct = (product) =>
 const normalizeLocationKey = (value) =>
   value.trim().toLowerCase().replace(/[\s_]+/g, "-");
 
-const getCabServiceLocationsForLocation = (locationSlug) =>
-  cabServiceLocations.filter(
+const getTransferLocationsForLocation = (locationSlug) =>
+  transferLocations.filter(
     ({ place }) => normalizeLocationKey(place) === locationSlug,
   );
+
+const transferAvailabilityHandlers = {
+  airport_transfer: {
+    createSchema: createAirportTransferAvailabilitySchema,
+    checkAvailability: checkAirportTransfer,
+  },
+  cab_service: {
+    createSchema: createCabServiceAvailabilitySchema,
+    checkAvailability: checkCabService,
+  },
+};
 
 const checkProductAvailability = async (req, res) => {
   try {
@@ -216,15 +223,12 @@ const checkProductAvailability = async (req, res) => {
 
     const availabilityHandler =
       product.bookingTemplate?.availability_handler || "standard";
-    const cabLocations =
-      availabilityHandler === "cab_service"
-        ? getCabServiceLocationsForLocation(location.slug)
-        : null;
-    const specialSchemas = {
-      airport_transfer: checkAirportTransferAvailabilitySchema,
-    };
-
     const isSingleDateBooking = product.booking_mode === "single_date";
+    const transferHandler =
+      transferAvailabilityHandlers[availabilityHandler] || null;
+    const locations = transferHandler
+      ? getTransferLocationsForLocation(location.slug)
+      : null;
 
     if (!schemaMap[product.booking_mode]) {
       return res.status(400).json({
@@ -233,26 +237,31 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
-    if (availabilityHandler !== "standard" && !isSingleDateBooking) {
+    if (availabilityHandler !== "standard" && !transferHandler) {
+      return res.status(400).json({
+        success: false,
+        message: `Unsupported availability handler '${availabilityHandler}'.`,
+      });
+    }
+
+    if (transferHandler && !isSingleDateBooking) {
       return res.status(400).json({
         success: false,
         message: `Availability handler '${availabilityHandler}' requires single_date booking mode.`,
       });
     }
 
-    if (availabilityHandler === "cab_service" && !cabLocations.length) {
+    if (transferHandler && !locations.length) {
       return res.status(400).json({
         success: false,
-        message: "Cab service is not configured for the selected location.",
+        message: "Transfer service is not configured for the selected location.",
       });
     }
 
     const schema =
-      isSingleDateBooking && availabilityHandler === "cab_service"
-        ? createCabServiceAvailabilitySchema({ locations: cabLocations })
-        : isSingleDateBooking && specialSchemas[availabilityHandler]
-          ? specialSchemas[availabilityHandler]
-          : schemaMap[product.booking_mode];
+      isSingleDateBooking && transferHandler
+        ? transferHandler.createSchema({ locations })
+        : schemaMap[product.booking_mode];
 
     const { error, value } = schema.validate(payload, {
       abortEarly: true,
@@ -284,13 +293,9 @@ const checkProductAvailability = async (req, res) => {
     /**
      * Booking Mode Dispatcher
      */
-    const specialHandlers = {
-      airport_transfer: checkAirportTransfer,
-      cab_service: checkCabService,
-    };
     const handler =
-      isSingleDateBooking && specialHandlers[availabilityHandler]
-        ? specialHandlers[availabilityHandler]
+      isSingleDateBooking && transferHandler
+        ? transferHandler.checkAvailability
         : handlers[product.booking_mode];
 
     const result = await handler({
@@ -298,9 +303,7 @@ const checkProductAvailability = async (req, res) => {
       location,
       payload: availabilityPayload,
       estimateId: availabilityPayload.estimate_id,
-      ...(availabilityHandler === "cab_service"
-        ? { locations: cabLocations }
-        : {}),
+      ...(transferHandler ? { locations } : {}),
     });
 
     return res.status(result.status || 200).json({
@@ -399,31 +402,89 @@ const getProductAvailableDates = async (req, res) => {
 
 
 
-const airportTransferLocations = require("../constants/airportTransferLocations");
-
-const getAirportTransferAvailableLocations = async (req, res) => {
+const getAvailableTransferLocations = async (req, res) => {
   try {
     const locationSlug = String(req.query.location_slug || "")
       .trim()
       .toLowerCase();
 
-    const data = locationSlug
-      ? airportTransferLocations.filter(
-          (location) =>
-            location.place.replace(/\s+/g, "-") === locationSlug,
-        )
-      : airportTransferLocations;
+    if (!locationSlug) {
+      return res.status(400).json({
+        success: false,
+        message: "location_slug is required.",
+      });
+    }
+
+    const product = await Product.findOne({
+      attributes: ["slug"],
+      where: {
+        slug: req.params.slug,
+        active: true,
+      },
+      include: [
+        {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+          attributes: ["availability_handler"],
+          required: true,
+        },
+      ],
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    const location = await Location.findOne({
+      attributes: ["slug", "name"],
+      where: {
+        slug: locationSlug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
+    const availabilityHandler = product.bookingTemplate.availability_handler;
+    const transferHandler =
+      transferAvailabilityHandlers[availabilityHandler] || null;
+
+    if (!transferHandler) {
+      return res.status(400).json({
+        success: false,
+        message: "Transfer locations are not configured for this product.",
+      });
+    }
+
+    const data = getTransferLocationsForLocation(location.slug);
+
+    if (!data.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Transfer service is not configured for the selected location.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
+      allow_custom: true,
+      selected_location: location,
       data,
     });
   } catch (error) {
-    console.error("getAirportTransferAvailableLocations:", error);
+    console.error("getAvailableTransferLocations:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch airport transfer locations.",
+      message: "Failed to fetch transfer locations.",
     });
   }
 };
@@ -431,6 +492,5 @@ const getAirportTransferAvailableLocations = async (req, res) => {
 module.exports = {
   checkProductAvailability,
   getProductAvailableDates,
-  getAirportTransferAvailableLocations
-  
+  getAvailableTransferLocations,
 };

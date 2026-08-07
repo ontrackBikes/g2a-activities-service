@@ -1,7 +1,6 @@
 const { checkTransferAvailability } = require("./transfer.service");
-const cabServiceLocations = require("../../constants/cabServiceLocations");
 
-const checkCabService = ({ locations = cabServiceLocations, ...args }) =>
+const checkCabService = ({ locations, ...args }) =>
   checkTransferAvailability({
     ...args,
     serviceName: "Cab service",

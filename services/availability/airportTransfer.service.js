@@ -1,11 +1,10 @@
 const { checkTransferAvailability } = require("./transfer.service");
-const airportTransferLocations = require("../../constants/airportTransferLocations");
 
-const checkAirportTransfer = (args) =>
+const checkAirportTransfer = ({ locations, ...args }) =>
   checkTransferAvailability({
     ...args,
     serviceName: "Airport transfer",
-    locations: airportTransferLocations,
+    locations,
     includeTransferType: true,
   });
 
