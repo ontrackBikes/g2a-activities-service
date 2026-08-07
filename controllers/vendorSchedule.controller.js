@@ -1068,11 +1068,18 @@ const syncVendorProductSchedules = async (
       await VendorProduct.findOne({
         attributes: ["id"],
         where: {
-          id: req.params.id,
-          active: true,
+          id: req.params.id
         },
       });
+      // if (!vendorProduct.active) {}
 
+      if(vendorProduct.active === false) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Active vendor product not found",
+        });
+      }
     if (!vendorProduct) {
       return res.status(404).json({
         success: false,
