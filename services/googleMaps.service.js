@@ -134,6 +134,7 @@ const searchLocations = async ({ query }) => {
       description: place.formatted_address || "",
       lat: place.geometry?.location?.lat ?? null,
       lng: place.geometry?.location?.lng ?? null,
+      types: place.types || [],
     }))
     .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description));
 
