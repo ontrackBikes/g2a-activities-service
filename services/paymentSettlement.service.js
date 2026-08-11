@@ -235,6 +235,22 @@ const formatEmailLocation = (location) => {
 const formatEmailLocationLabel = (location) =>
   [location?.name, location?.address].filter(Boolean).join(", ");
 
+const compactObject = (input) => {
+  if (Array.isArray(input)) {
+    return input.map(compactObject);
+  }
+
+  if (input === null || typeof input !== "object") {
+    return input;
+  }
+
+  return Object.fromEntries(
+    Object.entries(input)
+      .map(([key, value]) => [key, compactObject(value)])
+      .filter(([, value]) => value !== null && value !== undefined && value !== ""),
+  );
+};
+
 const formatEmailParticipant = (participant) => ({
   first_name: participant.first_name || "",
   last_name: participant.last_name || "",
@@ -258,7 +274,7 @@ const buildEmailItem = ({ item, order }) => {
   return {
     product_name: item.product_name,
     location_name: item.location_name,
-    booking: {
+    booking: compactObject({
       booking_mode: booking.booking_mode || item.booking_mode || "",
       travel_date: booking.travel_date || "",
       pickup_date: booking.pickup_date || "",
@@ -293,7 +309,7 @@ const buildEmailItem = ({ item, order }) => {
             drop_hotel_name: rentalDetails.drop_hotel_name || "",
           }
         : null,
-    },
+    }),
     participants: (item.participants || []).map(formatEmailParticipant),
     pricing: {
       currency: pricing.currency || order.currency,
@@ -693,6 +709,10 @@ async function resendPaymentEmail({ paymentId } = {}) {
     };
   }
 
+  if (type === "booking_confirmation") {
+    await order.update({ email_confirmation_sent_at: new Date() });
+  }
+
   return {
     success: true,
     type,
@@ -948,10 +968,14 @@ const settlePayment = async ({ paymentId } = {}) => {
    * a successful payment.
    */
   try {
-    await sendConfirmationEmail({
+    const confirmationEmailResult = await sendConfirmationEmail({
       payment,
       order,
     });
+
+    if (confirmationEmailResult?.success) {
+      await order.update({ email_confirmation_sent_at: new Date() });
+    }
 
     await sendNotifications({
       payment,
