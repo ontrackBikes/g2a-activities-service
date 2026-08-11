@@ -35,10 +35,11 @@ const getLocationSnapshot = (location, locations) => {
     ? {
         id: configuredLocation.id,
         name: configuredLocation.name,
-        type: configuredLocation.type,
+        type: "configured",
         address: configuredLocation.address,
         latitude: configuredLocation.lat ?? null,
         longitude: configuredLocation.lng ?? null,
+        place_types: configuredLocation.place_types || [],
       }
     : null;
 };

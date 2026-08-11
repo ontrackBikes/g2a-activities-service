@@ -140,8 +140,8 @@ const createAirportTransferAvailabilitySchema = ({ locations }) => {
       value.drop_location,
     );
 
-    const pickupIsAirport = pickupLocation?.type?.includes("airport") ?? false;
-    const dropIsAirport = dropLocation?.type?.includes("airport") ?? false;
+    const pickupIsAirport = pickupLocation?.place_types?.includes("airport") ?? false;
+    const dropIsAirport = dropLocation?.place_types?.includes("airport") ?? false;
     const invalidRoute =
       (value.transfer_type === "airport_to_location" &&
         (!pickupIsAirport || dropIsAirport)) ||

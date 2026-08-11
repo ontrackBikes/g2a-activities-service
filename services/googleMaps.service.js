@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+
 const ANDAMAN_NICOBAR_REGEX = /andaman|nicobar/i;
 const JETTY_NAME_REGEX = /jetty/i;
 
@@ -7,6 +9,44 @@ const JETTY_NAME_REGEX = /jetty/i;
  */
 const ANDAMAN_NICOBAR_LOCATION = "11.7401,92.6586";
 const ANDAMAN_NICOBAR_RADIUS_METERS = "250000";
+
+/**
+ * Secret used to sign the coordinates returned by searchLocations(),
+ * so a "custom" pickup/drop location submitted later can be proven
+ * to be a real, unmodified Google Places result rather than a
+ * client-fabricated lat/lng (which would otherwise feed straight
+ * into KM_BASED distance pricing unverified).
+ */
+const PLACE_SIGNATURE_SECRET =
+  process.env.PLACE_COORDINATE_SIGNATURE_SECRET ||
+  process.env.GOOGLE_MAPS_API_KEY;
+
+const round6 = (value) => Math.round(value * 1e6) / 1e6;
+
+const signCoordinates = (lat, lng) =>
+  crypto
+    .createHmac("sha256", PLACE_SIGNATURE_SECRET)
+    .update(`${round6(lat)},${round6(lng)}`)
+    .digest("hex");
+
+/**
+ * Verifies a lat/lng pair was actually issued by signCoordinates()
+ * above (i.e. came from a real searchLocations() result) rather
+ * than being fabricated by the client.
+ */
+const verifyCoordinateSignature = (lat, lng, signature) => {
+  if (!signature || lat == null || lng == null) {
+    return false;
+  }
+
+  const expected = Buffer.from(signCoordinates(lat, lng), "hex");
+  const provided = Buffer.from(String(signature).toLowerCase(), "hex");
+
+  return (
+    expected.length === provided.length &&
+    crypto.timingSafeEqual(expected, provided)
+  );
+};
 
 /**
  * Text Search (not Autocomplete) is used because it returns
@@ -136,13 +176,17 @@ const searchLocations = async ({ query }) => {
         types.push("jetty");
       }
 
+      const lat = place.geometry?.location?.lat ?? null;
+      const lng = place.geometry?.location?.lng ?? null;
+
       return {
         place_id: place.place_id,
         name: place.name || "",
         description: place.formatted_address || "",
-        lat: place.geometry?.location?.lat ?? null,
-        lng: place.geometry?.location?.lng ?? null,
-        types,
+        lat,
+        lng,
+        place_types: types,
+        signature: lat != null && lng != null ? signCoordinates(lat, lng) : null,
       };
     })
     .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description));
@@ -154,8 +198,6 @@ const searchLocations = async ({ query }) => {
     data: results,
   };
 };
-
-const round6 = (value) => Math.round(value * 1e6) / 1e6;
 
 /**
  * Real road distance/duration between two coordinates via
@@ -253,4 +295,5 @@ const calculateDistance = async ({
 module.exports = {
   searchLocations,
   calculateDistance,
+  verifyCoordinateSignature,
 };

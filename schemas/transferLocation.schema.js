@@ -1,13 +1,33 @@
 const Joi = require("joi");
 
+const { verifyCoordinateSignature } = require("../services/googleMaps.service");
+
 const customTransferLocationSchema = Joi.object({
   type: Joi.string().valid("custom").required(),
   name: Joi.string().trim().min(1).max(150).required(),
   address: Joi.string().trim().min(1).max(500).required(),
   lat: Joi.number().min(-90).max(90),
   lng: Joi.number().min(-180).max(180),
+  signature: Joi.string().trim().max(128),
   place_types: Joi.array().items(Joi.string().trim().max(50)).max(20),
-}).unknown(false);
+})
+  .unknown(false)
+  .and("lat", "lng", "signature")
+  .custom((value, helpers) => {
+    if (value.lat == null) {
+      return value;
+    }
+
+    if (!verifyCoordinateSignature(value.lat, value.lng, value.signature)) {
+      return helpers.error("location.invalid_signature");
+    }
+
+    return value;
+  })
+  .messages({
+    "location.invalid_signature":
+      "Pickup/drop location could not be verified. Please re-select it from search results.",
+  });
 
 const getLocationKey = (location) => {
   if (Number.isInteger(location)) {

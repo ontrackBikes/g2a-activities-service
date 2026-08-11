@@ -1,7 +1,7 @@
 const locations = [
   {
     id: 1,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Adhvasaha Beach Spa Resort",
     address: "Rangachang",
     lat: 11.6424704,
@@ -10,7 +10,7 @@ const locations = [
   },
   {
     id: 2,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Symphony Samudra",
     address: "Chidyatapu",
     lat: 11.5080247,
@@ -19,7 +19,7 @@ const locations = [
   },
   {
     id: 3,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sea Cliff",
     address: "South Point",
     lat: 11.6543933,
@@ -28,7 +28,7 @@ const locations = [
   },
   {
     id: 4,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sea Princess Beach Resort",
     address: "New Wandoor",
     lat: 11.598726,
@@ -37,7 +37,7 @@ const locations = [
   },
   {
     id: 5,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sea Shell",
     address: "Marine Hill",
     lat: 11.6757343,
@@ -46,7 +46,7 @@ const locations = [
   },
   {
     id: 6,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sea Shell Coral Cove",
     address: "Minnie Bay",
     lat: 11.6424704,
@@ -55,7 +55,7 @@ const locations = [
   },
   {
     id: 7,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Coral Reef",
     address: "Bhathu Basti",
     lat: 11.6422305,
@@ -64,7 +64,7 @@ const locations = [
   },
   {
     id: 8,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "TSG Emerald",
     address: "Phoenix Bay",
     lat: 11.6548583,
@@ -73,7 +73,7 @@ const locations = [
   },
   {
     id: 9,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Salt Life",
     address: "Haddo",
     lat: 11.6619913,
@@ -82,7 +82,7 @@ const locations = [
   },
   {
     id: 10,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Mansha Palace",
     address: "Marine Hill",
     lat: 11.6582085,
@@ -91,7 +91,7 @@ const locations = [
   },
   {
     id: 11,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Atlanta Seaview",
     address: "Atlanta Point",
     lat: 11.672179,
@@ -100,7 +100,7 @@ const locations = [
   },
   {
     id: 12,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Island Cliff",
     address: "Phoenix Bay",
     lat: 11.6650582,
@@ -109,7 +109,7 @@ const locations = [
   },
   {
     id: 13,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Idhaya",
     address: "Burmanalla",
     lat: 11.5561801,
@@ -118,7 +118,7 @@ const locations = [
   },
   {
     id: 14,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Olive Hotel & Suites",
     address: "Phoenix Bay",
     lat: 11.6548583,
@@ -127,7 +127,7 @@ const locations = [
   },
   {
     id: 15,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sinclairs Bay View",
     address: "South Point",
     lat: 11.6638864,
@@ -136,7 +136,7 @@ const locations = [
   },
   {
     id: 16,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "ITC Welcom",
     address: "Marine Hill",
     lat: 11.6761772,
@@ -145,7 +145,7 @@ const locations = [
   },
   {
     id: 17,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Andaman Shores Homestay",
     address: "Lamba Line",
     lat: 11.6145,
@@ -154,7 +154,7 @@ const locations = [
   },
   {
     id: 18,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Bayleaf Inn",
     address: "Atlanta Point",
     lat: 11.6710801,
@@ -163,7 +163,7 @@ const locations = [
   },
   {
     id: 19,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Zostel",
     address: "Phoenix Bay",
     lat: 11.66996,
@@ -172,7 +172,7 @@ const locations = [
   },
   {
     id: 20,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Hornbill Nest",
     address: "Corbyns Cove Rd",
     lat: 11.6472938,
@@ -181,7 +181,7 @@ const locations = [
   },
   {
     id: 21,
-    type: ["airport"],
+    place_types: ["airport"],
     name: "VSI Airport",
     address: "Civil Enclave Road",
     lat: 11.64075,
@@ -190,7 +190,7 @@ const locations = [
   },
   {
     id: 22,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Cellular Jail National Memorial",
     address: "Atlanta Point, Port Blair",
     lat: 11.673356,
@@ -199,7 +199,7 @@ const locations = [
   },
   {
     id: 23,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Netaji Subhas Chandra Bose Island Ferry Point",
     address: "Aberdeen Jetty",
     lat: 11.67464,
@@ -208,7 +208,7 @@ const locations = [
   },
   {
     id: 24,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Corbyn's Cove Beach",
     address: "Corbyn's Cove Road",
     lat: 11.64887,
@@ -217,7 +217,7 @@ const locations = [
   },
   {
     id: 25,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Chatham Saw Mill",
     address: "Chatham Island",
     lat: 11.67869,
@@ -226,7 +226,7 @@ const locations = [
   },
   {
     id: 26,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Samudrika Naval Marine Museum",
     address: "Delanipur",
     lat: 11.66697,
@@ -235,7 +235,7 @@ const locations = [
   },
   {
     id: 27,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Anthropological Museum",
     address: "Middle Point",
     lat: 11.66737,
@@ -244,7 +244,7 @@ const locations = [
   },
   {
     id: 28,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Fisheries Museum",
     address: "Rajiv Gandhi Water Sports Complex",
     lat: 11.67514,
@@ -253,7 +253,7 @@ const locations = [
   },
   {
     id: 29,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Forest Museum",
     address: "Chatham Island",
     lat: 11.67802,
@@ -262,7 +262,7 @@ const locations = [
   },
   {
     id: 30,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Jogger's Park",
     address: "Prothrapur",
     lat: 11.62451,
@@ -271,7 +271,7 @@ const locations = [
   },
   {
     id: 31,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Marina Park",
     address: "Rajiv Gandhi Water Sports Complex",
     lat: 11.6757,
@@ -280,7 +280,7 @@ const locations = [
   },
   {
     id: 32,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Gandhi Park",
     address: "Delanipur",
     lat: 11.66822,
@@ -289,7 +289,7 @@ const locations = [
   },
   {
     id: 33,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Science Centre",
     address: "Goodwill Estate",
     lat: 11.66404,
@@ -298,7 +298,7 @@ const locations = [
   },
   {
     id: 34,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Rajiv Gandhi Water Sports Complex",
     address: "Aberdeen",
     lat: 11.67553,
@@ -307,7 +307,7 @@ const locations = [
   },
   {
     id: 35,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Phoenix Bay Jetty",
     address: "Phoenix Bay",
     lat: 11.65486,
@@ -316,7 +316,7 @@ const locations = [
   },
   {
     id: 36,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Haddo Wharf",
     address: "Haddo",
     lat: 11.66664,
@@ -325,7 +325,7 @@ const locations = [
   },
   {
     id: 37,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Chatham Jetty",
     address: "Chatham Island",
     lat: 11.67848,
@@ -334,7 +334,7 @@ const locations = [
   },
   {
     id: 38,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Junglighat Jetty",
     address: "Junglighat",
     lat: 11.65082,
@@ -343,7 +343,7 @@ const locations = [
   },
   {
     id: 39,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Aberdeen Jetty",
     address: "Aberdeen",
     lat: 11.67464,
@@ -352,7 +352,7 @@ const locations = [
   },
   {
     id: 40,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Rajiv Gandhi Water Sports Complex Jetty",
     address: "Aberdeen",
     lat: 11.67553,
@@ -361,7 +361,7 @@ const locations = [
   },
   {
     id: 41,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Lemon Tree Hotel, Port Blair",
     address: "Airport Road",
     lat: 11.64658,
@@ -370,7 +370,7 @@ const locations = [
   },
   {
     id: 42,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Hotel Sentinel",
     address: "Phoenix Bay",
     lat: 11.65723,
@@ -379,7 +379,7 @@ const locations = [
   },
   {
     id: 43,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Hotel Shompen",
     address: "Middle Point",
     lat: 11.66712,
@@ -388,7 +388,7 @@ const locations = [
   },
   {
     id: 44,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Hotel Landmark",
     address: "Goal Ghar",
     lat: 11.66674,
@@ -397,7 +397,7 @@ const locations = [
   },
   {
     id: 45,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Peerless Resort Port Blair",
     address: "Corbyn's Cove",
     lat: 11.65038,
@@ -406,7 +406,7 @@ const locations = [
   },
   {
     id: 46,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "TSG Aura Resort",
     address:
       "Beach No. 5, Sitapur Beach, Shaheed Dweep (Neil Island), Port Blair, South Andaman, Andaman and Nicobar Islands, India – 744104",
@@ -416,7 +416,7 @@ const locations = [
   },
   {
     id: 47,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Symphony Summer Sands, Neil Island",
     address:
       "Ram Nagar Beach, Ram Nagar, Shaheed Dweep (Neil Island), Port Blair, South Andaman, Andaman and Nicobar Islands, India – 744104",
@@ -426,7 +426,7 @@ const locations = [
   },
   {
     id: 48,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Tango Beach Resort",
     address:
       "Beach No. 1, Lakshmanpur Beach, Shaheed Dweep (Neil Island), Port Blair, South Andaman, Andaman and Nicobar Islands, India – 744104",
@@ -436,7 +436,7 @@ const locations = [
   },
   {
     id: 49,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Pearl Park Beach Resort & SPA",
     address:
       "Beach No. 1, Lakshmanpur Beach, Shaheed Dweep (Neil Island), Port Blair, South Andaman, Andaman and Nicobar Islands, India – 744104",
@@ -446,7 +446,7 @@ const locations = [
   },
   {
     id: 50,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Bharatpur Beach",
     address: "Bharatpur, Shaheed Dweep (Neil Island)",
     lat: 11.84116,
@@ -455,7 +455,7 @@ const locations = [
   },
   {
     id: 51,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Laxmanpur Beach I",
     address: "Laxmanpur Village, Shaheed Dweep",
     lat: 11.83338,
@@ -464,7 +464,7 @@ const locations = [
   },
   {
     id: 52,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Laxmanpur Beach II (Natural Bridge)",
     address: "Laxmanpur Village, Shaheed Dweep",
     lat: 11.82485,
@@ -473,7 +473,7 @@ const locations = [
   },
   {
     id: 53,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Natural Bridge (Howrah Bridge)",
     address: "Laxmanpur Beach II",
     lat: 11.8249,
@@ -482,7 +482,7 @@ const locations = [
   },
   {
     id: 54,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Sitapur Beach (Sunrise Beach)",
     address: "Sitapur Village, Shaheed Dweep",
     lat: 11.82069,
@@ -491,7 +491,7 @@ const locations = [
   },
   {
     id: 55,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Ram Nagar Beach",
     address: "Ram Nagar, Shaheed Dweep",
     lat: 11.8158,
@@ -500,7 +500,7 @@ const locations = [
   },
   {
     id: 56,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Neil Kendra Village",
     address: "Neil Kendra, Shaheed Dweep",
     lat: 11.82782,
@@ -509,7 +509,7 @@ const locations = [
   },
   {
     id: 58,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Neil Island Market",
     address: "Neil Kendra",
     lat: 11.82757,
@@ -518,7 +518,7 @@ const locations = [
   },
   {
     id: 59,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Vegetable Farms (Organic Farms)",
     address: "Neil Kendra & surrounding villages",
     lat: 11.8286,
@@ -527,7 +527,7 @@ const locations = [
   },
   {
     id: 60,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Taj Exotica Resort & Spa, Andamans",
     address:
       "Radha Nagar, Beach Number 7, Havelock Island, Andaman and Nicobar Islands 744211",
@@ -537,7 +537,7 @@ const locations = [
   },
   {
     id: 61,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "TSG Blue Resort & Spa",
     address:
       "Radha Nagar, Beach Number 7, Havelock Island, Andaman and Nicobar Islands 744211",
@@ -547,7 +547,7 @@ const locations = [
   },
   {
     id: 62,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Barefoot at Havelock",
     address:
       "Beach No. 7, Radhanagar Village, Havelock Island, Andaman and Nicobar Islands 744211",
@@ -557,7 +557,7 @@ const locations = [
   },
   {
     id: 63,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "De Foret",
     address:
       "No. 7, Radha Nagar Village, Swaraj Dweep, Andaman and Nicobar Islands 744211",
@@ -567,7 +567,7 @@ const locations = [
   },
   {
     id: 64,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Symphony Palms Beach Resort & Spa",
     address:
       "Beach No. 3, Govind Nagar, Havelock, Andaman and Nicobar Islands 744211",
@@ -577,7 +577,7 @@ const locations = [
   },
   {
     id: 65,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Dolphin Beach Resort",
     address:
       "No. 5, Govind Nagar, Havelock Island (Swaraj Dweep), Andaman and Nicobar Islands 744211",
@@ -587,7 +587,7 @@ const locations = [
   },
   {
     id: 66,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sea Shell Resort",
     address: "No. 2, Govind Nagar, Andaman and Nicobar Islands 744211",
     lat: 11.9675,
@@ -596,7 +596,7 @@ const locations = [
   },
   {
     id: 67,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Silver Sand Beach Resort, Havelock",
     address:
       "No. 5, Vijay Nagar Beach, Swaraj Dweep (Havelock Island), Andaman and Nicobar Islands 744211",
@@ -606,7 +606,7 @@ const locations = [
   },
   {
     id: 68,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Tilar Siro",
     address:
       "Beach No. 5, Vijay Nagar, Swaraj Dweep (Havelock Island), Andaman and Nicobar Islands 744211",
@@ -616,7 +616,7 @@ const locations = [
   },
   {
     id: 69,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Aquays Hotels & Resorts",
     address:
       "Beach No. 5, Govind Nagar, Havelock Island (Swaraj Dweep), Andaman and Nicobar Islands 744211",
@@ -626,7 +626,7 @@ const locations = [
   },
   {
     id: 70,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Coral Reef Resort & Spa, Havelock",
     address:
       "No. 5, Vijayanagar, Swaraj Dweep (Havelock Island), South Andaman District, Andaman and Nicobar Islands 744211",
@@ -636,7 +636,7 @@ const locations = [
   },
   {
     id: 71,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Sandyy Wavess Beach Resort",
     address: "5 Vijay Nagar, Govind Nagar, Andaman and Nicobar Islands 744211",
     lat: 12.0107,
@@ -645,7 +645,7 @@ const locations = [
   },
   {
     id: 72,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Ocean Tree Beach Resort & Spa",
     address: "Beach No. 5, Havelock Island, Andaman and Nicobar Islands 744211",
     lat: 12.0165,
@@ -654,7 +654,7 @@ const locations = [
   },
   {
     id: 73,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Radhanagar Beach (Beach No. 7)",
     address: "Radhanagar, Swaraj Dweep",
     lat: 11.9846,
@@ -663,7 +663,7 @@ const locations = [
   },
   {
     id: 74,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Elephant Beach",
     address: "West Coast, Swaraj Dweep",
     lat: 12.0067,
@@ -672,7 +672,7 @@ const locations = [
   },
   {
     id: 75,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Kalapathar Beach",
     address: "Kalapathar Village, Swaraj Dweep",
     lat: 11.9478,
@@ -681,7 +681,7 @@ const locations = [
   },
   {
     id: 76,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Vijaynagar Beach (Beach No. 5)",
     address: "Vijaynagar, Swaraj Dweep",
     lat: 12.0105,
@@ -690,7 +690,7 @@ const locations = [
   },
   {
     id: 77,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Govind Nagar Beach (Beach No. 3)",
     address: "Govind Nagar",
     lat: 11.9682,
@@ -699,7 +699,7 @@ const locations = [
   },
   {
     id: 78,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Nemo Reef",
     address: "Govind Nagar Beach",
     lat: 11.9686,
@@ -708,7 +708,7 @@ const locations = [
   },
   {
     id: 79,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Mangrove Kayaking Point",
     address: "Havelock Mangroves",
     lat: 11.9819,
@@ -717,7 +717,7 @@ const locations = [
   },
   {
     id: 80,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Lighthouse (Elephant Beach side)",
     address: "Northern Havelock",
     lat: 12.0156,
@@ -726,7 +726,7 @@ const locations = [
   },
   {
     id: 81,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Makruzz Ferry Terminal",
     address: "Havelock Jetty",
     lat: 11.9849,
@@ -735,7 +735,7 @@ const locations = [
   },
   {
     id: 82,
-    type: ["jetty"],
+    place_types: ["jetty"],
     name: "Green Ocean Ferry Terminal",
     address: "Havelock Jetty",
     lat: 11.9849,
@@ -744,7 +744,7 @@ const locations = [
   },
   {
     id: 83,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Havelock Market",
     address: "Govind Nagar",
     lat: 11.9842,
@@ -753,7 +753,7 @@ const locations = [
   },
   {
     id: 84,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Govind Nagar Junction",
     address: "Govind Nagar",
     lat: 11.9766,
@@ -762,7 +762,7 @@ const locations = [
   },
   {
     id: 85,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Blue Planet Scuba",
     address: "Govind Nagar",
     lat: 11.9683,
@@ -771,7 +771,7 @@ const locations = [
   },
   {
     id: 86,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Dive India",
     address: "Govind Nagar",
     lat: 11.9681,
@@ -780,7 +780,7 @@ const locations = [
   },
   {
     id: 87,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Barefoot Scuba",
     address: "Radhanagar",
     lat: 11.9865,
@@ -789,7 +789,7 @@ const locations = [
   },
   {
     id: 88,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Ocean Tribe Dive Centre",
     address: "Govind Nagar",
     lat: 11.968,
@@ -798,7 +798,7 @@ const locations = [
   },
   {
     id: 89,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "ScubaLov Dive Centre",
     address: "Govind Nagar",
     lat: 11.9684,
@@ -807,7 +807,7 @@ const locations = [
   },
   {
     id: 90,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Dive Andaman",
     address: "Govind Nagar",
     lat: 11.9691,
@@ -816,7 +816,7 @@ const locations = [
   },
   {
     id: 91,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Havelock Bus Stand",
     address: "Govind Nagar",
     lat: 11.9838,
@@ -825,7 +825,7 @@ const locations = [
   },
   {
     id: 92,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Forest Check Post (Elephant Beach Trek)",
     address: "Near Radhanagar Road",
     lat: 11.9955,
@@ -834,7 +834,7 @@ const locations = [
   },
   {
     id: 93,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Elephant Beach Trek Entry",
     address: "Havelock Forest Road",
     lat: 11.997,
@@ -843,7 +843,7 @@ const locations = [
   },
   {
     id: 94,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Beach No. 1",
     address: "Near Jetty",
     lat: 11.9848,
@@ -852,7 +852,7 @@ const locations = [
   },
   {
     id: 95,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Beach No. 2",
     address: "Govind Nagar",
     lat: 11.9768,
@@ -861,7 +861,7 @@ const locations = [
   },
   {
     id: 96,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Beach No. 3",
     address: "Govind Nagar",
     lat: 11.9682,
@@ -870,7 +870,7 @@ const locations = [
   },
   {
     id: 97,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Beach No. 5",
     address: "Vijaynagar",
     lat: 12.0105,
@@ -879,7 +879,7 @@ const locations = [
   },
   {
     id: 98,
-    type: ["attraction"],
+    place_types: ["attraction"],
     name: "Beach No. 7 (Radhanagar Beach)",
     address: "Radhanagar",
     lat: 11.9846,
@@ -888,7 +888,7 @@ const locations = [
   },
   {
     id: 99,
-    type: ["hotel"],
+    place_types: ["hotel"],
     name: "Haywizz Havelock Island Resort",
     address:
       "No. 1, Govind Nagar, Havelock Island (Swaraj Dweep), Port Blair Tehsil, South Andaman District, Andaman and Nicobar Islands 744211",
