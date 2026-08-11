@@ -25,6 +25,7 @@ const getLocationSnapshot = (location, locations) => {
       address: location.address,
       latitude: location.lat ?? null,
       longitude: location.lng ?? null,
+      place_types: location.place_types || [],
     };
   }
 

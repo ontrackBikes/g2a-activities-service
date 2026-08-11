@@ -1,4 +1,5 @@
 const ANDAMAN_NICOBAR_REGEX = /andaman|nicobar/i;
+const JETTY_NAME_REGEX = /jetty/i;
 
 /**
  * Roughly centered on Port Blair; radius below covers the
@@ -128,14 +129,22 @@ const searchLocations = async ({ query }) => {
   const places = data.results || [];
 
   const results = places
-    .map((place) => ({
-      place_id: place.place_id,
-      name: place.name || "",
-      description: place.formatted_address || "",
-      lat: place.geometry?.location?.lat ?? null,
-      lng: place.geometry?.location?.lng ?? null,
-      types: place.types || [],
-    }))
+    .map((place) => {
+      const types = place.types || [];
+
+      if (JETTY_NAME_REGEX.test(place.name || "") && !types.includes("jetty")) {
+        types.push("jetty");
+      }
+
+      return {
+        place_id: place.place_id,
+        name: place.name || "",
+        description: place.formatted_address || "",
+        lat: place.geometry?.location?.lat ?? null,
+        lng: place.geometry?.location?.lng ?? null,
+        types,
+      };
+    })
     .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description));
 
   searchCache.set(cacheKey, results);

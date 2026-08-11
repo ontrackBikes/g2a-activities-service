@@ -126,6 +126,7 @@ const formatTransferLocation = (location) => {
     name: location.name || null,
     type: location.type || null,
     address: location.address || null,
+    place_types: location.place_types || [],
   };
 };
 
