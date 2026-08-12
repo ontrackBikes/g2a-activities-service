@@ -7,6 +7,7 @@ const {
   Vendor,
   VendorSchedule,
   VendorScheduleSlot,
+  VendorScheduleSlotDistanceTier,
   Location,
 } = require("../models");
 
@@ -210,9 +211,23 @@ const getAvailableVendorForProduct = async ({
         }
 
         const slots = schedule.slots || [];
+
+        const distanceTierPrices =
+          vendorProduct.pricing_type === "KM_BASED" && slots.length
+            ? (
+                await VendorScheduleSlotDistanceTier.findAll({
+                  where: {
+                    vendor_schedule_slot_id: slots.map((slot) => slot.id),
+                  },
+                  attributes: ["price"],
+                })
+              ).map((tier) => tier.price)
+            : [];
+
         const pricing = getVendorProductPrice(
           vendorProduct,
           slots,
+          distanceTierPrices,
         );
 
         return {
@@ -385,7 +400,17 @@ const getLowestUpcomingPricesForProductLocations = async ({
         vp.product_id,
         vp.location_id,
         vp.pricing_type,
-        vss.price
+        LEAST(
+          vss.price,
+          COALESCE(
+            (
+              SELECT MIN(vssdt.price)
+              FROM vendor_schedule_slot_distance_tiers AS vssdt
+              WHERE vssdt.vendor_schedule_slot_id = vss.id
+            ),
+            vss.price
+          )
+        ) AS effective_price
       FROM vendor_products AS vp
       INNER JOIN vendors AS v ON v.id = vp.vendor_id
       INNER JOIN locations AS l ON l.id = vp.location_id
@@ -408,7 +433,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
           OR vss.start_time IS NULL
           OR vss.start_time > :currentTime
         )
-      ORDER BY vss.price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC
+      ORDER BY effective_price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC
     `,
     {
       replacements: {
@@ -430,7 +455,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
     if (!prices.has(key)) {
       prices.set(key, {
         price_type: row.pricing_type,
-        display_price: Number(row.price),
+        display_price: Number(row.effective_price),
       });
     }
   }

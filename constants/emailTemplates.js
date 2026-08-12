@@ -24,7 +24,8 @@ module.exports = {
     //         "pickup_time": "pickup_time_Value",
     //         "return_time": "return_time_Value",
     //         "pickup_location": "pickup_location_Value",
-    //         "drop_location": "drop_location_Value"
+    //         "drop_location": "drop_location_Value",
+    //         "opt_for_pickup_and_drop": true
     //       },
     //       "pricing": {
     //         "currency": "currency_Value",
@@ -43,6 +44,12 @@ module.exports = {
   BOOKING_CANCELLED:
     "booking-cancelled",
 
+  PAYMENT_PENDING:
+    "activities_order_pending",
+
+    // Sent when checkout polling finishes without a confirmed
+    // payment status (e.g. customer closed the checkout modal).
+    // Same model shape as PAYMENT_FAILED, with paymentStatus: "Pending".
 
   PAYMENT_FAILED:
     "activities_order_failed",

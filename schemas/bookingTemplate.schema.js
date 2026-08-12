@@ -39,6 +39,10 @@ const createBookingTemplateSchema = Joi.object({
 
   description: Joi.string().allow("", null),
 
+  availability_handler: Joi.string()
+    .valid("standard", "airport_transfer", "cab_service")
+    .default("standard"),
+
   product_page_schema: Joi.object({
     fields: Joi.array().items(fieldSchema).default([]),
   }).required(),
@@ -56,6 +60,12 @@ const updateBookingTemplateSchema = Joi.object({
   slug: Joi.string().lowercase().trim().max(150),
 
   description: Joi.string().allow("", null),
+
+  availability_handler: Joi.string().valid(
+    "standard",
+    "airport_transfer",
+    "cab_service",
+  ),
 
   product_page_schema: Joi.object({
     fields: Joi.array().items(fieldSchema),

@@ -8,6 +8,7 @@ const productImagesRoutes = require("./productImage.routes");
 const vendorProductsRoutes = require("./vendorProduct.routes");
 const productTermRoutes = require("./productTerm.routes");
 const vendorProductSlotRoutes = require("./vendorProductSlot.routes");
+const vendorProductDistanceTierRoutes = require("./vendorProductDistanceTier.routes");
 const vendorSchedulesRoutes = require("./vendorSchedule.routes");
 const productFaqRoutes = require("./productFaq.routes");
 const productHighlightRoutes = require("./productHighlight.routes");
@@ -32,6 +33,8 @@ const order = require("./order.routes");
 const bikeRentalsRoutes = require("./bikeRentals.routes");
 const razorpayRoutes = require("./razorpay.routes");
 const authRoutes = require("./auth.routes");
+const paymentRoutes = require("./payment.routes");
+const googleMapsRoutes = require("./googleMaps.routes");
 
 const productCollectionRoutes =
   require("./productCollection.routes");
@@ -59,6 +62,8 @@ router.use("/product-terms", productTermRoutes);
 router.use("/vendor-products", vendorProductsRoutes);
 
 router.use("/vendor-products/:id",vendorProductSlotRoutes);
+
+router.use("/vendor-products/:id",vendorProductDistanceTierRoutes);
 
 router.use("/vendor-products/:id",vendorSchedulesRoutes);
 
@@ -123,6 +128,16 @@ router.use(
 router.use(
   "/orders",
   order,
+);
+
+router.use(
+  "/payments",
+  paymentRoutes,
+);
+
+router.use(
+  "/places",
+  googleMapsRoutes,
 );
 
 router.use(

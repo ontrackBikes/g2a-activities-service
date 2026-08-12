@@ -112,7 +112,7 @@ Product.init(
     },
 
 
-     pricing_mode: {
+    pricing_mode: {
       type: DataTypes.ENUM(
         "quantity",
         "guest"
@@ -211,7 +211,6 @@ Product.init(
       {
         fields: ["product_type_id", "active"],
       },
-
       {
         fields: ["featured", "active"],
       },

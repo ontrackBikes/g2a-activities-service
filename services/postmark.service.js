@@ -134,6 +134,14 @@ const sendTemplateEmail = async ({
       MessageStream: MESSAGE_STREAM,
     };
 
+    if (cc) {
+      payload.Cc = cc;
+    }
+
+    if (bcc) {
+      payload.Bcc = bcc;
+    }
+
     if (templateId) {
       payload.TemplateId = templateId;
     } else {

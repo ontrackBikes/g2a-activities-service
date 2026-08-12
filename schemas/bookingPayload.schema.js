@@ -81,7 +81,7 @@ const customer_details = Joi.object({
     .allow("", null)
     .optional(),
 
-  country: Joi.string().trim().required(),
+  country: Joi.string().trim().allow("", null).optional(),
 })
   .custom((value, helpers) => {
     if (
@@ -185,6 +185,8 @@ const medical_declaration = Joi.object({
     is: true,
     then: Joi.required(),
   }),
+
+  acknowledged: Joi.boolean(),
 }).unknown(false);
 
 const rental_details = Joi.object({
@@ -248,6 +250,8 @@ const flight_details = Joi.object({
   flight_number: Joi.string().trim().max(20).required(),
 }).unknown(false);
 
+const opt_for_pickup_and_drop = Joi.boolean();
+
 /*
 |--------------------------------------------------------------------------
 | Registry
@@ -268,6 +272,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
 
   [BOOKING_SECTIONS.FLIGHTDETAILS]: flight_details,
+
+  [BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP]: opt_for_pickup_and_drop,
 };
 
 /*

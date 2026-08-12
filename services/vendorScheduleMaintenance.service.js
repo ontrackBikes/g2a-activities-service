@@ -4,8 +4,10 @@ const sequelize = require("../config/sequelize");
 const {
   VendorProduct,
   VendorProductSlot,
+  VendorProductDistanceTier,
   VendorSchedule,
   VendorScheduleSlot,
+  VendorScheduleSlotDistanceTier,
 } = require("../models");
 
 const APP_TIMEZONE =
@@ -77,6 +79,17 @@ const maintainVendorProductSchedules = async (
 
       templateSlots = [defaultSlot];
     }
+
+    const templateDistanceTiers =
+      vendorProduct.pricing_type === "KM_BASED"
+        ? await VendorProductDistanceTier.findAll({
+            where: {
+              vendor_product_id: vendorProduct.id,
+              active: true,
+            },
+            transaction,
+          })
+        : [];
 
     if (
       vendorProduct.pricing_type === "SLOT" &&
@@ -209,6 +222,38 @@ const maintainVendorProductSchedules = async (
         });
 
         slotsCreated += scheduleSlots.length;
+
+        if (
+          vendorProduct.pricing_type === "KM_BASED" &&
+          templateDistanceTiers.length
+        ) {
+          const createdSlots = await VendorScheduleSlot.findAll({
+            where: {
+              vendor_schedule_id: schedule.id,
+              vendor_product_slot_id: missingTemplateSlots.map(
+                (slot) => slot.id,
+              ),
+            },
+            transaction,
+          });
+
+          const distanceTierRows = createdSlots.flatMap((createdSlot) =>
+            templateDistanceTiers.map((tier) => ({
+              vendor_schedule_slot_id: createdSlot.id,
+              min_distance_km: tier.min_distance_km,
+              price: tier.price,
+            })),
+          );
+
+          if (distanceTierRows.length) {
+            await VendorScheduleSlotDistanceTier.bulkCreate(
+              distanceTierRows,
+              {
+                transaction,
+              },
+            );
+          }
+        }
       }
 
       for (const templateSlot of templateSlots) {

@@ -1,5 +1,7 @@
 const Joi = require("joi");
-const airportTransferLocations = require("../constants/airportTransferLocations");
+const {
+  createTransferLocationValidation,
+} = require("./transferLocation.schema");
 
 const estimateId = Joi.string()
   .guid({
@@ -20,22 +22,6 @@ const time24Hour = Joi.string()
   .messages({
     "string.pattern.base": "pickup_time must be in HH:mm format",
   });
-
-const customAirportTransferLocationSchema = Joi.object({
-  type: Joi.string().valid("custom").required(),
-
-  name: Joi.string().trim().min(1).max(150).required(),
-
-  address: Joi.string().trim().min(1).max(500).required(),
-}).unknown(false);
-
-const airportTransferLocationSchema = Joi.alternatives()
-  .try(
-    Joi.number().integer().positive(),
-    customAirportTransferLocationSchema,
-  )
-  .allow(null)
-  .default(null);
 
 const checkSingleDateAvailabilitySchema = Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100).required(),
@@ -94,7 +80,14 @@ const checkDateRangeAvailabilitySchema = Joi.object({
   selected_slot_token: slotToken,
 });
 
-const checkAirportTransferAvailabilitySchema = Joi.object({
+const createAirportTransferAvailabilitySchema = ({ locations }) => {
+  const {
+    getConfiguredTransferLocation,
+    getLocationPairError,
+    transferLocationSchema,
+  } = createTransferLocationValidation({ locations });
+
+  return Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100).required(),
 
   date: Joi.string()
@@ -116,9 +109,9 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
     .valid("airport_to_location", "location_to_airport")
     .default("airport_to_location"),
 
-  pickup_location: airportTransferLocationSchema,
+  pickup_location: transferLocationSchema,
 
-  drop_location: airportTransferLocationSchema,
+  drop_location: transferLocationSchema,
 
   pickup_time: time24Hour.default("10:00"),
 
@@ -134,30 +127,21 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
       return value;
     }
 
-    const pickupLocation = Number.isInteger(value.pickup_location)
-      ? airportTransferLocations.find(({ id }) => id === value.pickup_location)
-      : null;
-    const dropLocation = Number.isInteger(value.drop_location)
-      ? airportTransferLocations.find(({ id }) => id === value.drop_location)
-      : null;
+    const locationError = getLocationPairError(value);
 
-    if (
-      (Number.isInteger(value.pickup_location) && !pickupLocation) ||
-      (Number.isInteger(value.drop_location) && !dropLocation)
-    ) {
-      return helpers.error("airport_transfer.invalid_location");
+    if (locationError) {
+      return helpers.error(`airport_transfer.${locationError}`);
     }
 
-    if (
-      pickupLocation &&
-      dropLocation &&
-      pickupLocation.id === dropLocation.id
-    ) {
-      return helpers.error("airport_transfer.same_location");
-    }
+    const pickupLocation = getConfiguredTransferLocation(
+      value.pickup_location,
+    );
+    const dropLocation = getConfiguredTransferLocation(
+      value.drop_location,
+    );
 
-    const pickupIsAirport = pickupLocation?.type === "airport";
-    const dropIsAirport = dropLocation?.type === "airport";
+    const pickupIsAirport = pickupLocation?.place_types?.includes("airport") ?? false;
+    const dropIsAirport = dropLocation?.place_types?.includes("airport") ?? false;
     const invalidRoute =
       (value.transfer_type === "airport_to_location" &&
         (!pickupIsAirport || dropIsAirport)) ||
@@ -178,14 +162,7 @@ const checkAirportTransferAvailabilitySchema = Joi.object({
     "airport_transfer.invalid_route":
       "Pickup and drop locations do not match the selected transfer_type.",
   });
-
-const checkOpenAvailabilitySchema = Joi.object({
-  location_slug: Joi.string().trim().lowercase().max(100).required(),
-
-  guests: Joi.number().integer().min(1).required(),
-
-  estimate_id: estimateId,
-});
+};
 
 const availableDatesQuerySchema = Joi.object({
   location_slug: Joi.string().trim().lowercase().max(100),
@@ -210,7 +187,6 @@ const availableDatesQuerySchema = Joi.object({
 module.exports = {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
-  checkAirportTransferAvailabilitySchema,
-  checkOpenAvailabilitySchema,
+  createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
 };

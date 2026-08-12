@@ -235,6 +235,22 @@ const formatEmailLocation = (location) => {
 const formatEmailLocationLabel = (location) =>
   [location?.name, location?.address].filter(Boolean).join(", ");
 
+const compactObject = (input) => {
+  if (Array.isArray(input)) {
+    return input.map(compactObject);
+  }
+
+  if (input === null || typeof input !== "object") {
+    return input;
+  }
+
+  return Object.fromEntries(
+    Object.entries(input)
+      .map(([key, value]) => [key, compactObject(value)])
+      .filter(([, value]) => value !== null && value !== undefined && value !== ""),
+  );
+};
+
 const formatEmailParticipant = (participant) => ({
   first_name: participant.first_name || "",
   last_name: participant.last_name || "",
@@ -258,7 +274,7 @@ const buildEmailItem = ({ item, order }) => {
   return {
     product_name: item.product_name,
     location_name: item.location_name,
-    booking: {
+    booking: compactObject({
       booking_mode: booking.booking_mode || item.booking_mode || "",
       travel_date: booking.travel_date || "",
       pickup_date: booking.pickup_date || "",
@@ -293,7 +309,9 @@ const buildEmailItem = ({ item, order }) => {
             drop_hotel_name: rentalDetails.drop_hotel_name || "",
           }
         : null,
-    },
+      opt_for_pickup_and_drop:
+        item.booking_payload?.opt_for_pickup_and_drop ?? false,
+    }),
     participants: (item.participants || []).map(formatEmailParticipant),
     pricing: {
       currency: pricing.currency || order.currency,
@@ -552,6 +570,235 @@ async function sendConfirmationEmail({ payment, order }) {
 }
 
 /**
+ * Send payment failed email
+ */
+async function sendPaymentFailedEmail({ payment, order }) {
+  const customerEmail = order.customer_details?.email;
+
+  if (!customerEmail) {
+    console.warn(
+      `[PaymentSettlement] No customer email found for order ${order.order_id}`,
+    );
+
+    return {
+      success: false,
+      message: "Customer email not found",
+    };
+  }
+
+  const customerName =
+    order.customer_details?.name ||
+    [order.customer_details?.first_name, order.customer_details?.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    "Customer";
+
+  const gatewayResponse = payment.gateway_response || {};
+
+  const emailTemplateModel = {
+    customerName,
+    customerEmail,
+    customerPhone: order.customer_details?.phone || "",
+    orderId: order.order_id,
+    order_id: order.order_id,
+    paymentId: payment.gateway_payment_id || payment.payment_id,
+    paymentStatus: "Failed",
+    bookingDate: new Date(order.created_at).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    currency: order.currency,
+    amount: formatEmailAmount(order.grand_total),
+    failureReason:
+      payment.failure_reason || gatewayResponse.error_description || "",
+    errorCode: gatewayResponse.error_code || "",
+    subtotal: formatEmailAmount(order.subtotal),
+    discount: formatEmailAmount(order.discount),
+    tax: formatEmailAmount(order.tax),
+    retryPaymentUrl: `${process.env.APP_URL}/checkout/orders/${order.order_id}`,
+  };
+
+  console.log(
+    `[PaymentSettlement] Sending payment failed email to ${customerEmail}`,
+  );
+
+  return sendTemplateEmail({
+    orderId: order.id,
+    customerId: order.customer_id,
+
+    to: customerEmail,
+    bcc: process.env.EMAIL_BCC_TEAM || null,
+    cc: process.env.EMAIL_CC_TEAM || null,
+
+    templateAlias: emailTemplates.PAYMENT_FAILED,
+
+    templateModel: emailTemplateModel,
+
+    metadata: {
+      type: "payment_failed",
+    },
+  });
+}
+
+/**
+ * Send when checkout polling finishes without a confirmed payment
+ * status (e.g. customer closed the checkout modal / gave up before
+ * completing payment). Mirrors sendPaymentFailedEmail.
+ */
+async function sendPaymentPendingEmail({ payment, order }) {
+  const customerEmail = order.customer_details?.email;
+
+  if (!customerEmail) {
+    console.warn(
+      `[PaymentSettlement] No customer email found for order ${order.order_id}`,
+    );
+
+    return {
+      success: false,
+      message: "Customer email not found",
+    };
+  }
+
+  const customerName =
+    order.customer_details?.name ||
+    [order.customer_details?.first_name, order.customer_details?.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    "Customer";
+
+  const gatewayResponse = payment.gateway_response || {};
+
+  const emailTemplateModel = {
+    customerName,
+    customerEmail,
+    customerPhone: order.customer_details?.phone || "",
+    orderId: order.order_id,
+    order_id: order.order_id,
+    paymentId: payment.gateway_payment_id || payment.payment_id,
+    paymentStatus: "Pending",
+    bookingDate: new Date(order.created_at).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    currency: order.currency,
+    amount: formatEmailAmount(order.grand_total),
+    failureReason:
+      payment.failure_reason || gatewayResponse.error_description || "",
+    errorCode: gatewayResponse.error_code || "",
+    subtotal: formatEmailAmount(order.subtotal),
+    discount: formatEmailAmount(order.discount),
+    tax: formatEmailAmount(order.tax),
+    retryPaymentUrl: `${process.env.APP_URL}/checkout/orders/${order.order_id}`,
+  };
+
+  console.log(
+    `[PaymentSettlement] Sending payment pending email to ${customerEmail}`,
+  );
+
+  return sendTemplateEmail({
+    orderId: order.id,
+    customerId: order.customer_id,
+
+    to: customerEmail,
+    bcc: process.env.EMAIL_BCC_TEAM || null,
+    cc: process.env.EMAIL_CC_TEAM || null,
+
+    templateAlias: emailTemplates.PAYMENT_PENDING,
+
+    templateModel: emailTemplateModel,
+
+    metadata: {
+      type: "payment_pending",
+    },
+  });
+}
+
+/**
+ * Resend the email for a payment, by public payment_id.
+ *
+ * Dispatches to the confirmation or failure email based on
+ * the payment's current status.
+ */
+async function resendPaymentEmail({ paymentId } = {}) {
+  if (!paymentId) {
+    throw new Error("paymentId is required.");
+  }
+
+  const payment = await Payment.findOne({
+    where: {
+      payment_id: paymentId,
+    },
+  });
+
+  if (!payment) {
+    return {
+      success: false,
+      reason: "not_found",
+    };
+  }
+
+  const order = await Order.findByPk(payment.order_id, {
+    include: [
+      {
+        association: "items",
+        include: [
+          {
+            association: "participants",
+          },
+        ],
+      },
+    ],
+  });
+
+  if (!order) {
+    return {
+      success: false,
+      reason: "order_not_found",
+    };
+  }
+
+  let type;
+  let result;
+
+  if (payment.status === "captured") {
+    type = "booking_confirmation";
+    result = await sendConfirmationEmail({ payment, order });
+  } else if (payment.status === "failed") {
+    type = "payment_failed";
+    result = await sendPaymentFailedEmail({ payment, order });
+  } else {
+    return {
+      success: false,
+      reason: "unsupported_status",
+      status: payment.status,
+    };
+  }
+
+  if (!result.success) {
+    return {
+      success: false,
+      reason:
+        result.message === "Customer email not found"
+          ? "no_customer_email"
+          : "send_failed",
+      type,
+    };
+  }
+
+  if (type === "booking_confirmation") {
+    await order.update({ email_confirmation_sent_at: new Date() });
+  }
+
+  return {
+    success: true,
+    type,
+    data: result.data,
+  };
+}
+
+/**
  * Test booking confirmation email
  *
  * Usage:
@@ -799,10 +1046,14 @@ const settlePayment = async ({ paymentId } = {}) => {
    * a successful payment.
    */
   try {
-    await sendConfirmationEmail({
+    const confirmationEmailResult = await sendConfirmationEmail({
       payment,
       order,
     });
+
+    if (confirmationEmailResult?.success) {
+      await order.update({ email_confirmation_sent_at: new Date() });
+    }
 
     await sendNotifications({
       payment,
@@ -825,4 +1076,7 @@ const settlePayment = async ({ paymentId } = {}) => {
 
 module.exports = {
   settlePayment,
+  sendPaymentFailedEmail,
+  sendPaymentPendingEmail,
+  resendPaymentEmail,
 };

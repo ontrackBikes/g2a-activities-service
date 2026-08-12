@@ -167,6 +167,39 @@ const getAvailableVendorForProduct = async ({
         };
       }
     }
+
+    /**
+     * KM_BASED pricing
+     *
+     * Ranked by base_price alone (proxy, same as FIXED) —
+     * the actual tiered fare depends on distance, which isn't
+     * known yet at this stage.
+     */
+
+    if (vendorProduct.pricing_type === "KM_BASED") {
+      if (!schedule.slots.length) {
+        continue;
+      }
+
+      const displayPrice = Number(vendorProduct.base_price);
+
+      if (
+        !selected ||
+        displayPrice < selected.pricing.display_price
+      ) {
+        selected = {
+          vendorProduct,
+          schedule,
+
+          pricing: {
+            price_type: "KM_BASED",
+            display_price: displayPrice,
+          },
+
+          slots: schedule.slots,
+        };
+      }
+    }
   }
 
   return selected;

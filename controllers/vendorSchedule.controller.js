@@ -4,8 +4,10 @@ const sequelize = require("../config/sequelize");
 const {
   VendorProduct,
   VendorProductSlot,
+  VendorProductDistanceTier,
   VendorSchedule,
   VendorScheduleSlot,
+  VendorScheduleSlotDistanceTier,
 } = require("../models");
 
 const {
@@ -14,6 +16,7 @@ const {
   updateVendorScheduleSlotSchema,
   bulkUpdateVendorScheduleSlotsSchema,
   createVendorScheduleSlotsForDatesSchema,
+  replaceScheduleSlotDistanceTiersSchema,
 } = require("../schemas/vendorSchedule.schema");
 
 const moment = require("moment-timezone");
@@ -90,6 +93,17 @@ const createVendorSchedules = async (req, res) => {
       });
     }
 
+    const templateDistanceTiers =
+      vendorProduct.pricing_type === "KM_BASED"
+        ? await VendorProductDistanceTier.findAll({
+            where: {
+              vendor_product_id: vendorProduct.id,
+              active: true,
+            },
+            transaction,
+          })
+        : [];
+
     let schedulesCreated = 0;
     let slotsCreated = 0;
 
@@ -110,7 +124,7 @@ const createVendorSchedules = async (req, res) => {
       schedulesCreated++;
 
       for (const slot of value.slots) {
-        await VendorScheduleSlot.create(
+        const createdSlot = await VendorScheduleSlot.create(
           {
             vendor_schedule_id: schedule.id,
 
@@ -146,6 +160,17 @@ const createVendorSchedules = async (req, res) => {
         );
 
         slotsCreated++;
+
+        if (templateDistanceTiers.length) {
+          await VendorScheduleSlotDistanceTier.bulkCreate(
+            templateDistanceTiers.map((tier) => ({
+              vendor_schedule_slot_id: createdSlot.id,
+              min_distance_km: tier.min_distance_km,
+              price: tier.price,
+            })),
+            { transaction },
+          );
+        }
       }
     }
 
@@ -972,6 +997,15 @@ const getVendorProductCalendar = async (req, res) => {
         {
           model: VendorScheduleSlot,
           as: "slots",
+          include:
+            vendorProduct.pricing_type === "KM_BASED"
+              ? [
+                  {
+                    model: VendorScheduleSlotDistanceTier,
+                    as: "distanceTiers",
+                  },
+                ]
+              : [],
         },
       ],
       order: [["schedule_date", "ASC"]],
@@ -1034,11 +1068,18 @@ const syncVendorProductSchedules = async (
       await VendorProduct.findOne({
         attributes: ["id"],
         where: {
-          id: req.params.id,
-          active: true,
+          id: req.params.id
         },
       });
+      // if (!vendorProduct.active) {}
 
+      if(vendorProduct.active === false) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Active vendor product not found",
+        });
+      }
     if (!vendorProduct) {
       return res.status(404).json({
         success: false,
@@ -1077,6 +1118,205 @@ const syncVendorProductSchedules = async (
   }
 };
 
+const getScheduleSlotDistanceTiers = async (
+  req,
+  res
+) => {
+  try {
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found",
+      });
+    }
+
+    const slot = await VendorScheduleSlot.findOne({
+      where: {
+        id: req.params.slotId,
+        vendor_schedule_id: schedule.id,
+      },
+      include: [
+        {
+          model: VendorScheduleSlotDistanceTier,
+          as: "distanceTiers",
+        },
+      ],
+    });
+
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule slot not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        allow_sync_updates: slot.allow_sync_updates,
+        tiers: slot.distanceTiers,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[VendorScheduleController] getScheduleSlotDistanceTiers",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const replaceScheduleSlotDistanceTiers = async (
+  req,
+  res
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { error, value } =
+      replaceScheduleSlotDistanceTiersSchema.validate(
+        req.body
+      );
+
+    if (error) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const schedule = await VendorSchedule.findOne({
+      where: {
+        id: req.params.scheduleId,
+        vendor_product_id: req.params.id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!schedule) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found",
+      });
+    }
+
+    const vendorProduct = await VendorProduct.findByPk(
+      req.params.id,
+      {
+        transaction,
+      }
+    );
+
+    if (
+      !vendorProduct ||
+      vendorProduct.pricing_type !== "KM_BASED"
+    ) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Distance tiers can only be set for KM_BASED pricing vendor products",
+      });
+    }
+
+    const slot = await VendorScheduleSlot.findOne({
+      where: {
+        id: req.params.slotId,
+        vendor_schedule_id: schedule.id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!slot) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Schedule slot not found",
+      });
+    }
+
+    await VendorScheduleSlotDistanceTier.destroy({
+      where: {
+        vendor_schedule_slot_id: slot.id,
+      },
+      transaction,
+    });
+
+    const tierRows = value.tiers.map((tier) => ({
+      vendor_schedule_slot_id: slot.id,
+      min_distance_km: tier.min_distance_km,
+      price: tier.price,
+    }));
+
+    if (tierRows.length) {
+      await VendorScheduleSlotDistanceTier.bulkCreate(
+        tierRows,
+        {
+          transaction,
+        }
+      );
+    }
+
+    await slot.update(
+      {
+        allow_sync_updates:
+          value.allow_sync_updates ?? false,
+      },
+      {
+        transaction,
+      }
+    );
+
+    await transaction.commit();
+
+    const tiers = await VendorScheduleSlotDistanceTier.findAll({
+      where: {
+        vendor_schedule_slot_id: slot.id,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Schedule slot distance tiers updated successfully",
+      data: {
+        allow_sync_updates: slot.allow_sync_updates,
+        tiers,
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error(
+      "[VendorScheduleController] replaceScheduleSlotDistanceTiers",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createVendorSchedules,
   createVendorScheduleSlotsForDates,
@@ -1087,5 +1327,7 @@ module.exports = {
   bulkUpdateVendorScheduleSlots,
   deleteVendorSchedule,
   getVendorProductCalendar,
+  getScheduleSlotDistanceTiers,
+  replaceScheduleSlotDistanceTiers,
   syncVendorProductSchedules,
 };

@@ -11,6 +11,9 @@ const {
   paymentSettlementQueue,
 } = require("../queues/payment/paymentSettlement.queue");
 const { PAYMENT_SETTLEMENT_QUEUE } = require("../constants/queues");
+const {
+  sendPaymentFailedEmail,
+} = require("../services/paymentSettlement.service");
 
 const razorpayWebhook = async (req, res) => {
   console.log("🔔 Webhook received");
@@ -149,6 +152,107 @@ const getOrderInfo = async (req, res) => {
   }
 };
 
+const handlePaymentFailed = async ({ paymentEntity, res }) => {
+  console.info(
+    `[RazorpayWebhook] Payment failed: ${paymentEntity.id}`
+  );
+
+  /**
+   * Update payment
+   */
+  const [updatedRows] =
+    await Payment.update(
+      {
+        status: "failed",
+
+        gateway_payment_id:
+          paymentEntity.id,
+
+        failure_reason:
+          paymentEntity.error_description ||
+          paymentEntity.error_reason ||
+          null,
+
+        gateway_response:
+          paymentEntity,
+      },
+      {
+        where: {
+          gateway_order_id:
+            paymentEntity.order_id,
+
+          status: {
+            [Op.ne]:
+              "captured",
+          },
+        },
+      }
+    );
+
+  if (!updatedRows) {
+    console.info(
+      `[RazorpayWebhook] Payment already captured or not found (${paymentEntity.order_id})`
+    );
+
+    return res.sendStatus(200);
+  }
+
+  console.info(
+    `[RazorpayWebhook] Updated ${updatedRows} payment record(s) as failed`
+  );
+
+  /**
+   * Load payment + order
+   */
+  const payment =
+    await Payment.findOne({
+      where: {
+        gateway_order_id:
+          paymentEntity.order_id,
+      },
+    });
+
+  if (!payment) {
+    console.warn(
+      `[RazorpayWebhook] Payment row not found after update (${paymentEntity.order_id})`
+    );
+
+    return res.sendStatus(200);
+  }
+
+  const order =
+    await Order.findByPk(
+      payment.order_id
+    );
+
+  if (!order) {
+    console.warn(
+      `[RazorpayWebhook] Order not found for payment ${payment.id}`
+    );
+
+    return res.sendStatus(200);
+  }
+
+  /**
+   * Notify customer.
+   *
+   * Must never block the webhook ack.
+   */
+  try {
+    await sendPaymentFailedEmail({
+      payment,
+      order,
+    });
+  } catch (error) {
+    console.error(
+      "[RazorpayWebhook][PaymentFailedEmail]",
+      error
+    );
+  }
+
+  return res.sendStatus(200);
+};
+
 const razorpayWebhookv1 = async (req, res) => {
   console.info("[RazorpayWebhook] Received webhook");
 
@@ -187,7 +291,10 @@ const razorpayWebhookv1 = async (req, res) => {
     /**
      * Ignore events we don't care about
      */
-    if (payload.event !== "payment.captured") {
+    if (
+      payload.event !== "payment.captured" &&
+      payload.event !== "payment.failed"
+    ) {
       console.info(
         `[RazorpayWebhook] Ignoring event ${payload.event}`
       );
@@ -197,6 +304,13 @@ const razorpayWebhookv1 = async (req, res) => {
 
     const paymentEntity =
       payload.payload.payment.entity;
+
+    if (payload.event === "payment.failed") {
+      return handlePaymentFailed({
+        paymentEntity,
+        res,
+      });
+    }
 
     console.info(
       `[RazorpayWebhook] Payment captured: ${paymentEntity.id}`

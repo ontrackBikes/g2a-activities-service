@@ -12,6 +12,7 @@ module.exports = Object.freeze({
 
   // Optional
   ADDONS: "addons",
+  OPT_FOR_PICKUP_AND_DROP: "opt_for_pickup_and_drop",
 
   // Checkout
   REVIEW: "review",

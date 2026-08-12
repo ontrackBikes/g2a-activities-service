@@ -16,15 +16,15 @@ const {
 const {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
-  checkAirportTransferAvailabilitySchema,
+  createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
-  getAvailableVendorForProduct,
-} = require("../services/availableVendor.service");
+  createCabServiceAvailabilitySchema,
+} = require("../schemas/cabServiceAvailability.schema");
+const transferLocations = require("../constants/transferLocations");
 const {
   DateRangeAvailabilityError,
-  getAvailableDateRangeVendor,
 } = require("../services/availability/availableVendorDateRange.service.js");
 const {
   checkDateRange,
@@ -36,6 +36,9 @@ const {
   checkAirportTransfer,
 } = require("../services/availability/airportTransfer.service.js");
 const {
+  checkCabService,
+} = require("../services/availability/cabService.service.js");
+const {
   AvailableDatesError,
   getAvailableDates,
 } = require("../services/availability/availableDates.service");
@@ -44,6 +47,25 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
 const isBikeRentalProduct = (product) =>
   product?.productType?.slug === "bike-rentals";
+
+const normalizeLocationKey = (value) =>
+  value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+
+const getTransferLocationsForLocation = (locationSlug) =>
+  transferLocations.filter(
+    ({ place }) => normalizeLocationKey(place) === locationSlug,
+  );
+
+const transferAvailabilityHandlers = {
+  airport_transfer: {
+    createSchema: createAirportTransferAvailabilitySchema,
+    checkAvailability: checkAirportTransfer,
+  },
+  cab_service: {
+    createSchema: createCabServiceAvailabilitySchema,
+    checkAvailability: checkCabService,
+  },
+};
 
 const checkProductAvailability = async (req, res) => {
   try {
@@ -155,6 +177,21 @@ const checkProductAvailability = async (req, res) => {
       });
     }
 
+    const location = await Location.findOne({
+      attributes: ["id", "slug", "name"],
+      where: {
+        slug: payload.location_slug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
     const today = moment().tz(APP_TIMEZONE).startOf("day");
     const defaultPickupDate = isBikeRentalProduct(product)
       ? today.clone().add(1, "day")
@@ -179,22 +216,52 @@ const checkProductAvailability = async (req, res) => {
       single_date: checkSingleDateAvailabilitySchema,
       date_range: checkDateRangeAvailabilitySchema,
     };
+    const handlers = {
+      single_date: checkSingleDate,
+      date_range: checkDateRange,
+    };
 
-    const isAirportTransfer =
-      product.bookingTemplate?.product_page_schema?.fields?.some(
-        ({ field }) => field === "transfer_type",
-      );
+    const availabilityHandler =
+      product.bookingTemplate?.availability_handler || "standard";
+    const isSingleDateBooking = product.booking_mode === "single_date";
+    const transferHandler =
+      transferAvailabilityHandlers[availabilityHandler] || null;
+    const locations = transferHandler
+      ? getTransferLocationsForLocation(location.slug)
+      : null;
 
-    const schema = isAirportTransfer
-      ? checkAirportTransferAvailabilitySchema
-      : schemaMap[product.booking_mode];
-
-    if (!schema) {
+    if (!schemaMap[product.booking_mode]) {
       return res.status(400).json({
         success: false,
         message: `Unsupported booking mode '${product.booking_mode}'.`,
       });
     }
+
+    if (availabilityHandler !== "standard" && !transferHandler) {
+      return res.status(400).json({
+        success: false,
+        message: `Unsupported availability handler '${availabilityHandler}'.`,
+      });
+    }
+
+    if (transferHandler && !isSingleDateBooking) {
+      return res.status(400).json({
+        success: false,
+        message: `Availability handler '${availabilityHandler}' requires single_date booking mode.`,
+      });
+    }
+
+    if (transferHandler && !locations.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Transfer service is not configured for the selected location.",
+      });
+    }
+
+    const schema =
+      isSingleDateBooking && transferHandler
+        ? transferHandler.createSchema({ locations })
+        : schemaMap[product.booking_mode];
 
     const { error, value } = schema.validate(payload, {
       abortEarly: true,
@@ -209,9 +276,7 @@ const checkProductAvailability = async (req, res) => {
     }
 
     const pricingField =
-      isAirportTransfer || product.pricing_mode === "quantity"
-        ? "quantity"
-        : "guests";
+      product.pricing_mode === "quantity" ? "quantity" : "guests";
 
     if (!value[pricingField]) {
       return res.status(400).json({
@@ -226,40 +291,19 @@ const checkProductAvailability = async (req, res) => {
     };
 
     /**
-     * Location
-     */
-    const location = await Location.findOne({
-      attributes: ["id", "slug", "name"],
-      where: {
-        slug: value.location_slug,
-        active: true,
-      },
-    });
-
-    if (!location) {
-      return res.status(404).json({
-        success: false,
-        message: "Location not found.",
-      });
-    }
-
-    /**
      * Booking Mode Dispatcher
      */
-    const handlers = {
-      single_date: checkSingleDate,
-      date_range: checkDateRange,
-    };
-
-    const handler = isAirportTransfer
-      ? checkAirportTransfer
-      : handlers[product.booking_mode];
+    const handler =
+      isSingleDateBooking && transferHandler
+        ? transferHandler.checkAvailability
+        : handlers[product.booking_mode];
 
     const result = await handler({
       product,
       location,
       payload: availabilityPayload,
       estimateId: availabilityPayload.estimate_id,
+      ...(transferHandler ? { locations } : {}),
     });
 
     return res.status(result.status || 200).json({
@@ -358,31 +402,89 @@ const getProductAvailableDates = async (req, res) => {
 
 
 
-const airportTransferLocations = require("../constants/airportTransferLocations");
-
-const getAirportTransferAvailableLocations = async (req, res) => {
+const getAvailableTransferLocations = async (req, res) => {
   try {
     const locationSlug = String(req.query.location_slug || "")
       .trim()
       .toLowerCase();
 
-    const data = locationSlug
-      ? airportTransferLocations.filter(
-          (location) =>
-            location.place.replace(/\s+/g, "-") === locationSlug,
-        )
-      : airportTransferLocations;
+    if (!locationSlug) {
+      return res.status(400).json({
+        success: false,
+        message: "location_slug is required.",
+      });
+    }
+
+    const product = await Product.findOne({
+      attributes: ["slug"],
+      where: {
+        slug: req.params.slug,
+        active: true,
+      },
+      include: [
+        {
+          model: BookingTemplate,
+          as: "bookingTemplate",
+          attributes: ["availability_handler"],
+          required: true,
+        },
+      ],
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    const location = await Location.findOne({
+      attributes: ["slug", "name"],
+      where: {
+        slug: locationSlug,
+        active: true,
+      },
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found.",
+      });
+    }
+
+    const availabilityHandler = product.bookingTemplate.availability_handler;
+    const transferHandler =
+      transferAvailabilityHandlers[availabilityHandler] || null;
+
+    if (!transferHandler) {
+      return res.status(400).json({
+        success: false,
+        message: "Transfer locations are not configured for this product.",
+      });
+    }
+
+    const data = getTransferLocationsForLocation(location.slug);
+
+    if (!data.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Transfer service is not configured for the selected location.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
+      allow_custom: true,
+      selected_location: location,
       data,
     });
   } catch (error) {
-    console.error("getAirportTransferAvailableLocations:", error);
+    console.error("getAvailableTransferLocations:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch airport transfer locations.",
+      message: "Failed to fetch transfer locations.",
     });
   }
 };
@@ -390,6 +492,5 @@ const getAirportTransferAvailableLocations = async (req, res) => {
 module.exports = {
   checkProductAvailability,
   getProductAvailableDates,
-  getAirportTransferAvailableLocations
-  
+  getAvailableTransferLocations,
 };
