@@ -2,6 +2,9 @@ const { validate } = require("../schemas/bikeRentalsOrder.schema");
 const googleSheetService = require("../services/googleSheet.service");
 const bikeRentalService = require("../services/bikeRentals.service");
 const razorpayService = require("../services/razorpay.service");
+const {
+  sendPaymentPendingEmail,
+} = require("../services/paymentSettlement.service");
 const BookingEstimate = require("../models/bookingEstimate.model");
 const { Op } = require("sequelize");
 const { parsePhoneNumberFromString } = require("libphonenumber-js");
@@ -1725,6 +1728,75 @@ const verifyOrderPayment = async (req, res) => {
   }
 };
 
+/**
+ * Notify customer + team that a payment is still unconfirmed.
+ *
+ * Called by the frontend when its post-checkout status polling
+ * finishes without ever seeing a confirmed payment (e.g. the
+ * customer closed the Razorpay checkout modal).
+ */
+const notifyPaymentPending = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const { payment_id } = req.body || {};
+
+    const order = await Order.findOne({
+      where: {
+        order_id,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    if (order.payment_status === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Order is already paid.",
+      });
+    }
+
+    const payment = await Payment.findOne({
+      where: payment_id
+        ? { payment_id, order_id: order.id }
+        : { order_id: order.id },
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "No payment attempt found for this order.",
+      });
+    }
+
+    const result = await sendPaymentPendingEmail({ payment, order });
+
+    if (!result.success) {
+      return res.status(422).json({
+        success: false,
+        message: result.message || "Unable to send payment pending email.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Payment pending email sent.",
+    });
+  } catch (error) {
+    console.error("[notifyPaymentPending]", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send payment pending notification.",
+    });
+  }
+};
+
 module.exports = {
   createBikeRentalOrder,
   createOrder,
@@ -1732,4 +1804,5 @@ module.exports = {
   getOrder,
   createOrderPayment,
   verifyOrderPayment,
+  notifyPaymentPending,
 };

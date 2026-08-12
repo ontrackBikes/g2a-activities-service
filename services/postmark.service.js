@@ -86,6 +86,8 @@ const sendTemplateEmail = async ({
   customerId = null,
 
   to,
+  cc = null,
+  bcc = null,
 
   templateId = null,
   templateAlias = null,
@@ -125,6 +127,14 @@ const sendTemplateEmail = async ({
       TemplateModel: templateModel,
       MessageStream: MESSAGE_STREAM,
     };
+
+    if (cc) {
+      payload.Cc = cc;
+    }
+
+    if (bcc) {
+      payload.Bcc = bcc;
+    }
 
     if (templateId) {
       payload.TemplateId = templateId;

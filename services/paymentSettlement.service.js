@@ -626,6 +626,8 @@ async function sendPaymentFailedEmail({ payment, order }) {
     customerId: order.customer_id,
 
     to: customerEmail,
+    bcc: process.env.EMAIL_BCC_TEAM || null,
+    cc: process.env.EMAIL_CC_TEAM || null,
 
     templateAlias: emailTemplates.PAYMENT_FAILED,
 
@@ -633,6 +635,80 @@ async function sendPaymentFailedEmail({ payment, order }) {
 
     metadata: {
       type: "payment_failed",
+    },
+  });
+}
+
+/**
+ * Send when checkout polling finishes without a confirmed payment
+ * status (e.g. customer closed the checkout modal / gave up before
+ * completing payment). Mirrors sendPaymentFailedEmail.
+ */
+async function sendPaymentPendingEmail({ payment, order }) {
+  const customerEmail = order.customer_details?.email;
+
+  if (!customerEmail) {
+    console.warn(
+      `[PaymentSettlement] No customer email found for order ${order.order_id}`,
+    );
+
+    return {
+      success: false,
+      message: "Customer email not found",
+    };
+  }
+
+  const customerName =
+    order.customer_details?.name ||
+    [order.customer_details?.first_name, order.customer_details?.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    "Customer";
+
+  const gatewayResponse = payment.gateway_response || {};
+
+  const emailTemplateModel = {
+    customerName,
+    customerEmail,
+    customerPhone: order.customer_details?.phone || "",
+    orderId: order.order_id,
+    order_id: order.order_id,
+    paymentId: payment.gateway_payment_id || payment.payment_id,
+    paymentStatus: "Pending",
+    bookingDate: new Date(order.created_at).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    currency: order.currency,
+    amount: formatEmailAmount(order.grand_total),
+    failureReason:
+      payment.failure_reason || gatewayResponse.error_description || "",
+    errorCode: gatewayResponse.error_code || "",
+    subtotal: formatEmailAmount(order.subtotal),
+    discount: formatEmailAmount(order.discount),
+    tax: formatEmailAmount(order.tax),
+    retryPaymentUrl: `${process.env.APP_URL}/checkout/orders/${order.order_id}`,
+  };
+
+  console.log(
+    `[PaymentSettlement] Sending payment pending email to ${customerEmail}`,
+  );
+
+  return sendTemplateEmail({
+    orderId: order.id,
+    customerId: order.customer_id,
+
+    to: customerEmail,
+    bcc: process.env.EMAIL_BCC_TEAM || null,
+    cc: process.env.EMAIL_CC_TEAM || null,
+
+    templateAlias: emailTemplates.PAYMENT_PENDING,
+
+    templateModel: emailTemplateModel,
+
+    metadata: {
+      type: "payment_pending",
     },
   });
 }
@@ -999,5 +1075,6 @@ const settlePayment = async ({ paymentId } = {}) => {
 module.exports = {
   settlePayment,
   sendPaymentFailedEmail,
+  sendPaymentPendingEmail,
   resendPaymentEmail,
 };
