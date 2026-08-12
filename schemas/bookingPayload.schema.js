@@ -185,6 +185,8 @@ const medical_declaration = Joi.object({
     is: true,
     then: Joi.required(),
   }),
+
+  acknowledged: Joi.boolean(),
 }).unknown(false);
 
 const rental_details = Joi.object({
