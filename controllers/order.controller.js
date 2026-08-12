@@ -1295,6 +1295,8 @@ const getOrder = async (req, res) => {
       ),
       flight_details: item.booking_payload?.flight_details || null,
       medical_declaration: item.booking_payload?.medical_declaration,
+      opt_for_pickup_and_drop:
+        item.booking_payload?.opt_for_pickup_and_drop ?? false,
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,

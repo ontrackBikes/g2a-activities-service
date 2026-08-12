@@ -24,7 +24,8 @@ module.exports = {
     //         "pickup_time": "pickup_time_Value",
     //         "return_time": "return_time_Value",
     //         "pickup_location": "pickup_location_Value",
-    //         "drop_location": "drop_location_Value"
+    //         "drop_location": "drop_location_Value",
+    //         "opt_for_pickup_and_drop": true
     //       },
     //       "pricing": {
     //         "currency": "currency_Value",

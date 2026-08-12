@@ -309,6 +309,8 @@ const buildEmailItem = ({ item, order }) => {
             drop_hotel_name: rentalDetails.drop_hotel_name || "",
           }
         : null,
+      opt_for_pickup_and_drop:
+        item.booking_payload?.opt_for_pickup_and_drop ?? false,
     }),
     participants: (item.participants || []).map(formatEmailParticipant),
     pricing: {
