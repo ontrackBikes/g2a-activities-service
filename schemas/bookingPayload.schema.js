@@ -81,7 +81,7 @@ const customer_details = Joi.object({
     .allow("", null)
     .optional(),
 
-  country: Joi.string().trim().required(),
+  country: Joi.string().trim().allow("", null).optional(),
 })
   .custom((value, helpers) => {
     if (
