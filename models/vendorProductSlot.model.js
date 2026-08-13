@@ -165,5 +165,5 @@ VendorProductSlot.init(
     ],
   }
 );
-VendorProductSlot.sync({ alter: true })
+// VendorProductSlot.sync({ alter: true })
 module.exports = VendorProductSlot;

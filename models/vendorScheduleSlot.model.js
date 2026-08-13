@@ -178,5 +178,5 @@ VendorScheduleSlot.init(
     ],
   }
 );
-VendorScheduleSlot.sync({alter: true})
+// VendorScheduleSlot.sync({alter: true})
 module.exports = VendorScheduleSlot;
