@@ -259,7 +259,7 @@ const formatEmailParticipant = (participant) => ({
   nationality: participant.nationality || "",
 });
 
-const buildEmailItem = ({ item, order }) => {
+const buildEmailItem = ({ item, order, preferredSlotIds }) => {
   const booking = item.booking_data || item.quotation?.booking || {};
   const pricing = item.pricing || item.quotation?.pricing || {};
   const rentalDetails = item.booking_payload?.rental_details || null;
@@ -270,6 +270,9 @@ const buildEmailItem = ({ item, order }) => {
     booking.drop_location || rentalDetails?.drop_point,
   );
   const selectedSlot = booking.selected_slot || null;
+  const isPreferredSlot = preferredSlotIds.has(
+    Number(item.vendor_schedule_slot_id),
+  );
 
   return {
     product_name: item.product_name,
@@ -290,7 +293,11 @@ const buildEmailItem = ({ item, order }) => {
         ? {
             name: selectedSlot.name || "",
             slot_type: selectedSlot.slot_type || "",
-            start_time: selectedSlot.start_time || "",
+            start_time: selectedSlot.start_time
+              ? `${selectedSlot.start_time}${
+                  isPreferredSlot ? " (preferred)" : ""
+                }`
+              : "",
             end_time: selectedSlot.end_time || "",
             price: formatEmailAmount(selectedSlot.price),
           }
@@ -344,8 +351,30 @@ async function sendConfirmationEmail({ payment, order }) {
     };
   }
 
+  const scheduleSlotIds = [
+    ...new Set(
+      (order.items || [])
+        .map((item) => Number(item.vendor_schedule_slot_id))
+        .filter((slotId) => Number.isInteger(slotId) && slotId > 0),
+    ),
+  ];
+
+  const preferredSlots = scheduleSlotIds.length
+    ? await VendorScheduleSlot.findAll({
+        where: {
+          id: scheduleSlotIds,
+          is_preferred: true,
+        },
+        attributes: ["id"],
+      })
+    : [];
+
+  const preferredSlotIds = new Set(
+    preferredSlots.map((slot) => Number(slot.id)),
+  );
+
   const emailItems = (order.items || []).map((item) =>
-    buildEmailItem({ item, order }),
+    buildEmailItem({ item, order, preferredSlotIds }),
   );
 
   const itemsHtml = emailItems

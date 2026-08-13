@@ -32,6 +32,19 @@ const createVendorProductSlotSchema =
         .min(0)
         .required(),
 
+    duration_minutes: Joi.number()
+      .integer()
+      .min(0)
+      .allow(null),
+
+    priced_by: Joi.string()
+      .trim()
+      .max(50)
+      .allow(null, ""),
+
+    is_preferred: Joi.boolean()
+      .default(false),
+
     active: Joi.boolean()
       .default(true),
   });
@@ -63,6 +76,18 @@ const updateVendorProductSlotSchema =
       Joi.number()
         .integer()
         .min(0),
+
+    duration_minutes: Joi.number()
+      .integer()
+      .min(0)
+      .allow(null),
+
+    priced_by: Joi.string()
+      .trim()
+      .max(50)
+      .allow(null, ""),
+
+    is_preferred: Joi.boolean(),
 
     active: Joi.boolean(),
   }).min(1);

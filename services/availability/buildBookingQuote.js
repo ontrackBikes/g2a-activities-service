@@ -127,6 +127,25 @@ const getSlotDisplayType = ({
   return hasTimedSlot ? "TIME" : "VARIANT";
 };
 
+const getSlotDisplayName = ({
+  slotDisplayType,
+  selectedSlot = null,
+}) => {
+  if (selectedSlot?.is_preferred) {
+    return "Preferred Slot";
+  }
+
+  if (slotDisplayType === "TIME") {
+    return "Time Slot";
+  }
+
+  if (slotDisplayType === "VARIANT") {
+    return "Variant";
+  }
+
+  return null;
+};
+
 const buildBookingQuote = ({
   product,
   location,
@@ -137,6 +156,10 @@ const buildBookingQuote = ({
   const slots = availability.slots || [];
   const selectedSlot =
     availability.selected_slot || null;
+  const slotDisplayType = getSlotDisplayType({
+    slots,
+    selectedSlot,
+  });
 
   return {
     product: sanitizeProduct(product),
@@ -173,8 +196,10 @@ const buildBookingQuote = ({
     },
 
     availability: {
-      slot_display_type: getSlotDisplayType({
-        slots,
+      slot_display_type: slotDisplayType,
+
+      slot_display_name: getSlotDisplayName({
+        slotDisplayType,
         selectedSlot,
       }),
 

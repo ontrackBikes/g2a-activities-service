@@ -212,6 +212,9 @@ const maintainVendorProductSchedules = async (
             slot.max_bookable_per_booking ??
               vendorProduct.max_bookable_per_booking,
           ),
+        duration_minutes: slot.duration_minutes,
+        priced_by: slot.priced_by,
+        is_preferred: slot.is_preferred,
         status: "OPEN",
         allow_sync_updates: true,
       }));
@@ -276,6 +279,9 @@ const maintainVendorProductSchedules = async (
                 templateSlot.max_bookable_per_booking ??
                   vendorProduct.max_bookable_per_booking,
               ),
+            duration_minutes: templateSlot.duration_minutes,
+            priced_by: templateSlot.priced_by,
+            is_preferred: templateSlot.is_preferred,
           },
           {
             where: {

@@ -200,6 +200,15 @@ const createVendorProductSlot = async (
         max_bookable_per_booking:
           value.max_bookable_per_booking,
 
+        duration_minutes:
+          value.duration_minutes ?? null,
+
+        priced_by:
+          value.priced_by || null,
+
+        is_preferred:
+          value.is_preferred ?? false,
+
         active:
           value.active ?? true,
       });

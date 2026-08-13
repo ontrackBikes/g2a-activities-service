@@ -216,6 +216,9 @@ module.exports.checkDateRange = async ({
           slot_type: getSlotType(slot),
           start_time: slot.start_time,
           end_time: slot.end_time,
+          duration_minutes: slot.duration_minutes,
+          priced_by: slot.priced_by,
+          is_preferred: Boolean(slot.is_preferred),
           price: Number(slot.price),
           available: slot.available,
           max_bookable_per_booking:
