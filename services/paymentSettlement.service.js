@@ -259,7 +259,7 @@ const formatEmailParticipant = (participant) => ({
   nationality: participant.nationality || "",
 });
 
-const buildEmailItem = ({ item, order, preferredSlotIds }) => {
+const buildEmailItem = ({ item, order, slotFlagsById }) => {
   const booking = item.booking_data || item.quotation?.booking || {};
   const pricing = item.pricing || item.quotation?.pricing || {};
   const rentalDetails = item.booking_payload?.rental_details || null;
@@ -270,9 +270,10 @@ const buildEmailItem = ({ item, order, preferredSlotIds }) => {
     booking.drop_location || rentalDetails?.drop_point,
   );
   const selectedSlot = booking.selected_slot || null;
-  const isPreferredSlot = preferredSlotIds.has(
-    Number(item.vendor_schedule_slot_id),
-  );
+  const slotFlags =
+    slotFlagsById.get(Number(item.vendor_schedule_slot_id)) || {};
+  const isPreferredSlot = slotFlags.is_preferred === true;
+  const isStartTimeOnly = slotFlags.is_start_time_only === true;
 
   return {
     product_name: item.product_name,
@@ -294,11 +295,11 @@ const buildEmailItem = ({ item, order, preferredSlotIds }) => {
             name: selectedSlot.name || "",
             slot_type: selectedSlot.slot_type || "",
             start_time: selectedSlot.start_time
-              ? `${selectedSlot.start_time}${
+              ? `${isStartTimeOnly ? "starts " : ""}${selectedSlot.start_time}${
                   isPreferredSlot ? " (preferred)" : ""
                 }`
               : "",
-            end_time: selectedSlot.end_time || "",
+            end_time: isStartTimeOnly ? "" : selectedSlot.end_time || "",
             price: formatEmailAmount(selectedSlot.price),
           }
         : null,
@@ -359,22 +360,27 @@ async function sendConfirmationEmail({ payment, order }) {
     ),
   ];
 
-  const preferredSlots = scheduleSlotIds.length
+  const scheduleSlots = scheduleSlotIds.length
     ? await VendorScheduleSlot.findAll({
         where: {
           id: scheduleSlotIds,
-          is_preferred: true,
         },
-        attributes: ["id"],
+        attributes: ["id", "is_preferred", "is_start_time_only"],
       })
     : [];
 
-  const preferredSlotIds = new Set(
-    preferredSlots.map((slot) => Number(slot.id)),
+  const slotFlagsById = new Map(
+    scheduleSlots.map((slot) => [
+      Number(slot.id),
+      {
+        is_preferred: slot.is_preferred,
+        is_start_time_only: slot.is_start_time_only,
+      },
+    ]),
   );
 
   const emailItems = (order.items || []).map((item) =>
-    buildEmailItem({ item, order, preferredSlotIds }),
+    buildEmailItem({ item, order, slotFlagsById }),
   );
 
   const itemsHtml = emailItems
