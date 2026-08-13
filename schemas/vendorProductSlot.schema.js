@@ -45,6 +45,9 @@ const createVendorProductSlotSchema =
     is_preferred: Joi.boolean()
       .default(false),
 
+    is_start_time_only: Joi.boolean()
+      .default(false),
+
     active: Joi.boolean()
       .default(true),
   });
@@ -88,6 +91,8 @@ const updateVendorProductSlotSchema =
       .allow(null, ""),
 
     is_preferred: Joi.boolean(),
+
+    is_start_time_only: Joi.boolean(),
 
     active: Joi.boolean(),
   }).min(1);

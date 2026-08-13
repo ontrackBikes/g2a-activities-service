@@ -209,6 +209,9 @@ const createVendorProductSlot = async (
         is_preferred:
           value.is_preferred ?? false,
 
+        is_start_time_only:
+          value.is_start_time_only ?? false,
+
         active:
           value.active ?? true,
       });

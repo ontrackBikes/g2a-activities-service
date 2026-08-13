@@ -115,6 +115,13 @@ VendorScheduleSlot.init(
       comment: "Snapshot: marks this slot as the preferred timing",
     },
 
+    is_start_time_only: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Snapshot: display as a start-only timing (e.g. Start @9am) instead of a range",
+    },
+
     status: {
       type: DataTypes.ENUM(
         "OPEN",

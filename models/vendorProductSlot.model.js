@@ -106,6 +106,13 @@ VendorProductSlot.init(
       comment: "Marks this slot as the preferred timing",
     },
 
+    is_start_time_only: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Display as a start-only timing (e.g. Start @9am) instead of a range",
+    },
+
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,
