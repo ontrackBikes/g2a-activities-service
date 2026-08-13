@@ -14,6 +14,9 @@ const {
 const {
   getVendorProductPrice,
 } = require("./vendorProductPrice.service");
+const {
+  isBeforeLeadTime,
+} = require("./bookingLeadTime.service");
 
 const APP_TIMEZONE =
   process.env.APP_TIMEZONE || "Asia/Kolkata";
@@ -21,8 +24,22 @@ const APP_TIMEZONE =
 const getToday = () =>
   moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
-const getCurrentTime = () =>
-  moment().tz(APP_TIMEZONE).format("HH:mm:ss");
+const filterEligibleSlots = ({ schedule, vendorProduct }) => {
+  if (!schedule) {
+    return schedule;
+  }
+
+  schedule.slots = (schedule.slots || []).filter(
+    (slot) =>
+      !isBeforeLeadTime({
+        date: schedule.schedule_date,
+        time: slot.start_time || "00:00:00",
+        minBookingLeadHours: vendorProduct.min_booking_lead_hours,
+      }),
+  );
+
+  return schedule.slots.length ? schedule : null;
+};
 
 const getAvailableSchedule = async ({
   vendorProduct,
@@ -30,7 +47,6 @@ const getAvailableSchedule = async ({
   guests,
 }) => {
   const today = getToday();
-  const currentTime = getCurrentTime();
   const scheduleWhere = {
     vendor_product_id: vendorProduct.id,
     status: "OPEN",
@@ -45,19 +61,6 @@ const getAvailableSchedule = async ({
       [Op.gte]: guests,
     },
   };
-
-  if (date === today || !date) {
-    slotWhere[Op.or] = [
-      {
-        start_time: null,
-      },
-      {
-        start_time: {
-          [Op.gt]: currentTime,
-        },
-      },
-    ];
-  }
 
   let schedule = await VendorSchedule.findOne({
     where: scheduleWhere,
@@ -81,6 +84,8 @@ const getAvailableSchedule = async ({
       ],
     ],
   });
+
+  schedule = filterEligibleSlots({ schedule, vendorProduct });
 
   if (!schedule && !date) {
     const futureSlotWhere = {
@@ -121,6 +126,8 @@ const getAvailableSchedule = async ({
         ],
       ],
     });
+
+    schedule = filterEligibleSlots({ schedule, vendorProduct });
   }
 
   if (!schedule) {
@@ -428,11 +435,8 @@ const getLowestUpcomingPricesForProductLocations = async ({
         AND vss.status = 'OPEN'
         AND vss.available >= :guests
         AND vss.max_bookable_per_booking >= :guests
-        AND (
-          vs.schedule_date > :today
-          OR vss.start_time IS NULL
-          OR vss.start_time > :currentTime
-        )
+        AND TIMESTAMP(vs.schedule_date, COALESCE(vss.start_time, '00:00:00'))
+          > DATE_ADD(:nowInstant, INTERVAL vp.min_booking_lead_hours HOUR)
       ORDER BY effective_price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC
     `,
     {
@@ -440,7 +444,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
         productIds: [...new Set(pairs.map(({ productId }) => productId))],
         locationIds: [...new Set(pairs.map(({ locationId }) => locationId))],
         today: now.format("YYYY-MM-DD"),
-        currentTime: now.format("HH:mm:ss"),
+        nowInstant: now.format("YYYY-MM-DD HH:mm:ss"),
         guests: Math.max(Number.parseInt(guests, 10) || 1, 1),
       },
       type: QueryTypes.SELECT,

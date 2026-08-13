@@ -1,16 +1,15 @@
 // services/booking/availableVendor.service.js
 
 const { Op } = require("sequelize");
-const moment = require("moment-timezone");
 
 const {
   VendorProduct,
   VendorSchedule,
   VendorScheduleSlot,
 } = require("../../models");
-
-const APP_TIMEZONE =
-  process.env.APP_TIMEZONE || "Asia/Kolkata";
+const {
+  isBeforeLeadTime,
+} = require("../bookingLeadTime.service");
 
 const getAvailableVendorForProduct = async ({
   productId,
@@ -19,9 +18,6 @@ const getAvailableVendorForProduct = async ({
   guests,
   ignoreSameDaySlotStartTime = false,
 }) => {
-  const now = moment().tz(APP_TIMEZONE);
-  const today = now.format("YYYY-MM-DD");
-  const currentTime = now.format("HH:mm:ss");
   const slotWhere = {
     status: "OPEN",
     available: {
@@ -31,19 +27,6 @@ const getAvailableVendorForProduct = async ({
       [Op.gte]: guests,
     },
   };
-
-  if (date === today && !ignoreSameDaySlotStartTime) {
-    slotWhere[Op.or] = [
-      {
-        start_time: null,
-      },
-      {
-        start_time: {
-          [Op.gt]: currentTime,
-        },
-      },
-    ];
-  }
 
   const schedules = await VendorSchedule.findAll({
     where: {
@@ -103,17 +86,28 @@ const getAvailableVendorForProduct = async ({
   for (const schedule of schedules) {
     const vendorProduct = schedule.vendorProduct;
 
+    const eligibleSlots = ignoreSameDaySlotStartTime
+      ? schedule.slots
+      : schedule.slots.filter(
+          (slot) =>
+            !isBeforeLeadTime({
+              date,
+              time: slot.start_time || "00:00:00",
+              minBookingLeadHours: vendorProduct.min_booking_lead_hours,
+            }),
+        );
+
     /**
      * SLOT pricing
      */
 
     if (vendorProduct.pricing_type === "SLOT") {
-      if (!schedule.slots.length) {
+      if (!eligibleSlots.length) {
         continue;
       }
 
       const displayPrice = Number(
-        schedule.slots[0].price,
+        eligibleSlots[0].price,
       );
 
       if (
@@ -129,7 +123,7 @@ const getAvailableVendorForProduct = async ({
             display_price: displayPrice,
           },
 
-          slots: schedule.slots,
+          slots: eligibleSlots,
         };
       }
 
@@ -141,12 +135,12 @@ const getAvailableVendorForProduct = async ({
      */
 
     if (vendorProduct.pricing_type === "FIXED") {
-      if (!schedule.slots.length) {
+      if (!eligibleSlots.length) {
         continue;
       }
 
       const displayPrice = Number(
-        schedule.slots[0].price ||
+        eligibleSlots[0].price ||
           vendorProduct.base_price,
       );
 
@@ -163,7 +157,7 @@ const getAvailableVendorForProduct = async ({
             display_price: displayPrice,
           },
 
-          slots: schedule.slots,
+          slots: eligibleSlots,
         };
       }
     }
@@ -177,7 +171,7 @@ const getAvailableVendorForProduct = async ({
      */
 
     if (vendorProduct.pricing_type === "KM_BASED") {
-      if (!schedule.slots.length) {
+      if (!eligibleSlots.length) {
         continue;
       }
 
@@ -196,7 +190,7 @@ const getAvailableVendorForProduct = async ({
             display_price: displayPrice,
           },
 
-          slots: schedule.slots,
+          slots: eligibleSlots,
         };
       }
     }

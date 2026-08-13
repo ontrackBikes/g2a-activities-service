@@ -66,6 +66,11 @@ const createVendorProductSchema = Joi.object({
     .min(1)
     .default(90),
 
+  min_booking_lead_hours: Joi.number()
+    .integer()
+    .min(0)
+    .default(0),
+
   start_time: Joi.when("pricing_type", {
     is: "FIXED",
     then: timeSchema.optional(),
@@ -110,6 +115,11 @@ const updateVendorProductSchema =
       Joi.number()
         .integer()
         .min(1),
+
+    min_booking_lead_hours:
+      Joi.number()
+        .integer()
+        .min(0),
 
     start_time: timeSchema,
 

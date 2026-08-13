@@ -7,6 +7,7 @@ const {
 } = require("./availableVendorDateRange.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
+const { isBeforeLeadTime } = require("../bookingLeadTime.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -132,6 +133,35 @@ module.exports.checkDateRange = async ({
       success: true,
       available: false,
       message: "Product is not available for the selected dates.",
+
+      data: buildBookingQuote({
+        product,
+        location,
+
+        booking: {
+          pickup_date: payload.pickup_date,
+          pickup_time: payload.pickup_time,
+          return_date: payload.return_date,
+          drop_time: payload.pickup_time,
+          guests: payload.guests,
+          quantity: payload.quantity,
+        },
+      }),
+    };
+  }
+
+  if (
+    isBeforeLeadTime({
+      date: availability.start_date,
+      time: availability.pickup_time,
+      minBookingLeadHours: availability.vendorProduct.min_booking_lead_hours,
+    })
+  ) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: `pickup_time must be at least ${availability.vendorProduct.min_booking_lead_hours} hours from now.`,
 
       data: buildBookingQuote({
         product,
