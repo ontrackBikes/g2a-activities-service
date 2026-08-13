@@ -42,6 +42,9 @@ const {
   AvailableDatesError,
   getAvailableDates,
 } = require("../services/availability/availableDates.service");
+const {
+  getNextAvailableSlotForProduct,
+} = require("../services/nextAvailableSlot.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -298,13 +301,24 @@ const checkProductAvailability = async (req, res) => {
         ? transferHandler.checkAvailability
         : handlers[product.booking_mode];
 
-    const result = await handler({
-      product,
-      location,
-      payload: availabilityPayload,
-      estimateId: availabilityPayload.estimate_id,
-      ...(transferHandler ? { locations } : {}),
-    });
+    const [result, nextAvailableDate] = await Promise.all([
+      handler({
+        product,
+        location,
+        payload: availabilityPayload,
+        estimateId: availabilityPayload.estimate_id,
+        ...(transferHandler ? { locations } : {}),
+      }),
+      getNextAvailableSlotForProduct({
+        productId: product.id,
+        locationId: location.id,
+        guests: availabilityPayload.pricing_quantity,
+      }),
+    ]);
+
+    if (result?.data?.product) {
+      result.data.product.next_available_date = nextAvailableDate;
+    }
 
     return res.status(result.status || 200).json({
       ...result,

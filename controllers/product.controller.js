@@ -1245,6 +1245,36 @@ const getProductsListForApp = async (req, res) => {
       locationStartingPriceMap = new Map(),
     ] = await Promise.all(priceRequests);
 
+    // Same single-shot lead-time fallback gap as getProductDetailsForApp:
+    // getAvailableVendorsForProductLocations only checks the nearest future
+    // schedule_date and gives up if its slots fall inside min_booking_lead_hours.
+    // locationNextAvailableSlotMap already searched forward correctly, so retry
+    // the pairs it flagged as available but the availability lookup missed.
+    if (!date) {
+      const retryPairs = productLocationPairs.filter(({ productId, locationId }) => {
+        const key = `${Number(productId)}:${Number(locationId)}`;
+        return !locationAvailabilityMap.get(key) && locationNextAvailableSlotMap.get(key);
+      });
+
+      if (retryPairs.length) {
+        await Promise.all(
+          retryPairs.map(async ({ productId, locationId }) => {
+            const key = `${Number(productId)}:${Number(locationId)}`;
+            const retryAvailability = await getAvailableVendorForProduct({
+              productId,
+              locationId,
+              date: locationNextAvailableSlotMap.get(key),
+              guests: requestedGuests,
+            });
+
+            if (retryAvailability) {
+              locationAvailabilityMap.set(key, retryAvailability);
+            }
+          }),
+        );
+      }
+    }
+
     const data = products.map((product) => {
       const json = product.toJSON();
 
@@ -1783,7 +1813,7 @@ const getProductDetailsForApp = async (req, res) => {
           })
         : Promise.resolve(null);
 
-    const [availability, nextAvailableSlot, lowestPrices] =
+    let [availability, nextAvailableSlot, lowestPrices] =
       await Promise.all([
         getAvailableVendorForProduct({
           productId: product.id,
@@ -1799,6 +1829,20 @@ const getProductDetailsForApp = async (req, res) => {
         }),
         lowestPricePromise,
       ]);
+
+    // The no-date fallback in getAvailableSchedule only checks the single
+    // nearest future schedule_date and gives up if its slots fall inside
+    // min_booking_lead_hours. getNextAvailableSlotForProduct already searches
+    // forward across all future dates honoring lead time, so retry against
+    // that confirmed-available date instead of reporting false unavailability.
+    if (!date && !availability && nextAvailableSlot) {
+      availability = await getAvailableVendorForProduct({
+        productId: product.id,
+        locationSlug: location_slug,
+        date: nextAvailableSlot,
+        guests: requestedGuests,
+      });
+    }
 
     const lowestPrice = selectedVendorLocation
       ? lowestPrices?.get(
