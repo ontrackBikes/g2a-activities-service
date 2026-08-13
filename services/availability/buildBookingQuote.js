@@ -1,5 +1,7 @@
 // services/booking/buildBookingQuote.js
 
+const BOOKING_SECTIONS = require("../../constants/bookingSections");
+
 const toPlainObject = (value) => {
   if (!value) {
     return {};
@@ -161,12 +163,26 @@ const buildBookingQuote = ({
     selectedSlot,
   });
 
+  const sanitizedProduct = sanitizeProduct(product);
+
+  const hasOptForPickupAndDrop = (
+    sanitizedProduct.bookingTemplate?.booking_page_schema?.sections || []
+  ).some(
+    (section) =>
+      section.enabled &&
+      section.section === BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP,
+  );
+
   return {
-    product: sanitizeProduct(product),
+    product: sanitizedProduct,
     location: {
       slug: location.slug,
       name: location.name,
     },
+
+    ...(hasOptForPickupAndDrop
+      ? { opt_for_pickup_and_drop: false }
+      : {}),
 
     booking,
 
