@@ -7,6 +7,7 @@ const {
 } = require("./availableVendorDateRange.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
+const { isBeforeLeadTime } = require("../bookingLeadTime.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -149,6 +150,35 @@ module.exports.checkDateRange = async ({
     };
   }
 
+  if (
+    isBeforeLeadTime({
+      date: availability.start_date,
+      time: availability.pickup_time,
+      minBookingLeadHours: availability.vendorProduct.min_booking_lead_hours,
+    })
+  ) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: `pickup_time must be at least ${availability.vendorProduct.min_booking_lead_hours} hours from now.`,
+
+      data: buildBookingQuote({
+        product,
+        location,
+
+        booking: {
+          pickup_date: payload.pickup_date,
+          pickup_time: payload.pickup_time,
+          return_date: payload.return_date,
+          drop_time: payload.pickup_time,
+          guests: payload.guests,
+          quantity: payload.quantity,
+        },
+      }),
+    };
+  }
+
   const isSlotPricing =
     availability.vendorProduct.pricing_type === "SLOT";
 
@@ -186,6 +216,10 @@ module.exports.checkDateRange = async ({
           slot_type: getSlotType(slot),
           start_time: slot.start_time,
           end_time: slot.end_time,
+          duration_minutes: slot.duration_minutes,
+          priced_by: slot.priced_by,
+          is_preferred: Boolean(slot.is_preferred),
+          is_start_time_only: Boolean(slot.is_start_time_only),
           price: Number(slot.price),
           available: slot.available,
           max_bookable_per_booking:

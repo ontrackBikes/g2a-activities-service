@@ -10,6 +10,9 @@ const {
   VendorSchedule,
   VendorScheduleSlot,
 } = require("../../models");
+const {
+  isBeforeLeadTime,
+} = require("../bookingLeadTime.service");
 
 const APP_TIMEZONE =
   process.env.APP_TIMEZONE || "Asia/Kolkata";
@@ -161,7 +164,6 @@ const getAvailableDates = async ({
   const {
     fromDate: normalizedFromDate,
     toDate: normalizedToDate,
-    today,
   } = normalizeDateRange({
     fromDate,
     toDate,
@@ -206,10 +208,6 @@ const getAvailableDates = async ({
     }
   }
 
-  const currentTime = moment()
-    .tz(APP_TIMEZONE)
-    .format("HH:mm:ss");
-
   const scheduleWhere = {
     schedule_date: {
       [Op.gte]: normalizedFromDate,
@@ -245,6 +243,7 @@ const getAvailableDates = async ({
         attributes: [
           "product_id",
           "pricing_type",
+          "min_booking_lead_hours",
         ],
         required: true,
         where: vendorProductWhere,
@@ -318,9 +317,11 @@ const getAvailableDates = async ({
     const scheduleDate = schedule.schedule_date;
     const eligibleSlots = schedule.slots.filter(
       (slot) =>
-        scheduleDate !== today ||
-        !slot.start_time ||
-        slot.start_time > currentTime,
+        !isBeforeLeadTime({
+          date: scheduleDate,
+          time: slot.start_time || "00:00:00",
+          minBookingLeadHours: vendorProduct.min_booking_lead_hours,
+        }),
     );
 
     if (!eligibleSlots.length) {

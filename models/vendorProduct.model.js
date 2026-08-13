@@ -71,6 +71,15 @@ VendorProduct.init(
       },
     },
 
+    min_booking_lead_hours: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+      },
+    },
+
     active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

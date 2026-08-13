@@ -29,8 +29,10 @@ const {
   VendorProductExclusion,
   VendorProductThingToKnow,
   VendorProductSlot,
+  VendorProductDistanceTier,
   VendorSchedule,
   VendorScheduleSlot,
+  VendorScheduleSlotDistanceTier,
   OrderItem,
   BookingTemplate,
 } = require("../models");
@@ -613,6 +615,248 @@ const permanentlyDeleteProduct = async (req, res) => {
   }
 };
 
+/**
+ * Same cascade + safety blocks as permanentlyDeleteProduct (refuses if
+ * orders reference the product, or if any schedule slot has booked > 0),
+ * but also cleans up VendorProductDistanceTier and
+ * VendorScheduleSlotDistanceTier, which permanentlyDeleteProduct leaves
+ * orphaned.
+ */
+const forceDeleteProduct = async (req, res) => {
+  if (!authorizePermanentDelete(req, res)) {
+    return;
+  }
+
+  try {
+    const productId = Number(req.params.id);
+
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const result = await sequelize.transaction(async (transaction) => {
+      const product = await Product.findByPk(productId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!product) {
+        return null;
+      }
+
+      const orderItemCount = await OrderItem.count({
+        where: { product_id: product.id },
+        transaction,
+      });
+
+      if (orderItemCount) {
+        return {
+          blocked: true,
+          reason: "orders",
+        };
+      }
+
+      const vendorProducts = await VendorProduct.findAll({
+        attributes: ["id"],
+        where: { product_id: product.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      const vendorProductIds = vendorProducts.map(({ id }) => id);
+
+      if (vendorProductIds.length) {
+        const schedules = await VendorSchedule.findAll({
+          attributes: ["id"],
+          where: {
+            vendor_product_id: { [Op.in]: vendorProductIds },
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        const scheduleIds = schedules.map(({ id }) => id);
+
+        if (scheduleIds.length) {
+          const scheduleSlots = await VendorScheduleSlot.findAll({
+            attributes: ["id", "booked"],
+            where: {
+              vendor_schedule_id: { [Op.in]: scheduleIds },
+            },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+          const scheduleSlotIds = scheduleSlots.map(({ id }) => id);
+          const bookedSlotCount = scheduleSlots.filter(
+            (slot) => Number(slot.booked) > 0,
+          ).length;
+
+          if (bookedSlotCount) {
+            return {
+              blocked: true,
+              reason: "bookings",
+            };
+          }
+
+          if (scheduleSlotIds.length) {
+            await VendorScheduleSlotDistanceTier.destroy({
+              where: {
+                vendor_schedule_slot_id: { [Op.in]: scheduleSlotIds },
+              },
+              transaction,
+            });
+
+            await VendorScheduleSlot.destroy({
+              where: {
+                id: { [Op.in]: scheduleSlotIds },
+              },
+              transaction,
+            });
+          }
+        }
+
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+
+        await Promise.all([
+          VendorProductImage.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductFaq.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductTerm.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductHighlight.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductInclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductExclusion.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductThingToKnow.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductSlot.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorProductDistanceTier.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+          VendorSchedule.destroy({
+            where: { vendor_product_id: { [Op.in]: vendorProductIds } },
+            transaction,
+          }),
+        ]);
+
+        await VendorProduct.destroy({
+          where: { id: { [Op.in]: vendorProductIds } },
+          transaction,
+        });
+      } else {
+        await BookingEstimate.destroy({
+          where: { product_id: product.id },
+          transaction,
+        });
+      }
+
+      await Promise.all([
+        ProductImage.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductFaq.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTerm.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductHighlight.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductInclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductExclusion.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductThingToKnow.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCancellationPolicy.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductTagMapping.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+        ProductCollectionProduct.destroy({
+          where: { product_id: product.id },
+          transaction,
+        }),
+      ]);
+
+      await product.destroy({ transaction });
+
+      return {
+        product_id: product.id,
+      };
+    });
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    if (result.blocked) {
+      return res.status(409).json({
+        success: false,
+        message:
+          result.reason === "orders"
+            ? "Product cannot be deleted because orders exist"
+            : "Product cannot be deleted because booked inventory exists",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Product force deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("[ProductController] forceDeleteProduct", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const searchProducts = async (req, res) => {
   const query = String(req.query.q || "").trim();
 
@@ -999,6 +1243,36 @@ const getProductsListForApp = async (req, res) => {
       locationNextAvailableSlotMap,
       locationStartingPriceMap = new Map(),
     ] = await Promise.all(priceRequests);
+
+    // Same single-shot lead-time fallback gap as getProductDetailsForApp:
+    // getAvailableVendorsForProductLocations only checks the nearest future
+    // schedule_date and gives up if its slots fall inside min_booking_lead_hours.
+    // locationNextAvailableSlotMap already searched forward correctly, so retry
+    // the pairs it flagged as available but the availability lookup missed.
+    if (!date) {
+      const retryPairs = productLocationPairs.filter(({ productId, locationId }) => {
+        const key = `${Number(productId)}:${Number(locationId)}`;
+        return !locationAvailabilityMap.get(key) && locationNextAvailableSlotMap.get(key);
+      });
+
+      if (retryPairs.length) {
+        await Promise.all(
+          retryPairs.map(async ({ productId, locationId }) => {
+            const key = `${Number(productId)}:${Number(locationId)}`;
+            const retryAvailability = await getAvailableVendorForProduct({
+              productId,
+              locationId,
+              date: locationNextAvailableSlotMap.get(key),
+              guests: requestedGuests,
+            });
+
+            if (retryAvailability) {
+              locationAvailabilityMap.set(key, retryAvailability);
+            }
+          }),
+        );
+      }
+    }
 
     const data = products.map((product) => {
       const json = product.toJSON();
@@ -1538,7 +1812,7 @@ const getProductDetailsForApp = async (req, res) => {
           })
         : Promise.resolve(null);
 
-    const [availability, nextAvailableSlot, lowestPrices] =
+    let [availability, nextAvailableSlot, lowestPrices] =
       await Promise.all([
         getAvailableVendorForProduct({
           productId: product.id,
@@ -1554,6 +1828,20 @@ const getProductDetailsForApp = async (req, res) => {
         }),
         lowestPricePromise,
       ]);
+
+    // The no-date fallback in getAvailableSchedule only checks the single
+    // nearest future schedule_date and gives up if its slots fall inside
+    // min_booking_lead_hours. getNextAvailableSlotForProduct already searches
+    // forward across all future dates honoring lead time, so retry against
+    // that confirmed-available date instead of reporting false unavailability.
+    if (!date && !availability && nextAvailableSlot) {
+      availability = await getAvailableVendorForProduct({
+        productId: product.id,
+        locationSlug: location_slug,
+        date: nextAvailableSlot,
+        guests: requestedGuests,
+      });
+    }
 
     const lowestPrice = selectedVendorLocation
       ? lowestPrices?.get(
@@ -1668,6 +1956,7 @@ module.exports = {
   updateProduct,
   deleteProduct,
   permanentlyDeleteProduct,
+  forceDeleteProduct,
   searchProducts,
   getProductsListForApp,
   getRecommendedProductsForApp,

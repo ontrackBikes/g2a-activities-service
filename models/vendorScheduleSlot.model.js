@@ -93,6 +93,35 @@ VendorScheduleSlot.init(
       },
     },
 
+    duration_minutes: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Snapshot of slot duration in minutes",
+      validate: {
+        min: 0,
+      },
+    },
+
+    priced_by: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: "Snapshot of pricing unit label, e.g. guest, quantity, bike",
+    },
+
+    is_preferred: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Snapshot: marks this slot as the preferred timing",
+    },
+
+    is_start_time_only: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Snapshot: display as a start-only timing (e.g. Start @9am) instead of a range",
+    },
+
     status: {
       type: DataTypes.ENUM(
         "OPEN",
@@ -149,5 +178,5 @@ VendorScheduleSlot.init(
     ],
   }
 );
-//VendorScheduleSlot.sync({alter: true})
+// VendorScheduleSlot.sync({alter: true})
 module.exports = VendorScheduleSlot;

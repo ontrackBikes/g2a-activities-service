@@ -49,12 +49,11 @@ const getNextAvailableSlotsForProducts = async ({
   );
   const now = moment().tz(APP_TIMEZONE);
   const today = now.format("YYYY-MM-DD");
-  const currentTime = now.format("HH:mm:ss");
 
   const replacements = {
     productIds: normalizedProductIds,
     today,
-    currentTime,
+    nowInstant: now.format("YYYY-MM-DD HH:mm:ss"),
     guests: requestedGuests,
   };
 
@@ -81,11 +80,8 @@ const getNextAvailableSlotsForProducts = async ({
       `${slotAlias}.status = 'OPEN'`,
       `${slotAlias}.available >= :guests`,
       `${slotAlias}.max_bookable_per_booking >= :guests`,
-      `(
-        ${scheduleAlias}.schedule_date > :today
-        OR ${slotAlias}.start_time IS NULL
-        OR ${slotAlias}.start_time > :currentTime
-      )`,
+      `TIMESTAMP(${scheduleAlias}.schedule_date, COALESCE(${slotAlias}.start_time, '00:00:00'))
+        > DATE_ADD(:nowInstant, INTERVAL ${vendorProductAlias}.min_booking_lead_hours HOUR)`,
     ];
 
     if (normalizedLocationIds.length) {

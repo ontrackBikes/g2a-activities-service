@@ -7,6 +7,7 @@ const {
   updateProduct,
   deleteProduct,
   permanentlyDeleteProduct,
+  forceDeleteProduct,
   searchProducts,
   getProductsListForApp,
   getRecommendedProductsForApp,
@@ -71,6 +72,8 @@ router.get("/:id", getProduct);
 router.patch("/:id", updateProduct);
 
 router.delete("/:id/permanent", permanentlyDeleteProduct);
+
+router.delete("/:id/force", forceDeleteProduct);
 
 router.delete("/:id", deleteProduct);
 

@@ -5,13 +5,13 @@ const { getAvailableVendorForProduct } = require("./availableVendor.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
 const { calculateDistance } = require("../googleMaps.service");
+const { isBeforeLeadTime } = require("../bookingLeadTime.service");
 const {
   VendorProductDistanceTier,
   VendorScheduleSlotDistanceTier,
 } = require("../../models");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
-const SAME_DAY_BOOKING_LEAD_TIME_HOURS = 12;
 
 const getLocationSnapshot = (location, locations) => {
   if (location == null) {
@@ -77,18 +77,23 @@ const getTimeOnDate = (date, time) =>
     APP_TIMEZONE,
   );
 
-const getPickupTimeError = ({ date, pickupTime, scheduleSlot, serviceName }) => {
+const getPickupTimeError = ({
+  date,
+  pickupTime,
+  scheduleSlot,
+  serviceName,
+  minBookingLeadHours,
+}) => {
   const pickupAt = getTimeOnDate(date, pickupTime);
 
-  if (date === moment().tz(APP_TIMEZONE).format("YYYY-MM-DD")) {
-    const earliestPickupAt = moment()
-      .tz(APP_TIMEZONE)
-      .add(SAME_DAY_BOOKING_LEAD_TIME_HOURS, "hours")
-      .startOf("minute");
-
-    if (pickupAt.isBefore(earliestPickupAt)) {
-      return `pickup_time must be at least 12 hours from now for today's ${serviceName.toLowerCase()}.`;
-    }
+  if (
+    isBeforeLeadTime({
+      date,
+      time: pickupTime,
+      minBookingLeadHours,
+    })
+  ) {
+    return `pickup_time must be at least ${minBookingLeadHours} hours from now for ${serviceName.toLowerCase()}.`;
   }
 
   if (!scheduleSlot.start_time || !scheduleSlot.end_time) {
@@ -182,6 +187,7 @@ const checkTransferAvailability = async ({
     pickupTime: payload.pickup_time,
     scheduleSlot,
     serviceName,
+    minBookingLeadHours: availability.vendorProduct.min_booking_lead_hours,
   });
 
   if (pickupTimeError) {

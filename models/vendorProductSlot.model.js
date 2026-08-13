@@ -84,6 +84,35 @@ VendorProductSlot.init(
       },
     },
 
+    duration_minutes: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Slot duration in minutes (optional)",
+      validate: {
+        min: 0,
+      },
+    },
+
+    priced_by: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: "Pricing unit label, e.g. guest, quantity, bike",
+    },
+
+    is_preferred: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Marks this slot as the preferred timing",
+    },
+
+    is_start_time_only: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Display as a start-only timing (e.g. Start @9am) instead of a range",
+    },
+
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -136,5 +165,5 @@ VendorProductSlot.init(
     ],
   }
 );
-
+// VendorProductSlot.sync({ alter: true })
 module.exports = VendorProductSlot;

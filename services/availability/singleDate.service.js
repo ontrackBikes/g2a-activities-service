@@ -128,6 +128,14 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
           end_time: slot.end_time,
 
+          duration_minutes: slot.duration_minutes,
+
+          priced_by: slot.priced_by,
+
+          is_preferred: Boolean(slot.is_preferred),
+
+          is_start_time_only: Boolean(slot.is_start_time_only),
+
           price: Number(slot.price),
 
           available: slot.available,
