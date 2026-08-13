@@ -318,7 +318,11 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
           }
         : null,
       opt_for_pickup_and_drop:
-        item.booking_payload?.opt_for_pickup_and_drop ? 'Opted' : 'Not Opted',
+        item.quotation?.opt_for_pickup_and_drop !== undefined
+          ? item.booking_payload?.opt_for_pickup_and_drop
+            ? 'Opted'
+            : 'Not Opted'
+          : undefined,
     }),
     participants: (item.participants || []).map(formatEmailParticipant),
     pricing: {
