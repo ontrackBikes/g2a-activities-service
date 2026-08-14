@@ -63,7 +63,7 @@ const createVendorProductSchema = Joi.object({
 
   maintain_inventory_days: Joi.number()
     .integer()
-    .min(1)
+    .min(0)
     .default(90),
 
   min_booking_lead_hours: Joi.number()
@@ -114,7 +114,7 @@ const updateVendorProductSchema =
     maintain_inventory_days:
       Joi.number()
         .integer()
-        .min(1),
+        .min(0),
 
     min_booking_lead_hours:
       Joi.number()
