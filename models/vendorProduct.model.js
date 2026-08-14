@@ -67,7 +67,7 @@ VendorProduct.init(
       allowNull: false,
       defaultValue: 90,
       validate: {
-        min: 1,
+        min: 0,
       },
     },
 

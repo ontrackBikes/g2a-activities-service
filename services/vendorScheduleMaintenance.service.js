@@ -32,9 +32,20 @@ const maintainVendorProductSchedules = async (
   vendorProduct,
 ) => {
   const inventoryDays = Math.max(
-    Number(vendorProduct.maintain_inventory_days) || 1,
-    1,
+    Number(vendorProduct.maintain_inventory_days) || 0,
+    0,
   );
+
+  if (inventoryDays === 0) {
+    return {
+      schedulesCreated: 0,
+      slotsCreated: 0,
+      slotsUpdated: 0,
+      slotsClosed: 0,
+      hasTemplateSlots: true,
+    };
+  }
+
   const dates = buildInventoryDates(inventoryDays);
 
   return sequelize.transaction(async (transaction) => {
