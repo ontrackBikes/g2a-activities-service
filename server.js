@@ -4,6 +4,7 @@ const path = require("path");
 const cors = require("cors");
 const sequelize = require("./config/sequelize");
 const routes = require("./routes");
+const healthRoutes = require("./routes/health.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,10 +30,9 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api", require("./routes/bikeRentals.routes"));
 app.use("/api/v1", routes);
 
-// Health check
-app.get("/health", (_, res) => {
-  res.json({ status: "ok" });
-});
+// Health check - polled by the frontend to detect if the API or its
+// dependencies (db, redis) are down.
+app.use("/health", healthRoutes);
 
 
 
