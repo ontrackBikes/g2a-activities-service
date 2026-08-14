@@ -250,6 +250,21 @@ const flight_details = Joi.object({
   flight_number: Joi.string().trim().max(20).required(),
 }).unknown(false);
 
+const ferry_details = Joi.object({
+  operator: Joi.string().trim().required(),
+
+  custom_operator: Joi.string()
+    .trim()
+    .allow("", null)
+    .when("operator", {
+      is: Joi.string().valid("other", "others").insensitive(),
+      then: Joi.string().trim().min(2).required(),
+      otherwise: Joi.optional(),
+    }),
+
+  ferry_time: time24Hour.required(),
+}).unknown(false);
+
 const opt_for_pickup_and_drop = Joi.boolean();
 
 /*
@@ -272,6 +287,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
 
   [BOOKING_SECTIONS.FLIGHTDETAILS]: flight_details,
+
+  [BOOKING_SECTIONS.FERRYDETAILS]: ferry_details,
 
   [BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP]: opt_for_pickup_and_drop,
 };

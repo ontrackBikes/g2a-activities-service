@@ -18,4 +18,5 @@ module.exports = Object.freeze({
   REVIEW: "review",
   PAYMENT: "payment",
   FLIGHTDETAILS: "flight_details",
+  FERRYDETAILS: "ferry_details",
 });
