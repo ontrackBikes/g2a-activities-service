@@ -2,7 +2,7 @@ const {
   searchLocations,
   calculateDistance,
 } = require("../services/googleMaps.service");
-const { Location } = require("../models");
+const { Location, Area } = require("../models");
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 100;
@@ -40,8 +40,15 @@ const searchGoogleLocations = async (req, res) => {
         ? req.query.location_slug.trim().toLowerCase()
         : "";
 
+    const areaSlug =
+      typeof req.query.area_slug === "string"
+        ? req.query.area_slug.trim().toLowerCase()
+        : "";
+
     let area = null;
 
+    // location_slug (a single zone) takes precedence over area_slug
+    // (the broader region it sits in) when both are given.
     if (locationSlug) {
       const location = await Location.findOne({
         attributes: ["slug", "latitude", "longitude", "service_area"],
@@ -64,6 +71,30 @@ const searchGoogleLocations = async (req, res) => {
         lng: location.longitude != null ? Number(location.longitude) : null,
         polygon: Array.isArray(location.service_area)
           ? location.service_area
+          : null,
+      };
+    } else if (areaSlug) {
+      const areaRow = await Area.findOne({
+        attributes: ["slug", "latitude", "longitude", "service_area"],
+        where: {
+          slug: areaSlug,
+          active: true,
+        },
+      });
+
+      if (!areaRow) {
+        return res.status(404).json({
+          success: false,
+          message: "Area not found.",
+        });
+      }
+
+      area = {
+        slug: areaRow.slug,
+        lat: areaRow.latitude != null ? Number(areaRow.latitude) : null,
+        lng: areaRow.longitude != null ? Number(areaRow.longitude) : null,
+        polygon: Array.isArray(areaRow.service_area)
+          ? areaRow.service_area
           : null,
       };
     }

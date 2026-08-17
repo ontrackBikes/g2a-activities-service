@@ -3,6 +3,7 @@ const sequelize = require("../config/sequelize");
 const BookingEstimate = require("../models/bookingEstimate.model");
 const {
   Location,
+  Area,
   VendorProduct,
   VendorProductImage,
   VendorProductFaq,
@@ -25,6 +26,7 @@ const {
 const {
   geoJsonToPolygon,
   polygonToGeoJson,
+  extractServiceAreaField,
 } = require("../utils/geoBoundary");
 
 const authorizePermanentDelete = (req, res) => {
@@ -76,7 +78,29 @@ const createLocation = async (req, res) => {
       }
     }
 
-    const location = await Location.create(value);
+    if (value.area_id) {
+      const area = await Area.findByPk(value.area_id);
+
+      if (!area) {
+        return res.status(404).json({
+          success: false,
+          message: "Area not found",
+        });
+      }
+    }
+
+    let payload;
+
+    try {
+      payload = extractServiceAreaField(value);
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: parseError.message,
+      });
+    }
+
+    const location = await Location.create(payload);
 
     return res.status(201).json({
       success: true,
@@ -95,7 +119,7 @@ const createLocation = async (req, res) => {
 
 const getLocations = async (req, res) => {
   try {
-    const { active, location_type, parent_location_id } = req.query;
+    const { active, location_type, parent_location_id, area_id } = req.query;
 
     const where = {};
 
@@ -111,8 +135,19 @@ const getLocations = async (req, res) => {
       where.parent_location_id = parent_location_id;
     }
 
+    if (area_id) {
+      where.area_id = area_id;
+    }
+
     const locations = await Location.findAll({
       where,
+      include: [
+        {
+          model: Area,
+          as: "area",
+          attributes: ["id", "name", "slug"],
+        },
+      ],
       order: [["name", "ASC"]],
     });
 
@@ -177,6 +212,11 @@ const getLocation = async (req, res) => {
         {
           model: Location,
           as: "children",
+        },
+        {
+          model: Area,
+          as: "area",
+          attributes: ["id", "name", "slug"],
         },
       ],
     });
@@ -363,7 +403,29 @@ const updateLocation = async (req, res) => {
       }
     }
 
-    await location.update(value);
+    if (value.area_id) {
+      const area = await Area.findByPk(value.area_id);
+
+      if (!area) {
+        return res.status(404).json({
+          success: false,
+          message: "Area not found",
+        });
+      }
+    }
+
+    let payload;
+
+    try {
+      payload = extractServiceAreaField(value);
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: parseError.message,
+      });
+    }
+
+    await location.update(payload);
 
     return res.json({
       success: true,

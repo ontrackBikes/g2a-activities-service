@@ -2,6 +2,7 @@ const Product = require("./product.model");
 const ProductGroup = require("./productGroup.model");
 const ProductImage = require("./productImages.model");
 const Location = require("./location.model");
+const Area = require("./area.model");
 const Vendor = require("./vendor.model");
 const VendorProduct = require("./vendorProduct.model");
 const VendorProductImage = require("./vendorProductImage.model");
@@ -66,6 +67,16 @@ Location.belongsTo(Location, {
 Location.hasMany(Location, {
   foreignKey: "parent_location_id",
   as: "children",
+});
+
+Area.hasMany(Location, {
+  foreignKey: "area_id",
+  as: "locations",
+});
+
+Location.belongsTo(Area, {
+  foreignKey: "area_id",
+  as: "area",
 });
 
 Vendor.hasMany(VendorProduct, {
@@ -475,6 +486,7 @@ module.exports = {
   ProductGroup,
   ProductImage,
   Location,
+  Area,
   Vendor,
   VendorProduct,
   VendorProductImage,

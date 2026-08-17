@@ -2,6 +2,7 @@ const express = require("express");
 
 const vendorRoutes = require("./vendor.routes");
 const locationRoutes = require("./location.routes");
+const areaRoutes = require("./area.routes");
 const productRoutes = require("./product.routes");
 const productGroupRoutes = require("./productGroup.routes");
 const productImagesRoutes = require("./productImage.routes");
@@ -50,6 +51,8 @@ router.use("/rzp", razorpayRoutes);
 router.use("/vendors", vendorRoutes);
 
 router.use("/locations", locationRoutes);
+
+router.use("/areas", areaRoutes);
 
 router.use("/products", productRoutes);
 

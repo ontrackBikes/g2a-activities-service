@@ -36,6 +36,11 @@ const createLocationSchema = Joi.object({
     .positive()
     .allow(null),
 
+  area_id: Joi.number()
+    .integer()
+    .positive()
+    .allow(null),
+
   latitude: Joi.number()
     .min(-90)
     .max(90)
@@ -48,6 +53,8 @@ const createLocationSchema = Joi.object({
 
   active: Joi.boolean()
     .default(true),
+
+  geojson: Joi.object().allow(null),
 });
 
 const updateLocationSchema =

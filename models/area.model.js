@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 
-class Location extends Model {}
+class Area extends Model {}
 
-Location.init(
+Area.init(
   {
     id: {
       type: DataTypes.BIGINT.UNSIGNED,
@@ -15,13 +15,7 @@ Location.init(
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      comment: "Location name",
-    },
-
-    image: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      comment: "Location Image",
+      comment: "Area name, e.g. Andaman & Nicobar Islands",
     },
 
     slug: {
@@ -29,31 +23,6 @@ Location.init(
       allowNull: false,
       unique: true,
       comment: "SEO friendly slug",
-    },
-
-    location_type: {
-      type: DataTypes.ENUM(
-        "island",
-        "city",
-        "jetty",
-        "beach",
-        "attraction",
-        "other"
-      ),
-      allowNull: false,
-      comment: "Location type",
-    },
-
-    parent_location_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: true,
-      comment: "Parent location",
-    },
-
-    area_id: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: true,
-      comment: "Parent Area (region) this location belongs to",
     },
 
     latitude: {
@@ -80,7 +49,7 @@ Location.init(
       type: DataTypes.JSON,
       allowNull: true,
       comment:
-        "Serviceability boundary as an array of {lat,lng} polygon vertices, used to scope /places/search results to this location",
+        "Serviceability boundary as an array of {lat,lng} polygon vertices, used to scope /places/search results to this area",
     },
 
     active: {
@@ -93,9 +62,9 @@ Location.init(
   {
     sequelize,
 
-    modelName: "Location",
+    modelName: "Area",
 
-    tableName: "locations",
+    tableName: "areas",
 
     freezeTableName: true,
 
@@ -106,28 +75,15 @@ Location.init(
     updatedAt: "updated_at",
 
     indexes: [
-      
       {
         unique: true,
         fields: ["slug"],
       },
       {
-        fields: ["location_type"],
-      },
-      {
-        fields: ["parent_location_id"],
-      },
-      {
-        fields: ["area_id"],
-      },
-      {
         fields: ["active"],
-      },
-      {
-        fields: ["name"],
       },
     ],
   }
 );
-// Location.sync({alter: true})
-module.exports = Location;
+
+module.exports = Area;

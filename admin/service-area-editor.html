@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Location Service Area Editor</title>
+<title>Service Area Editor</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
@@ -67,6 +67,25 @@
   .hint { font-size: 12px; color: #777; margin-top: 4px; }
 
   hr { border: none; border-top: 1px solid #ddd; margin: 18px 0; }
+
+  .type-toggle { display: flex; gap: 8px; }
+
+  .type-toggle label {
+    flex: 1;
+    margin: 0;
+    text-align: center;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: normal;
+  }
+
+  .type-toggle input { display: none; }
+
+  .type-toggle input:checked + span { font-weight: bold; color: #2d54af; }
+
+  .type-toggle label:has(input:checked) { border-color: #2d54af; background: #eef4ff; }
 </style>
 </head>
 <body>
@@ -76,10 +95,28 @@
   <div class="sidebar">
     <h1>Service Area Editor</h1>
 
-    <label for="locationSelect">Location</label>
-    <select id="locationSelect">
-      <option value="">Loading locations…</option>
+    <label>Editing</label>
+    <div class="type-toggle">
+      <label><input type="radio" name="entityType" value="areas"><span>Area</span></label>
+      <label><input type="radio" name="entityType" value="locations" checked><span>Location</span></label>
+    </div>
+    <div class="hint">
+      Areas are broad regions (e.g. Andaman &amp; Nicobar). Locations are
+      specific zones/islands that belong to an Area.
+    </div>
+
+    <label for="entitySelect" id="entitySelectLabel">Location</label>
+    <select id="entitySelect">
+      <option value="">Loading…</option>
     </select>
+
+    <div id="areaAssignRow" style="display:none;">
+      <label for="areaIdSelect">Belongs to Area</label>
+      <select id="areaIdSelect">
+        <option value="">Loading…</option>
+      </select>
+      <button id="assignAreaBtn" class="secondary">Save area assignment</button>
+    </div>
 
     <hr>
 
@@ -144,7 +181,12 @@
   });
   map.addControl(drawControl);
 
-  const locationSelect = document.getElementById("locationSelect");
+  const entitySelect = document.getElementById("entitySelect");
+  const entitySelectLabel = document.getElementById("entitySelectLabel");
+  const typeInputs = document.querySelectorAll('input[name="entityType"]');
+  const areaAssignRow = document.getElementById("areaAssignRow");
+  const areaIdSelect = document.getElementById("areaIdSelect");
+  const assignAreaBtn = document.getElementById("assignAreaBtn");
   const geojsonInput = document.getElementById("geojsonInput");
   const plotBtn = document.getElementById("plotBtn");
   const exportBtn = document.getElementById("exportBtn");
@@ -152,6 +194,12 @@
   const statusEl = document.getElementById("status");
 
   let centerMarker = null;
+
+  const getEntityType = () =>
+    document.querySelector('input[name="entityType"]:checked').value;
+
+  const getEntityLabel = () =>
+    getEntityType() === "areas" ? "Area" : "Location";
 
   const showStatus = (message, ok) => {
     statusEl.textContent = message;
@@ -217,28 +265,63 @@
     saveBtn.disabled = drawnItems.getLayers().length === 0;
   });
 
-  const loadLocations = async () => {
-    const response = await fetch(`${API_BASE}/locations/options`);
+  const loadOptions = async () => {
+    const type = getEntityType();
+    const label = getEntityLabel();
+
+    entitySelectLabel.textContent = label;
+    entitySelect.innerHTML = "<option value=\"\">Loading…</option>";
+    clearShapes();
+    saveBtn.disabled = true;
+    geojsonInput.value = "";
+    statusEl.className = "";
+
+    areaAssignRow.style.display = type === "locations" ? "block" : "none";
+
+    if (type === "locations" && !areaIdSelect.dataset.loaded) {
+      await loadAreaPickerOptions();
+    }
+
+    const response = await fetch(`${API_BASE}/${type}/options`);
     const body = await response.json();
 
     if (!body.success) {
-      showStatus("Failed to load locations.", false);
+      showStatus(`Failed to load ${label.toLowerCase()}s.`, false);
       return;
     }
 
-    locationSelect.innerHTML =
-      '<option value="">Select a location…</option>' +
+    entitySelect.innerHTML =
+      `<option value="">Select a ${label.toLowerCase()}…</option>` +
       body.data
-        .map((loc) => `<option value="${loc.id}">${loc.label} (${loc.slug})</option>`)
+        .map((item) => `<option value="${item.id}">${item.label} (${item.slug})</option>`)
         .join("");
   };
 
-  const loadServiceArea = async (locationId) => {
+  const loadAreaPickerOptions = async () => {
+    const response = await fetch(`${API_BASE}/areas/options`);
+    const body = await response.json();
+
+    if (!body.success) {
+      areaIdSelect.innerHTML = "<option value=\"\">Failed to load areas</option>";
+      return;
+    }
+
+    areaIdSelect.innerHTML =
+      '<option value="">— none —</option>' +
+      body.data
+        .map((item) => `<option value="${item.id}">${item.label} (${item.slug})</option>`)
+        .join("");
+    areaIdSelect.dataset.loaded = "true";
+  };
+
+  const loadServiceArea = async (id) => {
+    const type = getEntityType();
+
     clearShapes();
     saveBtn.disabled = true;
     geojsonInput.value = "";
 
-    const response = await fetch(`${API_BASE}/locations/${locationId}/service-area`);
+    const response = await fetch(`${API_BASE}/${type}/${id}/service-area`);
     const body = await response.json();
 
     if (!body.success) {
@@ -260,19 +343,67 @@
     } else {
       showStatus("No service area defined yet — draw or paste one.", true);
     }
+
+    if (type === "locations") {
+      const locationResponse = await fetch(`${API_BASE}/locations/${id}`);
+      const locationBody = await locationResponse.json();
+
+      areaIdSelect.value =
+        locationBody.success && locationBody.data.area_id
+          ? String(locationBody.data.area_id)
+          : "";
+    }
   };
 
-  locationSelect.addEventListener("change", () => {
-    if (locationSelect.value) {
-      loadServiceArea(locationSelect.value);
+  typeInputs.forEach((input) => {
+    input.addEventListener("change", loadOptions);
+  });
+
+  entitySelect.addEventListener("change", () => {
+    if (entitySelect.value) {
+      loadServiceArea(entitySelect.value);
+    }
+  });
+
+  assignAreaBtn.addEventListener("click", async () => {
+    const locationId = entitySelect.value;
+
+    if (!locationId) {
+      showStatus("Select a location first.", false);
+      return;
+    }
+
+    const areaId = areaIdSelect.value || null;
+
+    assignAreaBtn.disabled = true;
+
+    try {
+      const response = await fetch(`${API_BASE}/locations/${locationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area_id: areaId }),
+      });
+
+      const body = await response.json();
+
+      if (!body.success) {
+        showStatus(body.message || "Failed to save area assignment.", false);
+      } else {
+        showStatus("Area assignment saved.", true);
+      }
+    } catch (error) {
+      showStatus("Failed to save area assignment: " + error.message, false);
+    } finally {
+      assignAreaBtn.disabled = false;
     }
   });
 
   saveBtn.addEventListener("click", async () => {
-    const locationId = locationSelect.value;
+    const type = getEntityType();
+    const id = entitySelect.value;
 
-    if (!locationId) {
-      showStatus("Select a location first.", false);
+    if (!id) {
+      showStatus(`Select a ${getEntityLabel().toLowerCase()} first.`, false);
       return;
     }
 
@@ -288,7 +419,7 @@
     saveBtn.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE}/locations/${locationId}/service-area`, {
+      const response = await fetch(`${API_BASE}/${type}/${id}/service-area`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ geojson }),
@@ -308,7 +439,7 @@
     }
   });
 
-  loadLocations();
+  loadOptions();
 </script>
 
 </body>

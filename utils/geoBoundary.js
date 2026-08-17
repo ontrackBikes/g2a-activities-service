@@ -143,10 +143,31 @@ const geoJsonToPolygon = (geojson) => {
   return deduped;
 };
 
+/**
+ * Lets a create/update payload set the boundary inline via a `geojson`
+ * field, instead of only through the dedicated /service-area endpoint.
+ * `geojson: null` clears the boundary; omitting the field leaves
+ * `service_area` untouched. Throws (via geoJsonToPolygon) on malformed
+ * GeoJSON -- callers should catch and turn that into a 400.
+ */
+const extractServiceAreaField = (value) => {
+  if (!("geojson" in value)) {
+    return value;
+  }
+
+  const { geojson, ...rest } = value;
+
+  return {
+    ...rest,
+    service_area: geojson === null ? null : geoJsonToPolygon(geojson),
+  };
+};
+
 module.exports = {
   haversineDistanceMeters,
   isPointInPolygon,
   getPolygonBoundingCircle,
   polygonToGeoJson,
   geoJsonToPolygon,
+  extractServiceAreaField,
 };
