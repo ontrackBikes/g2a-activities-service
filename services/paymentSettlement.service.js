@@ -206,6 +206,23 @@ async function confirmOrderItems({ orderId, transaction }) {
   );
 }
 
+/**
+ * Resolves the recipient/cc/bcc for an email send.
+ *
+ * When `to` is explicitly overridden (e.g. a test resend), cc/bcc default
+ * to none instead of falling back to the team address, unless the caller
+ * also explicitly overrides cc/bcc.
+ */
+const resolveEmailRecipients = ({ to, cc, bcc, defaultTo }) => {
+  const isOverride = Boolean(to);
+
+  return {
+    to: to || defaultTo,
+    cc: cc !== undefined ? cc : isOverride ? null : undefined,
+    bcc: bcc !== undefined ? bcc : isOverride ? null : undefined,
+  };
+};
+
 const formatEmailAmount = (value) => {
   const amount = Number(value);
 
@@ -342,7 +359,7 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
  * Actual implementation handled separately.
  */
 
-async function sendConfirmationEmail({ payment, order }) {
+async function sendConfirmationEmail({ payment, order, to, cc, bcc }) {
   const customerEmail = order.customer_details?.email;
 
   if (!customerEmail) {
@@ -355,6 +372,13 @@ async function sendConfirmationEmail({ payment, order }) {
       message: "Customer email not found",
     };
   }
+
+  const recipients = resolveEmailRecipients({
+    to,
+    cc,
+    bcc,
+    defaultTo: customerEmail,
+  });
 
   const scheduleSlotIds = [
     ...new Set(
@@ -521,7 +545,9 @@ async function sendConfirmationEmail({ payment, order }) {
       orderId: order.id,
       customerId: order.customer_id,
 
-      to: customerEmail,
+      to: recipients.to,
+      cc: recipients.cc,
+      bcc: recipients.bcc,
 
       templateAlias: emailTemplates.BOOKING_CONFIRMATION,
 
@@ -611,7 +637,7 @@ async function sendConfirmationEmail({ payment, order }) {
 /**
  * Send payment failed email
  */
-async function sendPaymentFailedEmail({ payment, order }) {
+async function sendPaymentFailedEmail({ payment, order, to, cc, bcc }) {
   const customerEmail = order.customer_details?.email;
 
   if (!customerEmail) {
@@ -624,6 +650,13 @@ async function sendPaymentFailedEmail({ payment, order }) {
       message: "Customer email not found",
     };
   }
+
+  const recipients = resolveEmailRecipients({
+    to,
+    cc,
+    bcc,
+    defaultTo: customerEmail,
+  });
 
   const customerName =
     order.customer_details?.name ||
@@ -666,9 +699,9 @@ async function sendPaymentFailedEmail({ payment, order }) {
     orderId: order.id,
     customerId: order.customer_id,
 
-    to: customerEmail,
-    bcc: process.env.EMAIL_BCC_TEAM || null,
-    cc: process.env.EMAIL_CC_TEAM || null,
+    to: recipients.to,
+    cc: recipients.cc,
+    bcc: recipients.bcc,
 
     templateAlias: emailTemplates.PAYMENT_FAILED,
 
@@ -760,7 +793,7 @@ async function sendPaymentPendingEmail({ payment, order }) {
  * Dispatches to the confirmation or failure email based on
  * the payment's current status.
  */
-async function resendPaymentEmail({ paymentId } = {}) {
+async function resendPaymentEmail({ paymentId, to, cc, bcc } = {}) {
   if (!paymentId) {
     throw new Error("paymentId is required.");
   }
@@ -803,10 +836,10 @@ async function resendPaymentEmail({ paymentId } = {}) {
 
   if (payment.status === "captured") {
     type = "booking_confirmation";
-    result = await sendConfirmationEmail({ payment, order });
+    result = await sendConfirmationEmail({ payment, order, to, cc, bcc });
   } else if (payment.status === "failed") {
     type = "payment_failed";
-    result = await sendPaymentFailedEmail({ payment, order });
+    result = await sendPaymentFailedEmail({ payment, order, to, cc, bcc });
   } else {
     return {
       success: false,

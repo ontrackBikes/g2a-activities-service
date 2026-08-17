@@ -1,6 +1,7 @@
 const {
   resendPaymentEmail,
 } = require("../services/paymentSettlement.service");
+const { resendEmailSchema } = require("../schemas/payment.schema");
 
 const REASON_STATUS = {
   not_found: 404,
@@ -19,7 +20,21 @@ const resendEmail = async (req, res) => {
   try {
     const { payment_id } = req.params;
 
-    const result = await resendPaymentEmail({ paymentId: payment_id });
+    const { error, value } = resendEmailSchema.validate(req.body || {});
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const result = await resendPaymentEmail({
+      paymentId: payment_id,
+      to: value.to,
+      cc: value.cc,
+      bcc: value.bcc,
+    });
 
     if (!result.success) {
       const status = REASON_STATUS[result.reason] || 502;

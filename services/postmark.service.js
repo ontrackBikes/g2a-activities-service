@@ -17,8 +17,8 @@ const sendEmail = async ({
   customerId = null,
 
   to,
-  cc = null,
-  bcc = null,
+  cc,
+  bcc,
 
   subject,
 
@@ -28,6 +28,10 @@ const sendEmail = async ({
 
   metadata = {},
 }) => {
+  // `undefined` -> use the team default; `null`/"" -> explicitly no cc/bcc.
+  const resolvedCc = cc !== undefined ? cc : process.env.EMAIL_CC_TEAM;
+  const resolvedBcc = bcc !== undefined ? bcc : process.env.EMAIL_BCC_TEAM;
+
   const log = await EmailLog.create({
     order_id: orderId,
     customer_id: customerId,
@@ -49,8 +53,8 @@ const sendEmail = async ({
     const response = await client.sendEmail({
       From: FROM_EMAIL,
       To: to,
-      Cc: cc || process.env.EMAIL_CC_TEAM, // Use provided CC or default from .env
-      Bcc: bcc || process.env.EMAIL_BCC_TEAM, // Use provided BCC or default from .env
+      ...(resolvedCc ? { Cc: resolvedCc } : {}),
+      ...(resolvedBcc ? { Bcc: resolvedBcc } : {}),
       Subject: subject,
       HtmlBody: html,
       TextBody: text,
@@ -90,8 +94,8 @@ const sendTemplateEmail = async ({
   customerId = null,
 
   to,
-  cc = null,
-  bcc = null,
+  cc,
+  bcc,
 
   templateId = null,
   templateAlias = null,
@@ -105,6 +109,10 @@ const sendTemplateEmail = async ({
       "Either templateId or templateAlias is required."
     );
   }
+
+  // `undefined` -> use the team default; `null`/"" -> explicitly no cc/bcc.
+  const resolvedCc = cc !== undefined ? cc : process.env.EMAIL_CC_TEAM;
+  const resolvedBcc = bcc !== undefined ? bcc : process.env.EMAIL_BCC_TEAM;
 
   const log = await EmailLog.create({
     order_id: orderId,
@@ -128,19 +136,11 @@ const sendTemplateEmail = async ({
     const payload = {
       From: FROM_EMAIL,
       To: to,
-      Cc: cc || process.env.EMAIL_CC_TEAM, // Use provided CC or default from .env
-      Bcc: bcc || process.env.EMAIL_BCC_TEAM, // Use provided BCC or default from .env
+      ...(resolvedCc ? { Cc: resolvedCc } : {}),
+      ...(resolvedBcc ? { Bcc: resolvedBcc } : {}),
       TemplateModel: templateModel,
       MessageStream: MESSAGE_STREAM,
     };
-
-    if (cc) {
-      payload.Cc = cc;
-    }
-
-    if (bcc) {
-      payload.Bcc = bcc;
-    }
 
     if (templateId) {
       payload.TemplateId = templateId;
