@@ -10,6 +10,8 @@ const {
   deleteLocation,
   permanentlyDeleteLocation,
   getLocationApp,
+  getServiceArea,
+  updateServiceArea,
 } = require("../controllers/location.controller");
 
 const router = express.Router();
@@ -25,6 +27,10 @@ router.get("/options", getLocationOptions);
 router.get("/:id", getLocation);
 
 router.patch("/:id", updateLocation);
+
+router.get("/:id/service-area", getServiceArea);
+
+router.put("/:id/service-area", updateServiceArea);
 
 router.delete("/:id/permanent", permanentlyDeleteLocation);
 

@@ -26,6 +26,8 @@ app.use(express.json());
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+app.use("/admin", express.static(path.join(process.cwd(), "admin")));
+
 // Routes
 app.use("/api", require("./routes/bikeRentals.routes"));
 app.use("/api/v1", routes);

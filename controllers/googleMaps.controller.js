@@ -2,6 +2,7 @@ const {
   searchLocations,
   calculateDistance,
 } = require("../services/googleMaps.service");
+const { Location } = require("../models");
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 100;
@@ -34,7 +35,40 @@ const searchGoogleLocations = async (req, res) => {
       });
     }
 
-    const result = await searchLocations({ query });
+    const locationSlug =
+      typeof req.query.location_slug === "string"
+        ? req.query.location_slug.trim().toLowerCase()
+        : "";
+
+    let area = null;
+
+    if (locationSlug) {
+      const location = await Location.findOne({
+        attributes: ["slug", "latitude", "longitude", "service_area"],
+        where: {
+          slug: locationSlug,
+          active: true,
+        },
+      });
+
+      if (!location) {
+        return res.status(404).json({
+          success: false,
+          message: "Location not found.",
+        });
+      }
+
+      area = {
+        slug: location.slug,
+        lat: location.latitude != null ? Number(location.latitude) : null,
+        lng: location.longitude != null ? Number(location.longitude) : null,
+        polygon: Array.isArray(location.service_area)
+          ? location.service_area
+          : null,
+      };
+    }
+
+    const result = await searchLocations({ query, area });
 
     if (!result.success) {
       return res.status(502).json({

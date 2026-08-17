@@ -20,7 +20,12 @@ const {
 const {
   createLocationSchema,
   updateLocationSchema,
+  serviceAreaSchema,
 } = require("../schemas/location.schema");
+const {
+  geoJsonToPolygon,
+  polygonToGeoJson,
+} = require("../utils/geoBoundary");
 
 const authorizePermanentDelete = (req, res) => {
   const token = process.env.PERMANENT_DELETE_TOKEN;
@@ -375,6 +380,101 @@ const updateLocation = async (req, res) => {
   }
 };
 
+const getServiceArea = async (req, res) => {
+  try {
+    const location = await Location.findByPk(req.params.id, {
+      attributes: ["id", "slug", "name", "latitude", "longitude", "service_area"],
+    });
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found",
+      });
+    }
+
+    const polygon = Array.isArray(location.service_area)
+      ? location.service_area
+      : null;
+
+    return res.json({
+      success: true,
+      data: {
+        id: location.id,
+        slug: location.slug,
+        name: location.name,
+        center:
+          location.latitude != null && location.longitude != null
+            ? {
+                lat: Number(location.latitude),
+                lng: Number(location.longitude),
+              }
+            : null,
+        geojson: polygon ? polygonToGeoJson(polygon) : null,
+      },
+    });
+  } catch (error) {
+    console.error("[LocationController] getServiceArea", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateServiceArea = async (req, res) => {
+  try {
+    const { error, value } = serviceAreaSchema.validate(req.body);
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const location = await Location.findByPk(req.params.id);
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: "Location not found",
+      });
+    }
+
+    let polygon;
+
+    try {
+      polygon = geoJsonToPolygon(value.geojson);
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: parseError.message,
+      });
+    }
+
+    await location.update({ service_area: polygon });
+
+    return res.json({
+      success: true,
+      message: "Service area updated successfully",
+      data: {
+        id: location.id,
+        slug: location.slug,
+        geojson: polygonToGeoJson(polygon),
+      },
+    });
+  } catch (error) {
+    console.error("[LocationController] updateServiceArea", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const deleteLocation = async (req, res) => {
   try {
     const location = await Location.findByPk(req.params.id);
@@ -594,4 +694,6 @@ module.exports = {
   deleteLocation,
   permanentlyDeleteLocation,
   getLocationApp,
+  getServiceArea,
+  updateServiceArea,
 };

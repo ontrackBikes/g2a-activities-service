@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location Service Area Editor</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+<style>
+  html, body { height: 100%; margin: 0; font-family: Arial, Helvetica, sans-serif; color: #222; }
+
+  .layout { display: flex; height: 100%; }
+
+  .sidebar {
+    width: 380px;
+    flex-shrink: 0;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    border-right: 1px solid #ddd;
+    background: #fafafa;
+  }
+
+  #map { flex: 1; }
+
+  h1 { font-size: 18px; margin: 0 0 16px; }
+
+  label { display: block; font-size: 13px; font-weight: bold; margin: 14px 0 4px; }
+
+  select, textarea, button {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  textarea { font-family: monospace; font-size: 12px; resize: vertical; }
+
+  button {
+    margin-top: 8px;
+    cursor: pointer;
+    background: #2d54af;
+    color: #fff;
+    border: none;
+    font-weight: bold;
+  }
+
+  button.secondary { background: #fff; color: #2d54af; border: 1px solid #2d54af; }
+
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #status {
+    margin-top: 12px;
+    font-size: 13px;
+    padding: 8px;
+    border-radius: 4px;
+    display: none;
+  }
+
+  #status.ok { display: block; background: #e6f4ea; color: #1e7e34; }
+  #status.err { display: block; background: #fdecea; color: #b3261e; }
+
+  .hint { font-size: 12px; color: #777; margin-top: 4px; }
+
+  hr { border: none; border-top: 1px solid #ddd; margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <div class="sidebar">
+    <h1>Service Area Editor</h1>
+
+    <label for="locationSelect">Location</label>
+    <select id="locationSelect">
+      <option value="">Loading locations…</option>
+    </select>
+
+    <hr>
+
+    <label for="geojsonInput">Paste GeoJSON</label>
+    <textarea id="geojsonInput" rows="8" placeholder='{"type":"Polygon","coordinates":[[[92.98,12.01],[93.00,12.02],[92.99,12.03],[92.98,12.01]]]}'></textarea>
+    <div class="hint">Accepts a Polygon, a Feature&lt;Polygon&gt;, or a FeatureCollection containing one.</div>
+    <button id="plotBtn" class="secondary">Plot on map</button>
+
+    <hr>
+
+    <div class="hint">
+      Or use the draw tools on the map (top-left) to draw / edit / delete
+      the polygon directly. Drawing a new shape replaces the current one.
+    </div>
+
+    <button id="exportBtn" class="secondary">Export current shape to textarea</button>
+
+    <hr>
+
+    <button id="saveBtn" disabled>Save service area</button>
+
+    <div id="status"></div>
+  </div>
+
+  <div id="map"></div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<script>
+  const API_BASE = "/api/v1";
+
+  const ANDAMAN_NICOBAR_CENTER = [11.7401, 92.6586];
+
+  const map = L.map("map").setView(ANDAMAN_NICOBAR_CENTER, 8);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map);
+
+  const drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  const drawControl = new L.Control.Draw({
+    draw: {
+      polygon: {
+        allowIntersection: false,
+        showArea: true,
+      },
+      polyline: false,
+      rectangle: false,
+      circle: false,
+      circlemarker: false,
+      marker: false,
+    },
+    edit: {
+      featureGroup: drawnItems,
+    },
+  });
+  map.addControl(drawControl);
+
+  const locationSelect = document.getElementById("locationSelect");
+  const geojsonInput = document.getElementById("geojsonInput");
+  const plotBtn = document.getElementById("plotBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const statusEl = document.getElementById("status");
+
+  let centerMarker = null;
+
+  const showStatus = (message, ok) => {
+    statusEl.textContent = message;
+    statusEl.className = ok ? "ok" : "err";
+  };
+
+  const clearShapes = () => {
+    drawnItems.clearLayers();
+    if (centerMarker) {
+      map.removeLayer(centerMarker);
+      centerMarker = null;
+    }
+  };
+
+  const plotGeoJson = (geojson) => {
+    const layer = L.geoJSON(geojson);
+    const polygonLayer = layer
+      .getLayers()
+      .find((l) => l instanceof L.Polygon);
+
+    if (!polygonLayer) {
+      throw new Error("No Polygon geometry found in the pasted GeoJSON.");
+    }
+
+    drawnItems.clearLayers();
+    drawnItems.addLayer(polygonLayer);
+    map.fitBounds(polygonLayer.getBounds(), { padding: [24, 24] });
+    saveBtn.disabled = false;
+  };
+
+  plotBtn.addEventListener("click", () => {
+    try {
+      const parsed = JSON.parse(geojsonInput.value);
+      plotGeoJson(parsed);
+      showStatus("Plotted. Review the shape, then Save.", true);
+    } catch (error) {
+      showStatus("Invalid GeoJSON: " + error.message, false);
+    }
+  });
+
+  exportBtn.addEventListener("click", () => {
+    const layers = drawnItems.getLayers();
+
+    if (!layers.length) {
+      showStatus("Nothing drawn yet.", false);
+      return;
+    }
+
+    geojsonInput.value = JSON.stringify(layers[0].toGeoJSON().geometry, null, 2);
+  });
+
+  map.on(L.Draw.Event.CREATED, (event) => {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(event.layer);
+    saveBtn.disabled = false;
+  });
+
+  map.on(L.Draw.Event.EDITED, () => {
+    saveBtn.disabled = drawnItems.getLayers().length === 0;
+  });
+
+  map.on(L.Draw.Event.DELETED, () => {
+    saveBtn.disabled = drawnItems.getLayers().length === 0;
+  });
+
+  const loadLocations = async () => {
+    const response = await fetch(`${API_BASE}/locations/options`);
+    const body = await response.json();
+
+    if (!body.success) {
+      showStatus("Failed to load locations.", false);
+      return;
+    }
+
+    locationSelect.innerHTML =
+      '<option value="">Select a location…</option>' +
+      body.data
+        .map((loc) => `<option value="${loc.id}">${loc.label} (${loc.slug})</option>`)
+        .join("");
+  };
+
+  const loadServiceArea = async (locationId) => {
+    clearShapes();
+    saveBtn.disabled = true;
+    geojsonInput.value = "";
+
+    const response = await fetch(`${API_BASE}/locations/${locationId}/service-area`);
+    const body = await response.json();
+
+    if (!body.success) {
+      showStatus(body.message || "Failed to load service area.", false);
+      return;
+    }
+
+    const { center, geojson } = body.data;
+
+    if (center) {
+      centerMarker = L.marker([center.lat, center.lng]).addTo(map);
+      map.setView([center.lat, center.lng], 12);
+    }
+
+    if (geojson) {
+      plotGeoJson(geojson);
+      geojsonInput.value = JSON.stringify(geojson, null, 2);
+      showStatus("Existing service area loaded.", true);
+    } else {
+      showStatus("No service area defined yet — draw or paste one.", true);
+    }
+  };
+
+  locationSelect.addEventListener("change", () => {
+    if (locationSelect.value) {
+      loadServiceArea(locationSelect.value);
+    }
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const locationId = locationSelect.value;
+
+    if (!locationId) {
+      showStatus("Select a location first.", false);
+      return;
+    }
+
+    const layers = drawnItems.getLayers();
+
+    if (!layers.length) {
+      showStatus("Draw or plot a polygon first.", false);
+      return;
+    }
+
+    const geojson = layers[0].toGeoJSON().geometry;
+
+    saveBtn.disabled = true;
+
+    try {
+      const response = await fetch(`${API_BASE}/locations/${locationId}/service-area`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ geojson }),
+      });
+
+      const body = await response.json();
+
+      if (!body.success) {
+        showStatus(body.message || "Save failed.", false);
+      } else {
+        showStatus("Service area saved.", true);
+      }
+    } catch (error) {
+      showStatus("Save failed: " + error.message, false);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  loadLocations();
+</script>
+
+</body>
+</html>

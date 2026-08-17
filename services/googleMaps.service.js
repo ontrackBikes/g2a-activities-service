@@ -1,4 +1,8 @@
 const crypto = require("crypto");
+const {
+  isPointInPolygon,
+  getPolygonBoundingCircle,
+} = require("../utils/geoBoundary");
 
 const ANDAMAN_NICOBAR_REGEX = /andaman|nicobar/i;
 const JETTY_NAME_REGEX = /jetty/i;
@@ -9,6 +13,13 @@ const JETTY_NAME_REGEX = /jetty/i;
  */
 const ANDAMAN_NICOBAR_LOCATION = "11.7401,92.6586";
 const ANDAMAN_NICOBAR_RADIUS_METERS = "250000";
+
+/**
+ * Bias radius used when a location_slug is given but that Location
+ * has no service_area polygon defined yet -- tighter than the
+ * archipelago-wide default, but not a hard boundary.
+ */
+const DEFAULT_LOCATION_RADIUS_METERS = "15000";
 
 /**
  * Secret used to sign the coordinates returned by searchLocations(),
@@ -112,10 +123,21 @@ const distanceCache = createCache({
 
 /**
  * Search Google Places for a query, biased to Andaman &
- * Nicobar Islands, then regex-filtered to only keep results
- * whose description actually mentions Andaman or Nicobar.
+ * Nicobar Islands (or to a single Location's area when `area` is
+ * given), then filtered to only keep results that actually fall
+ * within that boundary.
+ *
+ * `area` (optional): { slug, lat, lng, polygon }, resolved from a
+ * Location row by the caller.
+ *   - polygon given: bias the Google call to the polygon's bounding
+ *     circle, then hard-filter results with a point-in-polygon test
+ *     -- this is the real boundary.
+ *   - polygon absent but lat/lng given: bias to that point with a
+ *     fixed default radius (no hard geofence yet -- the Location has
+ *     no service_area defined).
+ *   - no area: unchanged archipelago-wide behavior.
  */
-const searchLocations = async ({ query }) => {
+const searchLocations = async ({ query, area = null }) => {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {
@@ -125,7 +147,7 @@ const searchLocations = async ({ query }) => {
     };
   }
 
-  const cacheKey = query.trim().toLowerCase();
+  const cacheKey = `${query.trim().toLowerCase()}|${area?.slug || ""}`;
   const cached = searchCache.get(cacheKey);
 
   if (cached) {
@@ -135,12 +157,25 @@ const searchLocations = async ({ query }) => {
     };
   }
 
+  let biasLocation = ANDAMAN_NICOBAR_LOCATION;
+  let biasRadius = ANDAMAN_NICOBAR_RADIUS_METERS;
+
+  if (area?.polygon?.length >= 3) {
+    const boundingCircle = getPolygonBoundingCircle(area.polygon);
+
+    biasLocation = `${boundingCircle.center.lat},${boundingCircle.center.lng}`;
+    biasRadius = String(Math.ceil(boundingCircle.radiusMeters));
+  } else if (area?.lat != null && area?.lng != null) {
+    biasLocation = `${area.lat},${area.lng}`;
+    biasRadius = DEFAULT_LOCATION_RADIUS_METERS;
+  }
+
   const params = new URLSearchParams({
     query,
     key: apiKey,
     region: "in",
-    location: ANDAMAN_NICOBAR_LOCATION,
-    radius: ANDAMAN_NICOBAR_RADIUS_METERS,
+    location: biasLocation,
+    radius: biasRadius,
   });
 
   let data;
@@ -189,7 +224,21 @@ const searchLocations = async ({ query }) => {
         signature: lat != null && lng != null ? signCoordinates(lat, lng) : null,
       };
     })
-    .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description));
+    .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description))
+    .filter((result) => {
+      if (!(area?.polygon?.length >= 3)) {
+        return true;
+      }
+
+      if (result.lat == null || result.lng == null) {
+        return false;
+      }
+
+      return isPointInPolygon(
+        { lat: result.lat, lng: result.lng },
+        area.polygon,
+      );
+    });
 
   searchCache.set(cacheKey, results);
 

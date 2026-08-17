@@ -56,7 +56,12 @@ const updateLocationSchema =
     (schema) => schema.optional()
   ).min(1);
 
+const serviceAreaSchema = Joi.object({
+  geojson: Joi.object().required(),
+});
+
 module.exports = {
   createLocationSchema,
   updateLocationSchema,
+  serviceAreaSchema,
 };

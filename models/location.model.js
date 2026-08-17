@@ -70,6 +70,13 @@ Location.init(
       },
     },
 
+    service_area: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment:
+        "Serviceability boundary as an array of {lat,lng} polygon vertices, used to scope /places/search results to this location",
+    },
+
     active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
