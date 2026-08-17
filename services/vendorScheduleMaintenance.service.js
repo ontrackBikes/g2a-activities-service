@@ -28,6 +28,93 @@ const buildInventoryDates = (numberOfDays) => {
   );
 };
 
+const buildSlotSnapshotFields = (templateSlot, vendorProduct) => ({
+  slot_name: templateSlot.slot_name,
+  start_time: templateSlot.start_time,
+  end_time: templateSlot.end_time,
+  max_bookable_per_booking: Number(
+    templateSlot.max_bookable_per_booking ??
+      vendorProduct.max_bookable_per_booking,
+  ),
+  duration_minutes: templateSlot.duration_minutes,
+  priced_by: templateSlot.priced_by,
+  is_preferred: templateSlot.is_preferred,
+  is_start_time_only: templateSlot.is_start_time_only,
+});
+
+const distanceTiersMatchTemplate = (
+  existingTiers,
+  templateTiers,
+) => {
+  if (existingTiers.length !== templateTiers.length) {
+    return false;
+  }
+
+  const sortByDistance = (a, b) =>
+    Number(a.min_distance_km) - Number(b.min_distance_km);
+  const sortedExisting = [...existingTiers].sort(sortByDistance);
+  const sortedTemplate = [...templateTiers].sort(sortByDistance);
+
+  return sortedExisting.every(
+    (tier, index) =>
+      Number(tier.min_distance_km) ===
+        Number(sortedTemplate[index].min_distance_km) &&
+      Number(tier.price) === Number(sortedTemplate[index].price),
+  );
+};
+
+const createScheduleSlotsFromTemplate = async (
+  { schedule, templateSlots, vendorProduct, templateDistanceTiers, status },
+  transaction,
+) => {
+  if (!templateSlots.length) {
+    return [];
+  }
+
+  const rows = templateSlots.map((slot) => ({
+    vendor_schedule_id: schedule.id,
+    vendor_product_slot_id: slot.id,
+    price: slot.default_price,
+    capacity: Number(slot.default_capacity),
+    booked: 0,
+    available: Number(slot.default_capacity),
+    status,
+    allow_sync_updates: true,
+    ...buildSlotSnapshotFields(slot, vendorProduct),
+  }));
+
+  await VendorScheduleSlot.bulkCreate(rows, { transaction });
+
+  const createdSlots = await VendorScheduleSlot.findAll({
+    where: {
+      vendor_schedule_id: schedule.id,
+      vendor_product_slot_id: templateSlots.map((slot) => slot.id),
+    },
+    transaction,
+  });
+
+  if (
+    vendorProduct.pricing_type === "KM_BASED" &&
+    templateDistanceTiers.length
+  ) {
+    const distanceTierRows = createdSlots.flatMap((createdSlot) =>
+      templateDistanceTiers.map((tier) => ({
+        vendor_schedule_slot_id: createdSlot.id,
+        min_distance_km: tier.min_distance_km,
+        price: tier.price,
+      })),
+    );
+
+    if (distanceTierRows.length) {
+      await VendorScheduleSlotDistanceTier.bulkCreate(distanceTierRows, {
+        transaction,
+      });
+    }
+  }
+
+  return createdSlots;
+};
+
 const maintainVendorProductSchedules = async (
   vendorProduct,
 ) => {
@@ -35,18 +122,6 @@ const maintainVendorProductSchedules = async (
     Number(vendorProduct.maintain_inventory_days) || 0,
     0,
   );
-
-  if (inventoryDays === 0) {
-    return {
-      schedulesCreated: 0,
-      slotsCreated: 0,
-      slotsUpdated: 0,
-      slotsClosed: 0,
-      hasTemplateSlots: true,
-    };
-  }
-
-  const dates = buildInventoryDates(inventoryDays);
 
   return sequelize.transaction(async (transaction) => {
     let templateSlots = vendorProduct.slots || [];
@@ -111,62 +186,27 @@ const maintainVendorProductSchedules = async (
         slotsCreated: 0,
         slotsUpdated: 0,
         slotsClosed: 0,
+        distanceTiersSynced: 0,
         hasTemplateSlots: false,
       };
     }
 
-    const existingSchedules = await VendorSchedule.findAll({
-      attributes: [
-        "id",
-        "schedule_date",
-        "status",
-        "allow_sync_updates",
-      ],
-      where: {
-        vendor_product_id: vendorProduct.id,
-        schedule_date: dates,
-      },
-      include: [
-        {
-          model: VendorScheduleSlot,
-          as: "slots",
-          attributes: [
-            "id",
-            "vendor_product_slot_id",
-            "booked",
-            "status",
-            "allow_sync_updates",
-          ],
-          required: false,
-        },
-      ],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-
-    const scheduleByDate = new Map(
-      existingSchedules.map((schedule) => [
-        String(schedule.schedule_date),
-        schedule,
-      ]),
+    const activeTemplateSlotIds = new Set(
+      templateSlots.map((slot) => Number(slot.id)),
     );
 
     let schedulesCreated = 0;
     let slotsCreated = 0;
-    let slotsUpdated = 0;
-    let slotsClosed = 0;
-    const activeTemplateSlotIds = new Set(
-      templateSlots.map((slot) =>
-        Number(slot.id),
-      ),
-    );
 
-    for (const scheduleDate of dates) {
-      let schedule = scheduleByDate.get(scheduleDate);
-      let created = false;
+    // Phase 1: fill the maintain_inventory_days window by creating any
+    // schedule dates that don't exist yet. This is the only thing
+    // maintain_inventory_days gates - it never blocks syncing existing
+    // schedules (see Phase 2 below).
+    if (inventoryDays > 0) {
+      const dates = buildInventoryDates(inventoryDays);
 
-      if (!schedule) {
-        [schedule, created] =
+      for (const scheduleDate of dates) {
+        const [schedule, created] =
           await VendorSchedule.findOrCreate({
             where: {
               vendor_product_id: vendorProduct.id,
@@ -179,142 +219,174 @@ const maintainVendorProductSchedules = async (
             },
             transaction,
           });
-      }
 
-      if (created) {
+        if (!created) {
+          continue;
+        }
+
         schedulesCreated += 1;
-      }
 
-      if (
-        !created &&
-        schedule.status !== "OPEN"
-      ) {
-        continue;
-      }
+        const createdSlots = await createScheduleSlotsFromTemplate(
+          {
+            schedule,
+            templateSlots,
+            vendorProduct,
+            templateDistanceTiers,
+            status: "OPEN",
+          },
+          transaction,
+        );
 
+        slotsCreated += createdSlots.length;
+      }
+    }
+
+    // Phase 2: sync price/timing/slot changes across every existing
+    // schedule for this vendor product, regardless of date and
+    // regardless of maintain_inventory_days. Timing/capacity/structural
+    // changes always apply; allow_sync_updates only gates price (see the
+    // per-slot loop below).
+    let slotsUpdated = 0;
+    let slotsClosed = 0;
+    let distanceTiersSynced = 0;
+
+    const slotIncludes = [
+      {
+        model: VendorScheduleSlot,
+        as: "slots",
+        required: false,
+        include:
+          vendorProduct.pricing_type === "KM_BASED"
+            ? [
+                {
+                  model: VendorScheduleSlotDistanceTier,
+                  as: "distanceTiers",
+                  required: false,
+                },
+              ]
+            : [],
+      },
+    ];
+
+    const allSchedules = await VendorSchedule.findAll({
+      where: {
+        vendor_product_id: vendorProduct.id,
+      },
+      include: slotIncludes,
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    for (const schedule of allSchedules) {
       const existingSlotByTemplateId = new Map(
         (schedule.slots || []).map((slot) => [
           Number(slot.vendor_product_slot_id),
           slot,
         ]),
       );
-      const missingTemplateSlots =
-        schedule.allow_sync_updates
-          ? templateSlots.filter(
-              (slot) =>
-                !existingSlotByTemplateId.has(
-                  Number(slot.id),
-                ),
-            )
-          : [];
 
-      const scheduleSlots = missingTemplateSlots.map((slot) => ({
-        vendor_schedule_id: schedule.id,
-        vendor_product_slot_id: slot.id,
-        slot_name: slot.slot_name,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        price: slot.default_price,
-        capacity: Number(slot.default_capacity),
-        booked: 0,
-        available: Number(slot.default_capacity),
-        max_bookable_per_booking:
-          Number(
-            slot.max_bookable_per_booking ??
-              vendorProduct.max_bookable_per_booking,
-          ),
-        duration_minutes: slot.duration_minutes,
-        priced_by: slot.priced_by,
-        is_preferred: slot.is_preferred,
-        is_start_time_only: slot.is_start_time_only,
-        status: "OPEN",
-        allow_sync_updates: true,
-      }));
+      if (schedule.allow_sync_updates) {
+        const missingTemplateSlots = templateSlots.filter(
+          (slot) => !existingSlotByTemplateId.has(Number(slot.id)),
+        );
 
-      if (scheduleSlots.length) {
-        await VendorScheduleSlot.bulkCreate(scheduleSlots, {
-          transaction,
-        });
-
-        slotsCreated += scheduleSlots.length;
-
-        if (
-          vendorProduct.pricing_type === "KM_BASED" &&
-          templateDistanceTiers.length
-        ) {
-          const createdSlots = await VendorScheduleSlot.findAll({
-            where: {
-              vendor_schedule_id: schedule.id,
-              vendor_product_slot_id: missingTemplateSlots.map(
-                (slot) => slot.id,
-              ),
+        if (missingTemplateSlots.length) {
+          const createdSlots = await createScheduleSlotsFromTemplate(
+            {
+              schedule,
+              templateSlots: missingTemplateSlots,
+              vendorProduct,
+              templateDistanceTiers,
+              status: schedule.status === "OPEN" ? "OPEN" : "CLOSED",
             },
             transaction,
-          });
-
-          const distanceTierRows = createdSlots.flatMap((createdSlot) =>
-            templateDistanceTiers.map((tier) => ({
-              vendor_schedule_slot_id: createdSlot.id,
-              min_distance_km: tier.min_distance_km,
-              price: tier.price,
-            })),
           );
 
-          if (distanceTierRows.length) {
-            await VendorScheduleSlotDistanceTier.bulkCreate(
-              distanceTierRows,
-              {
-                transaction,
-              },
-            );
-          }
+          slotsCreated += createdSlots.length;
         }
       }
 
       for (const templateSlot of templateSlots) {
-        const existingSlot =
-          existingSlotByTemplateId.get(
-            Number(templateSlot.id),
-          );
+        const existingSlot = existingSlotByTemplateId.get(
+          Number(templateSlot.id),
+        );
 
-        if (!existingSlot || !existingSlot.allow_sync_updates) {
+        if (!existingSlot) {
           continue;
         }
 
-        await VendorScheduleSlot.update(
-          {
-            slot_name: templateSlot.slot_name,
-            start_time: templateSlot.start_time,
-            end_time: templateSlot.end_time,
-            max_bookable_per_booking:
-              Number(
-                templateSlot.max_bookable_per_booking ??
-                  vendorProduct.max_bookable_per_booking,
-              ),
-            duration_minutes: templateSlot.duration_minutes,
-            priced_by: templateSlot.priced_by,
-            is_preferred: templateSlot.is_preferred,
-            is_start_time_only: templateSlot.is_start_time_only,
-          },
-          {
-            where: {
-              id: existingSlot.id,
-            },
-            transaction,
-          },
+        // Timing, capacity/inventory, and other snapshot fields always
+        // sync from the template. Only price (and, for KM_BASED,
+        // distance-tier pricing) is gated by allow_sync_updates - when
+        // it's off, that slot's price is treated as a manually pinned
+        // special price and left untouched.
+        const nextCapacity = Number(templateSlot.default_capacity);
+        const nextAvailable = Math.max(
+          nextCapacity - Number(existingSlot.booked),
+          0,
         );
 
-        slotsUpdated += 1;
+        const fields = {
+          ...buildSlotSnapshotFields(templateSlot, vendorProduct),
+          capacity: nextCapacity,
+          available: nextAvailable,
+        };
+
+        if (existingSlot.allow_sync_updates) {
+          fields.price = templateSlot.default_price;
+        }
+
+        existingSlot.set(fields);
+
+        if (existingSlot.changed()) {
+          await existingSlot.save({ transaction });
+
+          slotsUpdated += 1;
+        }
+
+        if (
+          vendorProduct.pricing_type === "KM_BASED" &&
+          existingSlot.allow_sync_updates
+        ) {
+          const existingTiers = existingSlot.distanceTiers || [];
+
+          if (
+            !distanceTiersMatchTemplate(
+              existingTiers,
+              templateDistanceTiers,
+            )
+          ) {
+            await VendorScheduleSlotDistanceTier.destroy({
+              where: {
+                vendor_schedule_slot_id: existingSlot.id,
+              },
+              transaction,
+            });
+
+            if (templateDistanceTiers.length) {
+              await VendorScheduleSlotDistanceTier.bulkCreate(
+                templateDistanceTiers.map((tier) => ({
+                  vendor_schedule_slot_id: existingSlot.id,
+                  min_distance_km: tier.min_distance_km,
+                  price: tier.price,
+                })),
+                { transaction },
+              );
+            }
+
+            distanceTiersSynced += 1;
+          }
+        }
       }
 
+      // Removed-from-template slots are a structural change, not a price
+      // change, so they're closed unconditionally - allow_sync_updates
+      // only freezes price, it doesn't keep a dropped slot bookable.
       for (const existingSlot of schedule.slots || []) {
         if (
           activeTemplateSlotIds.has(
-            Number(
-              existingSlot.vendor_product_slot_id,
-            ),
+            Number(existingSlot.vendor_product_slot_id),
           ) ||
-          !existingSlot.allow_sync_updates ||
           existingSlot.status === "CLOSED"
         ) {
           continue;
@@ -347,6 +419,7 @@ const maintainVendorProductSchedules = async (
       slotsCreated,
       slotsUpdated,
       slotsClosed,
+      distanceTiersSynced,
       hasTemplateSlots: templateSlots.length > 0,
     };
   });
@@ -378,6 +451,7 @@ const createSummary = (vendorProductsChecked = 0) => ({
   slots_created: 0,
   slots_updated: 0,
   slots_closed: 0,
+  distance_tiers_synced: 0,
   vendor_products_without_slots: 0,
 });
 
@@ -387,6 +461,8 @@ const addResultToSummary = (summary, result) => {
   summary.slots_created += result.slotsCreated;
   summary.slots_updated += result.slotsUpdated;
   summary.slots_closed += result.slotsClosed;
+  summary.distance_tiers_synced +=
+    result.distanceTiersSynced || 0;
 
   if (!result.hasTemplateSlots) {
     summary.vendor_products_without_slots += 1;

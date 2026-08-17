@@ -137,7 +137,7 @@ VendorScheduleSlot.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
-      comment: "Worker may modify this slot",
+      comment: "When false, this slot's price is a pinned special price and is skipped by sync - timing/inventory/structural fields always sync",
     },
   },
   {

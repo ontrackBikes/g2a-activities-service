@@ -367,15 +367,21 @@ Actual Inventory
 
 Workers synchronize template changes into inventory.
 
-Only records with:
+Timing, capacity/inventory, and other structural fields always sync from
+the template, on every existing schedule, regardless of this flag.
+
+Only the `price` (and, for KM_BASED products, distance-tier pricing) on a
+`VendorScheduleSlot` is gated by:
 
 ```text
 allow_sync_updates = TRUE
 ```
 
-can be modified automatically.
-
-This allows manual overrides.
+When `FALSE`, that slot's price is treated as a manually pinned special
+price and is left untouched by sync - everything else about it still
+syncs normally. A slot dropped from the template (e.g. the vendor
+product's pricing type changes) is still closed regardless of this flag,
+since that's a structural change, not a price change.
 
 ---
 
