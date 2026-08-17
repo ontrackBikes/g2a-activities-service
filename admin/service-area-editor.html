@@ -122,7 +122,7 @@
 
     <label for="geojsonInput">Paste GeoJSON</label>
     <textarea id="geojsonInput" rows="8" placeholder='{"type":"Polygon","coordinates":[[[92.98,12.01],[93.00,12.02],[92.99,12.03],[92.98,12.01]]]}'></textarea>
-    <div class="hint">Accepts a Polygon, a Feature&lt;Polygon&gt;, or a FeatureCollection containing one.</div>
+    <div class="hint">Accepts a Polygon, a MultiPolygon, a Feature&lt;Polygon|MultiPolygon&gt;, or a FeatureCollection containing one such feature. Multi-part shapes can only be pasted here, not drawn.</div>
     <button id="plotBtn" class="secondary">Plot on map</button>
 
     <hr>

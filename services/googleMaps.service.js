@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const {
   isPointInPolygon,
   getPolygonBoundingCircle,
+  hasUsablePolygon,
 } = require("../utils/geoBoundary");
 
 const ANDAMAN_NICOBAR_REGEX = /andaman|nicobar/i;
@@ -160,7 +161,7 @@ const searchLocations = async ({ query, area = null }) => {
   let biasLocation = ANDAMAN_NICOBAR_LOCATION;
   let biasRadius = ANDAMAN_NICOBAR_RADIUS_METERS;
 
-  if (area?.polygon?.length >= 3) {
+  if (hasUsablePolygon(area?.polygon)) {
     const boundingCircle = getPolygonBoundingCircle(area.polygon);
 
     biasLocation = `${boundingCircle.center.lat},${boundingCircle.center.lng}`;
@@ -226,7 +227,7 @@ const searchLocations = async ({ query, area = null }) => {
     })
     .filter((result) => ANDAMAN_NICOBAR_REGEX.test(result.description))
     .filter((result) => {
-      if (!(area?.polygon?.length >= 3)) {
+      if (!hasUsablePolygon(area?.polygon)) {
         return true;
       }
 
