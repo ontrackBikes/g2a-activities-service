@@ -36,7 +36,7 @@ const createCabServiceAvailabilitySchema = ({ locations }) => {
         "string.pattern.base": "date must be in YYYY-MM-DD format",
       }),
     guests: Joi.number().integer().min(1).default(1),
-    quantity: Joi.number().integer().min(1).required(),
+    quantity: Joi.number().integer().min(1).default(1),
     pickup_location: transferLocationSchema,
     drop_location: transferLocationSchema,
     pickup_time: time24Hour.default("10:00"),
