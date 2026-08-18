@@ -817,6 +817,53 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     /*
     |--------------------------------------------------------------------------
+    | Infant Documents
+    |--------------------------------------------------------------------------
+    */
+
+    const hasInfantDocumentsSection = product.bookingTemplate.booking_page_schema?.sections?.some(
+      (section) =>
+        section.enabled &&
+        section.section === BOOKING_SECTIONS.INFANT_DOCUMENTS,
+    );
+
+    if (hasInfantDocumentsSection && payload.infant_documents) {
+      const documentIds = (payload.infant_documents.documents || [])
+        .map((document) => document.document_id)
+        .filter((id) => id !== null && id !== undefined);
+
+      if (documentIds.length) {
+        const documents = await Document.findAll({
+          where: {
+            id: documentIds,
+            entity_type: "estimate",
+            entity_id: estimate.id,
+            status: "active",
+          },
+          transaction,
+        });
+
+        if (documents.length !== new Set(documentIds).size) {
+          throw {
+            status: 422,
+            message: "Validation failed.",
+            errors: [
+              {
+                section: "infant_documents",
+                errors: [
+                  "One or more infant documents are invalid or do not belong to this estimate.",
+                ],
+              },
+            ],
+          };
+        }
+      }
+    } else {
+      delete payload.infant_documents;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Find / Create Customer
     |--------------------------------------------------------------------------
     */
@@ -1390,6 +1437,7 @@ const getOrder = async (req, res) => {
       ferry_details: item.booking_payload?.ferry_details || null,
       medical_declaration: item.booking_payload?.medical_declaration,
       kyc_per_passanger: item.booking_payload?.kyc_per_passanger || null,
+      infant_documents: item.booking_payload?.infant_documents || null,
       ...(item.quotation?.opt_for_pickup_and_drop !== undefined
         ? {
             opt_for_pickup_and_drop:

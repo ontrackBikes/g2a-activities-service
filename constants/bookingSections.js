@@ -10,6 +10,7 @@ module.exports = Object.freeze({
   RENTAL_DETAILS: "rental_details",
   FERRY_SEAT_SELECTION: "ferry_seat_selection",
   KYC_PER_PASSENGER: "kyc_per_passanger",
+  INFANT_DOCUMENTS: "infant_documents",
 
   // Optional
   ADDONS: "addons",

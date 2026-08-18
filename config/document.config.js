@@ -1,8 +1,6 @@
 module.exports = {
   DOCUMENT_FOLDER: "documents",
 
-  DOCUMENT_FILE_BASE_URL: process.env.MEDIA_FILE_BASE_URL,
-
   DOCUMENT_MIME_TYPES: [
     "application/pdf",
     "image/jpeg",

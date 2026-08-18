@@ -276,6 +276,28 @@ const formatEmailParticipant = (participant) => ({
   nationality: participant.nationality || "",
 });
 
+const formatEmailKycPassenger = (passenger) => ({
+  nationality: passenger.nationality || "",
+  id_proof_type: passenger.id_proof_type || "",
+  id_number: passenger.id_number || "",
+  id_expiry_date: passenger.id_expiry_date || "",
+  document_url: passenger.document?.document_url || "",
+});
+
+const formatEmailInfantDocuments = (infantDocuments) => {
+  if (!infantDocuments?.has_infant) {
+    return { has_infant: false, documents: [] };
+  }
+
+  return {
+    has_infant: true,
+    documents: (infantDocuments.documents || []).map((document) => ({
+      file_name: document.file_name || "",
+      document_url: document.document_url || "",
+    })),
+  };
+};
+
 const buildEmailItem = ({ item, order, slotFlagsById }) => {
   const booking = item.booking_data || item.quotation?.booking || {};
   const pricing = item.pricing || item.quotation?.pricing || {};
@@ -342,6 +364,12 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
           : undefined,
     }),
     participants: (item.participants || []).map(formatEmailParticipant),
+    kyc_per_passanger: (item.booking_payload?.kyc_per_passanger || []).map(
+      formatEmailKycPassenger,
+    ),
+    infant_documents: formatEmailInfantDocuments(
+      item.booking_payload?.infant_documents,
+    ),
     pricing: {
       currency: pricing.currency || order.currency,
       unit_price: formatEmailAmount(pricing.unit_price),
@@ -459,6 +487,52 @@ async function sendConfirmationEmail({ payment, order, to, cc, bcc }) {
           ${
             booking.quantity
               ? `<div><strong>Quantity:</strong> ${booking.quantity}</div>`
+              : ""
+          }
+
+          ${
+            item.kyc_per_passanger?.length
+              ? `<div style="margin-top:10px;">
+                  <strong>KYC Documents:</strong>
+                  <ul style="margin:6px 0;padding-left:18px;">
+                    ${item.kyc_per_passanger
+                      .map(
+                        (passenger) => `
+                        <li>
+                          ${passenger.nationality} - ${passenger.id_proof_type} - ${passenger.id_number}
+                          ${
+                            passenger.document_url
+                              ? ` (<a href="${passenger.document_url}">view</a>)`
+                              : ""
+                          }
+                        </li>`,
+                      )
+                      .join("")}
+                  </ul>
+                </div>`
+              : ""
+          }
+
+          ${
+            item.infant_documents?.has_infant
+              ? `<div style="margin-top:10px;">
+                  <strong>Infant Documents:</strong>
+                  <ul style="margin:6px 0;padding-left:18px;">
+                    ${item.infant_documents.documents
+                      .map(
+                        (document) => `
+                        <li>
+                          ${document.file_name}
+                          ${
+                            document.document_url
+                              ? ` (<a href="${document.document_url}">view</a>)`
+                              : ""
+                          }
+                        </li>`,
+                      )
+                      .join("")}
+                  </ul>
+                </div>`
               : ""
           }
 

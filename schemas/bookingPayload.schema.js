@@ -300,6 +300,18 @@ const kycPassenger = Joi.object({
 
 const kyc_per_passanger = Joi.array().items(kycPassenger).min(1);
 
+const infant_documents = Joi.object({
+  has_infant: Joi.boolean().required(),
+
+  documents: Joi.array()
+    .items(kycDocument)
+    .when("has_infant", {
+      is: true,
+      then: Joi.array().min(1).required(),
+      otherwise: Joi.forbidden(),
+    }),
+}).unknown(false);
+
 /*
 |--------------------------------------------------------------------------
 | Registry
@@ -320,6 +332,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
 
   [BOOKING_SECTIONS.KYC_PER_PASSENGER]: kyc_per_passanger,
+
+  [BOOKING_SECTIONS.INFANT_DOCUMENTS]: infant_documents,
 
   [BOOKING_SECTIONS.FLIGHTDETAILS]: flight_details,
 
