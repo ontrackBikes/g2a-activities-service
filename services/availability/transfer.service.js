@@ -63,10 +63,12 @@ const getEffectiveMaxBookable = ({ vendorProduct, scheduleSlot }) =>
 
 const getServiceHours = (scheduleSlot) =>
   scheduleSlot.start_time && scheduleSlot.end_time
-    ? {
-        start_time: scheduleSlot.start_time,
-        end_time: scheduleSlot.end_time,
-      }
+    ? [
+        {
+          start_time: scheduleSlot.start_time,
+          end_time: scheduleSlot.end_time,
+        },
+      ]
     : null;
 
 const getTimeOnDate = (date, time) =>

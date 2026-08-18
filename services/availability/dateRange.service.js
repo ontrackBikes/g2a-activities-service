@@ -41,6 +41,17 @@ const getSlotType = (slot) =>
 const getSlotTokenSource = (slot) =>
   slot?.vendor_product_slot_id || slot?.id;
 
+const getServiceHours = (slotsWithTimes) => {
+  const hours = slotsWithTimes
+    .filter((slot) => slot?.start_time && slot?.end_time)
+    .map((slot) => ({
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+    }));
+
+  return hours.length ? hours : null;
+};
+
 module.exports.checkDateRange = async ({
   product,
   location,
@@ -298,6 +309,11 @@ module.exports.checkDateRange = async ({
         date: day.date,
         unit_price: day.unit_price,
       })),
+      service_hours: isSlotPricing
+        ? getServiceHours(availableSlots)
+        : getServiceHours(
+            [fixedScheduleSlot].filter(Boolean),
+          ),
     },
   });
 

@@ -33,6 +33,17 @@ const getSlotType = (slot) =>
     ? "TIME"
     : "VARIANT");
 
+const getServiceHours = (slotsWithTimes) => {
+  const hours = slotsWithTimes
+    .filter((slot) => slot?.start_time && slot?.end_time)
+    .map((slot) => ({
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+    }));
+
+  return hours.length ? hours : null;
+};
+
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
   const pricingQuantity = payload.pricing_quantity;
@@ -233,6 +244,12 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
               effectiveMaxBookable,
           }
         : null,
+
+      service_hours: isSlotPricing
+        ? getServiceHours(availability.slots)
+        : getServiceHours(
+            [fixedScheduleSlot].filter(Boolean),
+          ),
     },
   });
 
