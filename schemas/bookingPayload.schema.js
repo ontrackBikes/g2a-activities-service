@@ -267,6 +267,39 @@ const ferry_details = Joi.object({
 
 const opt_for_pickup_and_drop = Joi.boolean();
 
+const kycDocument = Joi.object({
+  file_name: Joi.string().trim().required(),
+
+  document_id: Joi.alternatives()
+    .try(Joi.string(), Joi.number())
+    .allow(null)
+    .required(),
+
+  document_url: Joi.string().allow("", null).required(),
+}).unknown(false);
+
+const kycPassenger = Joi.object({
+  nationality: Joi.string().valid("Indian", "Foreigner").required(),
+
+  id_proof_type: Joi.string()
+    .valid("passport", "aadhaar_card", "voter_id", "driving_licence", "other")
+    .required(),
+
+  id_number: Joi.string().trim().required(),
+
+  id_expiry_date: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .when("id_proof_type", {
+      is: "passport",
+      then: Joi.required(),
+      otherwise: Joi.valid(null).optional(),
+    }),
+
+  document: kycDocument.required(),
+}).unknown(false);
+
+const kyc_per_passanger = Joi.array().items(kycPassenger).min(1);
+
 /*
 |--------------------------------------------------------------------------
 | Registry
@@ -285,6 +318,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.RENTAL_DETAILS]: rental_details,
 
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
+
+  [BOOKING_SECTIONS.KYC_PER_PASSENGER]: kyc_per_passanger,
 
   [BOOKING_SECTIONS.FLIGHTDETAILS]: flight_details,
 

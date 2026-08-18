@@ -18,6 +18,7 @@ const {
   Customer,
   Payment,
   VendorScheduleSlot,
+  Document,
 } = require("../models");
 
 const { validateBookingPayload } = require("../schemas/bookingPayload.schema");
@@ -694,6 +695,31 @@ const createOrderService = async ({ estimateId, payload }) => {
       };
     }
 
+    const guestsSelected = Number(estimate.booking_data?.guests) || 1;
+
+    const hasParticipantsSection = product.bookingTemplate.booking_page_schema?.sections?.some(
+      (section) =>
+        section.enabled &&
+        section.section === BOOKING_SECTIONS.PARTICIPANTS,
+    );
+
+    if (hasParticipantsSection && Array.isArray(payload.participants)) {
+      if (payload.participants.length !== guestsSelected) {
+        throw {
+          status: 422,
+          message: "Validation failed.",
+          errors: [
+            {
+              section: "participants",
+              errors: [
+                `participants must have exactly one entry per selected guest (${guestsSelected}).`,
+              ],
+            },
+          ],
+        };
+      }
+    }
+
     const hasRentalDetails = product.bookingTemplate.booking_page_schema?.sections?.some(
       (section) =>
         section.enabled &&
@@ -721,6 +747,68 @@ const createOrderService = async ({ estimateId, payload }) => {
       }
     } else {
       delete payload.rental_details;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | KYC Per Passenger
+    |--------------------------------------------------------------------------
+    */
+
+    const hasKycSection = product.bookingTemplate.booking_page_schema?.sections?.some(
+      (section) =>
+        section.enabled &&
+        section.section === BOOKING_SECTIONS.KYC_PER_PASSENGER,
+    );
+
+    if (hasKycSection && Array.isArray(payload.kyc_per_passanger)) {
+      if (payload.kyc_per_passanger.length !== guestsSelected) {
+        throw {
+          status: 422,
+          message: "Validation failed.",
+          errors: [
+            {
+              section: "kyc_per_passanger",
+              errors: [
+                `kyc_per_passanger must have exactly one entry per selected guest (${guestsSelected}).`,
+              ],
+            },
+          ],
+        };
+      }
+
+      const documentIds = payload.kyc_per_passanger
+        .map((passenger) => passenger.document?.document_id)
+        .filter((id) => id !== null && id !== undefined);
+
+      if (documentIds.length) {
+        const documents = await Document.findAll({
+          where: {
+            id: documentIds,
+            entity_type: "estimate",
+            entity_id: estimate.id,
+            status: "active",
+          },
+          transaction,
+        });
+
+        if (documents.length !== new Set(documentIds).size) {
+          throw {
+            status: 422,
+            message: "Validation failed.",
+            errors: [
+              {
+                section: "kyc_per_passanger",
+                errors: [
+                  "One or more KYC documents are invalid or do not belong to this estimate.",
+                ],
+              },
+            ],
+          };
+        }
+      }
+    } else {
+      delete payload.kyc_per_passanger;
     }
 
     /*
@@ -1297,6 +1385,7 @@ const getOrder = async (req, res) => {
       flight_details: item.booking_payload?.flight_details || null,
       ferry_details: item.booking_payload?.ferry_details || null,
       medical_declaration: item.booking_payload?.medical_declaration,
+      kyc_per_passanger: item.booking_payload?.kyc_per_passanger || null,
       ...(item.quotation?.opt_for_pickup_and_drop !== undefined
         ? {
             opt_for_pickup_and_drop:
