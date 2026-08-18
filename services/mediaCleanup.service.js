@@ -5,6 +5,7 @@ const {
   getDiskPath,
   normalizeRelativePath,
 } = require("./storage.service");
+const { cleanupExpiredDocuments } = require("./document.service");
 
 const MEDIA_URL_FIELDS = [
   "original_url",
@@ -122,10 +123,12 @@ async function cleanBinMedia() {
 async function runMediaCleanup() {
   const tempCount = await cleanTempMedia();
   const binCount = await cleanBinMedia();
+  const documentCount = await cleanupExpiredDocuments();
 
   return {
     tempCount,
     binCount,
+    documentCount,
   };
 }
 

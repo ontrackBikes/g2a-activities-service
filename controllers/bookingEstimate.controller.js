@@ -1,5 +1,6 @@
 const { VendorScheduleSlot } = require("../models");
 const BookingEstimate = require("../models/bookingEstimate.model");
+const documentService = require("../services/document.service");
 
 module.exports.getEstimate = async (req, res) => {
   try {
@@ -211,6 +212,64 @@ module.exports.selectEstimateSlot = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update estimate.",
+    });
+  }
+};
+
+module.exports.uploadKyc = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "File is required.",
+      });
+    }
+
+    const { estimate_id } = req.params;
+
+    const estimate = await BookingEstimate.findOne({
+      where: { estimate_id },
+    });
+
+    if (!estimate) {
+      return res.status(404).json({
+        success: false,
+        message: "Estimate not found.",
+      });
+    }
+
+    if (estimate.status === "expired" || new Date() > estimate.expires_at) {
+      return res.status(410).json({
+        success: false,
+        message: "Estimate has expired.",
+      });
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    const document = await documentService.uploadDocument({
+      file: req.file,
+      name: req.body?.name,
+      entity_type: "estimate",
+      entity_id: estimate.id,
+      expires_at: expiresAt,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "KYC document uploaded successfully.",
+      data: document,
+    });
+  } catch (error) {
+    console.error(
+      "[BookingEstimateController] uploadKyc",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to upload KYC document.",
     });
   }
 };

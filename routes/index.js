@@ -25,6 +25,7 @@ const vendorProductThingToKnowRoutes = require("./vendorProductThingToKnow.route
 const vendorProductTermRoutes = require("./vendorProductTerm.routes");
 const vendorProductImageRoutes = require("./vendorProductImage.routes");
 const mediaRoutes = require("./media.routes");
+const documentRoutes = require("./document.routes");
 const categoryRoutes = require("./category.routes");
 const productTypeRoutes = require("./productType.routes");
 const productTagRoutes = require("./productTag.routes");
@@ -100,6 +101,7 @@ router.use(
 );
 
 router.use("/media", mediaRoutes);
+router.use("/documents", documentRoutes);
 
 router.use("/product-categories", categoryRoutes);
 

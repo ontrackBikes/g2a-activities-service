@@ -25,6 +25,7 @@ const ProductExclusion = require("./productExclusion.model");
 const ProductThingToKnow = require("./productThingToKnow.model");
 const ProductCancellationPolicy = require("./productCancellationPolicy.model");
 const MediaLibrary = require("./mediaLibrary.model");
+const Document = require("./document.model");
 const ProductTag = require("./productTag.model");
 const ProductTagMapping = require("./productTagMapping.model");
 const ProductType = require("./productType.model");
@@ -509,6 +510,7 @@ module.exports = {
   ProductThingToKnow,
   ProductCancellationPolicy,
   MediaLibrary,
+  Document,
   ProductTag,
   ProductTagMapping,
   ProductType,
