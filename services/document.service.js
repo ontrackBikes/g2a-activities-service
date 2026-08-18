@@ -2,11 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
 const { Op } = require("sequelize");
+const sharp = require("sharp");
 const { Document } = require("../models");
 const {
   DOCUMENT_FOLDER,
   DOCUMENT_MIME_TYPES,
   DOCUMENT_MAX_FILE_SIZE_MB,
+  DOCUMENT_IMAGE_MIME_TYPES,
+  DOCUMENT_IMAGE_MAX_DIMENSION,
+  DOCUMENT_IMAGE_QUALITY,
 } = require("../config/document.config");
 const {
   getPublicUrl,
@@ -31,6 +35,18 @@ const getExtension = (mimetype, originalname) => {
     ""
   );
 };
+
+const compressImageBuffer = (buffer) =>
+  sharp(buffer)
+    .rotate()
+    .resize({
+      width: DOCUMENT_IMAGE_MAX_DIMENSION,
+      height: DOCUMENT_IMAGE_MAX_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: DOCUMENT_IMAGE_QUALITY })
+    .toBuffer();
 
 const buildFileName = (originalname, extension) => {
   const baseName = path
@@ -79,7 +95,8 @@ const deleteDocumentFile = async (document) => {
 };
 
 /**
- * Uploads a document as-is (single quality, no variants/processing).
+ * Uploads a document at a single quality (no variants). Images are
+ * re-encoded to JPEG (compressed + capped dimensions); PDFs are stored as-is.
  * `file` matches multer's in-memory file shape: { buffer, originalname, mimetype, size }.
  */
 const uploadDocument = async ({
@@ -105,7 +122,16 @@ const uploadDocument = async ({
     );
   }
 
-  const extension = getExtension(file.mimetype, file.originalname);
+  let fileBuffer = file.buffer;
+  let mimeType = file.mimetype;
+  let extension = getExtension(file.mimetype, file.originalname);
+
+  if (DOCUMENT_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+    fileBuffer = await compressImageBuffer(file.buffer);
+    mimeType = "image/jpeg";
+    extension = ".jpg";
+  }
+
   const filename = buildFileName(file.originalname, extension);
   const relativePath = normalizeRelativePath(
     path.posix.join(DOCUMENT_FOLDER, filename)
@@ -113,16 +139,16 @@ const uploadDocument = async ({
   const diskPath = getDiskPath(relativePath);
 
   await fs.promises.mkdir(path.dirname(diskPath), { recursive: true });
-  await fs.promises.writeFile(diskPath, file.buffer);
+  await fs.promises.writeFile(diskPath, fileBuffer);
 
   try {
     const document = await Document.create({
       uuid: randomUUID(),
       name: name || path.parse(file.originalname).name,
       original_file_name: file.originalname,
-      mime_type: file.mimetype,
+      mime_type: mimeType,
       extension: extension.replace(".", ""),
-      size: file.buffer.length,
+      size: fileBuffer.length,
       entity_type,
       entity_id,
       folder: DOCUMENT_FOLDER,
