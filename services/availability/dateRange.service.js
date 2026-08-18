@@ -52,6 +52,25 @@ const getServiceHours = (slotsWithTimes) => {
   return hours.length ? hours : null;
 };
 
+// Service-hour strings may come back as "HH:mm" (payload) or "HH:mm:ss"
+// (DataTypes.TIME columns) - compare on the first 5 chars either way.
+const normalizeTime = (time) =>
+  typeof time === "string" ? time.slice(0, 5) : time;
+
+const isWithinServiceHours = (time, serviceHours) => {
+  if (!Array.isArray(serviceHours) || !serviceHours.length) {
+    return true;
+  }
+
+  const normalizedTime = normalizeTime(time);
+
+  return serviceHours.some(
+    (window) =>
+      normalizedTime >= normalizeTime(window.start_time) &&
+      normalizedTime <= normalizeTime(window.end_time),
+  );
+};
+
 module.exports.checkDateRange = async ({
   product,
   location,
@@ -101,6 +120,7 @@ module.exports.checkDateRange = async ({
         booking: {
           pickup_date: payload.pickup_date,
           pickup_time: payload.pickup_time,
+          preferred_time: payload.preferred_time || null,
           return_date: payload.return_date,
           drop_time: payload.pickup_time,
           guests: payload.guests,
@@ -152,6 +172,7 @@ module.exports.checkDateRange = async ({
         booking: {
           pickup_date: payload.pickup_date,
           pickup_time: payload.pickup_time,
+          preferred_time: payload.preferred_time || null,
           return_date: payload.return_date,
           drop_time: payload.pickup_time,
           guests: payload.guests,
@@ -181,6 +202,7 @@ module.exports.checkDateRange = async ({
         booking: {
           pickup_date: payload.pickup_date,
           pickup_time: payload.pickup_time,
+          preferred_time: payload.preferred_time || null,
           return_date: payload.return_date,
           drop_time: payload.pickup_time,
           guests: payload.guests,
@@ -256,6 +278,44 @@ module.exports.checkDateRange = async ({
   const fixedScheduleSlot = !isSlotPricing
     ? firstDailyPricing?.slot || null
     : null;
+
+  const serviceHours = isSlotPricing
+    ? getServiceHours(availableSlots)
+    : getServiceHours([fixedScheduleSlot].filter(Boolean));
+
+  if (
+    payload.preferred_time &&
+    !isWithinServiceHours(payload.preferred_time, serviceHours)
+  ) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: "preferred_time must be within the available service hours.",
+
+      data: buildBookingQuote({
+        product,
+        location,
+
+        booking: {
+          pickup_date: payload.pickup_date,
+          pickup_time: payload.pickup_time,
+          preferred_time: payload.preferred_time || null,
+          return_date: payload.return_date,
+          drop_time: payload.pickup_time,
+          guests: payload.guests,
+          quantity: pricingQuantity,
+        },
+
+        availability: {
+          slots,
+          selected_slot: selectedSlot,
+          service_hours: serviceHours,
+        },
+      }),
+    };
+  }
+
   const vendorSchedule =
     firstDailyPricing?.schedule || null;
   const inventorySlot =
@@ -279,6 +339,7 @@ module.exports.checkDateRange = async ({
     booking: {
       pickup_date: availability.start_date,
       pickup_time: availability.pickup_time,
+      preferred_time: payload.preferred_time || null,
       return_date: availability.end_date,
       drop_time: availability.drop_time,
       rental_days: availability.rental_days,
@@ -309,11 +370,7 @@ module.exports.checkDateRange = async ({
         date: day.date,
         unit_price: day.unit_price,
       })),
-      service_hours: isSlotPricing
-        ? getServiceHours(availableSlots)
-        : getServiceHours(
-            [fixedScheduleSlot].filter(Boolean),
-          ),
+      service_hours: serviceHours,
     },
   });
 

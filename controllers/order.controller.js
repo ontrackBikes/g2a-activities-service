@@ -209,6 +209,10 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
     snapshot.pickup_time = bookingData.pickup_time;
   }
 
+  if (bookingData.preferred_time) {
+    snapshot.preferred_time = bookingData.preferred_time;
+  }
+
   if (bookingData.return_date) {
     snapshot.return_date = bookingData.return_date;
   }
@@ -1398,6 +1402,7 @@ const getOrder = async (req, res) => {
         travel_date: item.booking_data?.travel_date,
         pickup_date: item.booking_data?.pickup_date,
         pickup_time: item.booking_data?.pickup_time,
+        preferred_time: item.booking_data?.preferred_time,
         return_date: item.booking_data?.return_date,
         drop_time: item.booking_data?.drop_time,
         rental_days: item.booking_data?.rental_days,

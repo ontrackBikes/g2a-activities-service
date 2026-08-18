@@ -37,6 +37,10 @@ const checkSingleDateAvailabilitySchema = Joi.object({
 
   quantity: Joi.number().integer().min(1),
 
+  pickup_time: time24Hour.optional(),
+
+  preferred_time: time24Hour.allow("", null).optional(),
+
   estimate_id: estimateId,
 
   selected_slot_token: slotToken,
@@ -60,6 +64,8 @@ const checkDateRangeAvailabilitySchema = Joi.object({
     }),
 
   pickup_time: time24Hour.default("10:00"),
+
+  preferred_time: time24Hour.allow("", null).optional(),
 
   drop_time: Joi.forbidden().messages({
     "any.unknown":

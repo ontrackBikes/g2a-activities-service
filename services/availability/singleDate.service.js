@@ -44,6 +44,25 @@ const getServiceHours = (slotsWithTimes) => {
   return hours.length ? hours : null;
 };
 
+// Service-hour strings may come back as "HH:mm" (payload) or "HH:mm:ss"
+// (DataTypes.TIME columns) - compare on the first 5 chars either way.
+const normalizeTime = (time) =>
+  typeof time === "string" ? time.slice(0, 5) : time;
+
+const isWithinServiceHours = (time, serviceHours) => {
+  if (!Array.isArray(serviceHours) || !serviceHours.length) {
+    return true;
+  }
+
+  const normalizedTime = normalizeTime(time);
+
+  return serviceHours.some(
+    (window) =>
+      normalizedTime >= normalizeTime(window.start_time) &&
+      normalizedTime <= normalizeTime(window.end_time),
+  );
+};
+
 const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const today = moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
   const pricingQuantity = payload.pricing_quantity;
@@ -105,6 +124,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
           travel_date: payload.date,
           guests: payload.guests,
           quantity: payload.quantity,
+          pickup_time: payload.pickup_time || null,
+          preferred_time: payload.preferred_time || null,
         },
       }),
     };
@@ -191,6 +212,47 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
   const subtotal = unitPrice * pricingQuantity;
 
   const fixedScheduleSlot = !isSlotPricing ? availability.slots[0] : null;
+
+  const serviceHours = isSlotPricing
+    ? getServiceHours(availability.slots)
+    : getServiceHours([fixedScheduleSlot].filter(Boolean));
+
+  if (
+    payload.preferred_time &&
+    !isWithinServiceHours(payload.preferred_time, serviceHours)
+  ) {
+    return {
+      status: 200,
+
+      success: true,
+
+      available: false,
+
+      message: "preferred_time must be within the available service hours.",
+
+      data: buildBookingQuote({
+        product,
+
+        location,
+
+        booking: {
+          travel_date: payload.date,
+          guests: payload.guests,
+          quantity: payload.quantity,
+          pickup_time: payload.pickup_time || null,
+          preferred_time: payload.preferred_time || null,
+        },
+
+        availability: {
+          pricing_type: availability.vendorProduct.pricing_type,
+          slots,
+          selected_slot: selectedSlot,
+          service_hours: serviceHours,
+        },
+      }),
+    };
+  }
+
   const effectiveMaxBookable = isSlotPricing
     ? selectedSlot?.max_bookable_per_booking || 0
     : getEffectiveMaxBookable({
@@ -209,6 +271,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       travel_date: payload.date,
       guests: payload.guests,
       quantity: payload.quantity,
+      pickup_time: payload.pickup_time || null,
+      preferred_time: payload.preferred_time || null,
     },
 
     pricing: {
@@ -245,11 +309,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
           }
         : null,
 
-      service_hours: isSlotPricing
-        ? getServiceHours(availability.slots)
-        : getServiceHours(
-            [fixedScheduleSlot].filter(Boolean),
-          ),
+      service_hours: serviceHours,
     },
   });
 
