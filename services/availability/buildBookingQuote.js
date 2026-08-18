@@ -229,6 +229,8 @@ const buildBookingQuote = ({
 
       service_hours: availability.service_hours || null,
 
+      min_booking_lead_hours: availability.min_booking_lead_hours ?? null,
+
       next_available_date: availability.next_available_date || null,
     },
   };

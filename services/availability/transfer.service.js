@@ -154,6 +154,7 @@ const checkTransferAvailability = async ({
           }),
         },
         service_hours: getServiceHours(scheduleSlot),
+        min_booking_lead_hours: availability.vendorProduct.min_booking_lead_hours,
       }
     : {};
 
