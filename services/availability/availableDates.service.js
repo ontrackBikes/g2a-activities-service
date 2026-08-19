@@ -264,6 +264,7 @@ const getAvailableDates = async ({
           "price",
           "available",
           "start_time",
+          "end_time",
           "max_bookable_per_booking",
         ],
         required: true,
@@ -319,7 +320,7 @@ const getAvailableDates = async ({
       (slot) =>
         !isBeforeLeadTime({
           date: scheduleDate,
-          time: slot.start_time || "00:00:00",
+          time: slot.end_time || slot.start_time || "00:00:00",
           minBookingLeadHours: vendorProduct.min_booking_lead_hours,
         }),
     );

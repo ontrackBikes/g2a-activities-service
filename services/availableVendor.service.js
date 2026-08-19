@@ -33,7 +33,7 @@ const filterEligibleSlots = ({ schedule, vendorProduct }) => {
     (slot) =>
       !isBeforeLeadTime({
         date: schedule.schedule_date,
-        time: slot.start_time || "00:00:00",
+        time: slot.end_time || slot.start_time || "00:00:00",
         minBookingLeadHours: vendorProduct.min_booking_lead_hours,
       }),
   );
@@ -435,7 +435,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
         AND vss.status = 'OPEN'
         AND vss.available >= :guests
         AND vss.max_bookable_per_booking >= :guests
-        AND TIMESTAMP(vs.schedule_date, COALESCE(vss.start_time, '00:00:00'))
+        AND TIMESTAMP(vs.schedule_date, COALESCE(vss.end_time, vss.start_time, '00:00:00'))
           > DATE_ADD(:nowInstant, INTERVAL vp.min_booking_lead_hours HOUR)
       ORDER BY effective_price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC
     `,

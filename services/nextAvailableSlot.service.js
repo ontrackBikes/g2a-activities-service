@@ -80,7 +80,7 @@ const getNextAvailableSlotsForProducts = async ({
       `${slotAlias}.status = 'OPEN'`,
       `${slotAlias}.available >= :guests`,
       `${slotAlias}.max_bookable_per_booking >= :guests`,
-      `TIMESTAMP(${scheduleAlias}.schedule_date, COALESCE(${slotAlias}.start_time, '00:00:00'))
+      `TIMESTAMP(${scheduleAlias}.schedule_date, COALESCE(${slotAlias}.end_time, ${slotAlias}.start_time, '00:00:00'))
         > DATE_ADD(:nowInstant, INTERVAL ${vendorProductAlias}.min_booking_lead_hours HOUR)`,
     ];
 

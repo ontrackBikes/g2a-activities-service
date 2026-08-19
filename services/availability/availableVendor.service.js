@@ -92,7 +92,7 @@ const getAvailableVendorForProduct = async ({
           (slot) =>
             !isBeforeLeadTime({
               date,
-              time: slot.start_time || "00:00:00",
+              time: slot.end_time || slot.start_time || "00:00:00",
               minBookingLeadHours: vendorProduct.min_booking_lead_hours,
             }),
         );
