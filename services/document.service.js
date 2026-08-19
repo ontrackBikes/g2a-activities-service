@@ -19,6 +19,14 @@ const {
 } = require("./storage.service");
 
 const DOCUMENT_MAX_FILE_SIZE = DOCUMENT_MAX_FILE_SIZE_MB * 1024 * 1024;
+const INVALID_DOCUMENT_MESSAGE =
+  "Unable to upload the document. Please upload a valid file.";
+
+const createValidationError = (message) => {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+};
 
 const MIME_EXTENSIONS = {
   "application/pdf": ".pdf",
@@ -107,19 +115,15 @@ const uploadDocument = async ({
   expires_at = null,
 }) => {
   if (!file || !file.buffer) {
-    throw new Error("A file buffer is required.");
+    throw createValidationError(INVALID_DOCUMENT_MESSAGE);
   }
 
   if (!DOCUMENT_MIME_TYPES.includes(file.mimetype)) {
-    throw new Error(
-      `Unsupported file type: ${file.mimetype}. Allowed types: ${DOCUMENT_MIME_TYPES.join(", ")}`
-    );
+    throw createValidationError(INVALID_DOCUMENT_MESSAGE);
   }
 
   if (file.buffer.length > DOCUMENT_MAX_FILE_SIZE) {
-    throw new Error(
-      `File exceeds the maximum allowed size of ${DOCUMENT_MAX_FILE_SIZE_MB}MB.`
-    );
+    throw createValidationError(INVALID_DOCUMENT_MESSAGE);
   }
 
   let fileBuffer = file.buffer;
@@ -127,7 +131,11 @@ const uploadDocument = async ({
   let extension = getExtension(file.mimetype, file.originalname);
 
   if (DOCUMENT_IMAGE_MIME_TYPES.includes(file.mimetype)) {
-    fileBuffer = await compressImageBuffer(file.buffer);
+    try {
+      fileBuffer = await compressImageBuffer(file.buffer);
+    } catch (error) {
+      throw createValidationError(INVALID_DOCUMENT_MESSAGE);
+    }
     mimeType = "image/jpeg";
     extension = ".jpg";
   }

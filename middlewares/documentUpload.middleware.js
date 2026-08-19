@@ -22,4 +22,17 @@ const upload = multer({
   },
 });
 
-module.exports = upload;
+const single = (fieldName) => (req, res, next) => {
+  upload.single(fieldName)(req, res, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Unable to upload the document. Please upload a valid file.",
+    });
+  });
+};
+
+module.exports = { single };
