@@ -231,6 +231,8 @@ const buildBookingQuote = ({
 
       is_for_non_indian: Boolean(availability.is_for_non_indian),
 
+      description: availability.description || null,
+
       min_booking_lead_hours: availability.min_booking_lead_hours ?? null,
 
       next_available_date: availability.next_available_date || null,

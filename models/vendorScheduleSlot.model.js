@@ -129,6 +129,12 @@ VendorScheduleSlot.init(
       comment: "Snapshot: marks this slot as reserved for non-Indian nationals only",
     },
 
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Snapshot: info message shown to the customer for this slot",
+    },
+
     status: {
       type: DataTypes.ENUM(
         "OPEN",

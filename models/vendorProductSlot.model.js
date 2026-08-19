@@ -120,6 +120,12 @@ VendorProductSlot.init(
       comment: "Marks this slot as reserved for non-Indian nationals only",
     },
 
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Info message shown to the customer for this slot",
+    },
+
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,

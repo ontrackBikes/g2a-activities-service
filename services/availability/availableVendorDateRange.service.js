@@ -519,6 +519,7 @@ const getAvailableDateRangeVendor = async ({
               "is_preferred",
               "is_start_time_only",
               "is_for_non_indian",
+              "description",
               "price",
               "capacity",
               "booked",

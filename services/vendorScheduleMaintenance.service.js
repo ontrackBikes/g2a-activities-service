@@ -41,6 +41,7 @@ const buildSlotSnapshotFields = (templateSlot, vendorProduct) => ({
   is_preferred: templateSlot.is_preferred,
   is_start_time_only: templateSlot.is_start_time_only,
   is_for_non_indian: templateSlot.is_for_non_indian,
+  description: templateSlot.description,
 });
 
 const distanceTiersMatchTemplate = (

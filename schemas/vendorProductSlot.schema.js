@@ -51,6 +51,11 @@ const createVendorProductSlotSchema =
     is_for_non_indian: Joi.boolean()
       .default(false),
 
+    description: Joi.string()
+      .trim()
+      .max(1000)
+      .allow(null, ""),
+
     active: Joi.boolean()
       .default(true),
   });
@@ -98,6 +103,11 @@ const updateVendorProductSlotSchema =
     is_start_time_only: Joi.boolean(),
 
     is_for_non_indian: Joi.boolean(),
+
+    description: Joi.string()
+      .trim()
+      .max(1000)
+      .allow(null, ""),
 
     active: Joi.boolean(),
   }).min(1);

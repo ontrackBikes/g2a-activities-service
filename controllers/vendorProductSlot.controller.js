@@ -205,6 +205,9 @@ const createVendorProductSlot = async (
         is_for_non_indian:
           value.is_for_non_indian ?? false,
 
+        description:
+          value.description || null,
+
         active:
           value.active ?? true,
       });
