@@ -682,6 +682,24 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     /*
     |--------------------------------------------------------------------------
+    | Normalize Infant Documents
+    |--------------------------------------------------------------------------
+    | has_infant: false with an empty documents array is not a real infant
+    | documents submission - drop it so it doesn't get validated/stored as
+    | a section (documents is Joi.forbidden() when has_infant is false).
+    */
+
+    if (
+      payload.infant_documents &&
+      payload.infant_documents.has_infant === false &&
+      Array.isArray(payload.infant_documents.documents) &&
+      payload.infant_documents.documents.length === 0
+    ) {
+      delete payload.infant_documents;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Validate Booking Payload
     |--------------------------------------------------------------------------
     */
