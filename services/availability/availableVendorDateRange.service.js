@@ -6,6 +6,7 @@ const {
   Product,
   Location,
   VendorProduct,
+  VendorProductSlot,
   VendorSchedule,
   VendorScheduleSlot,
 } = require("../../models");
@@ -534,6 +535,14 @@ const getAvailableDateRangeVendor = async ({
                 [Op.gte]: resolvedGuests,
               },
             },
+            include: [
+              {
+                model: VendorProductSlot,
+                as: "templateSlot",
+                attributes: ["slot_type"],
+                required: false,
+              },
+            ],
           },
         ],
       },

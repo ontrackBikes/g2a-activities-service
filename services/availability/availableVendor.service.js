@@ -4,6 +4,7 @@ const { Op } = require("sequelize");
 
 const {
   VendorProduct,
+  VendorProductSlot,
   VendorSchedule,
   VendorScheduleSlot,
 } = require("../../models");
@@ -58,6 +59,15 @@ const getAvailableVendorForProduct = async ({
         required: true,
 
         where: slotWhere,
+
+        include: [
+          {
+            model: VendorProductSlot,
+            as: "templateSlot",
+            attributes: ["slot_type"],
+            required: false,
+          },
+        ],
       },
     ],
 
