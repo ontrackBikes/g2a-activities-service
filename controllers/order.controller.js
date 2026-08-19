@@ -835,6 +835,66 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     /*
     |--------------------------------------------------------------------------
+    | Non-Indian-Only Slot
+    |--------------------------------------------------------------------------
+    | The selected slot (SLOT-priced or the FIXED/default slot) may be
+    | restricted to non-Indian nationals. participants and
+    | kyc_per_passanger are each checked independently - same rule as
+    | the guest-count check above, they aren't assumed to line up by
+    | index.
+    */
+
+    const isNonIndianOnlySlot = Boolean(
+      estimate.quotation?.availability?.is_for_non_indian,
+    );
+
+    if (isNonIndianOnlySlot) {
+      const nonIndianErrors = [];
+
+      if (
+        hasParticipantsSection &&
+        Array.isArray(payload.participants) &&
+        payload.participants.some(
+          (participant) =>
+            String(participant.nationality || "")
+              .trim()
+              .toLowerCase() === "indian",
+        )
+      ) {
+        nonIndianErrors.push({
+          section: "participants",
+          errors: [
+            "The selected slot is reserved for non-Indian nationals. Indian nationality is not allowed.",
+          ],
+        });
+      }
+
+      if (
+        hasKycSection &&
+        Array.isArray(payload.kyc_per_passanger) &&
+        payload.kyc_per_passanger.some(
+          (passenger) => passenger.nationality === "Indian",
+        )
+      ) {
+        nonIndianErrors.push({
+          section: "kyc_per_passanger",
+          errors: [
+            "The selected slot is reserved for non-Indian nationals. Indian nationality is not allowed.",
+          ],
+        });
+      }
+
+      if (nonIndianErrors.length) {
+        throw {
+          status: 422,
+          message: "Validation failed.",
+          errors: nonIndianErrors,
+        };
+      }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Infant Documents
     |--------------------------------------------------------------------------
     */

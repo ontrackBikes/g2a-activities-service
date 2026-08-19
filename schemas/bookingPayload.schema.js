@@ -281,8 +281,15 @@ const kycPassenger = Joi.object({
   nationality: Joi.string().valid("Indian", "Foreigner").required(),
 
   id_proof_type: Joi.string()
-    .valid("passport", "aadhaar_card", "voter_id", "driving_licence", "other")
-    .required(),
+    .when("nationality", {
+      is: "Foreigner",
+      then: Joi.string().valid("passport").required().messages({
+        "any.only": "id_proof_type must be passport for non-Indian nationality.",
+      }),
+      otherwise: Joi.string()
+        .valid("passport", "aadhaar_card", "voter_id", "driving_licence", "other")
+        .required(),
+    }),
 
   id_number: Joi.string().trim().required(),
 

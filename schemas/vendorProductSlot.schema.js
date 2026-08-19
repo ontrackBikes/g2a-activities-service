@@ -48,6 +48,9 @@ const createVendorProductSlotSchema =
     is_start_time_only: Joi.boolean()
       .default(false),
 
+    is_for_non_indian: Joi.boolean()
+      .default(false),
+
     active: Joi.boolean()
       .default(true),
   });
@@ -93,6 +96,8 @@ const updateVendorProductSlotSchema =
     is_preferred: Joi.boolean(),
 
     is_start_time_only: Joi.boolean(),
+
+    is_for_non_indian: Joi.boolean(),
 
     active: Joi.boolean(),
   }).min(1);

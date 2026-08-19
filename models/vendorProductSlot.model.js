@@ -113,6 +113,13 @@ VendorProductSlot.init(
       comment: "Display as a start-only timing (e.g. Start @9am) instead of a range",
     },
 
+    is_for_non_indian: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Marks this slot as reserved for non-Indian nationals only",
+    },
+
     sort_order: {
       type: DataTypes.INTEGER,
       allowNull: false,

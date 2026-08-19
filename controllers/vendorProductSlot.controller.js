@@ -202,6 +202,9 @@ const createVendorProductSlot = async (
         is_start_time_only:
           value.is_start_time_only ?? false,
 
+        is_for_non_indian:
+          value.is_for_non_indian ?? false,
+
         active:
           value.active ?? true,
       });

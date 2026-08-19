@@ -253,6 +253,7 @@ module.exports.checkDateRange = async ({
           priced_by: slot.priced_by,
           is_preferred: Boolean(slot.is_preferred),
           is_start_time_only: Boolean(slot.is_start_time_only),
+          is_for_non_indian: Boolean(slot.is_for_non_indian),
           price: Number(slot.price),
           available: slot.available,
           max_bookable_per_booking:
@@ -278,6 +279,9 @@ module.exports.checkDateRange = async ({
   const fixedScheduleSlot = !isSlotPricing
     ? firstDailyPricing?.slot || null
     : null;
+  const inventorySlot =
+    selectedSlot || fixedScheduleSlot;
+  const isForNonIndian = Boolean(inventorySlot?.is_for_non_indian);
 
   const serviceHours = isSlotPricing
     ? getServiceHours(availableSlots)
@@ -311,6 +315,7 @@ module.exports.checkDateRange = async ({
           slots,
           selected_slot: selectedSlot,
           service_hours: serviceHours,
+          is_for_non_indian: isForNonIndian,
         },
       }),
     };
@@ -318,8 +323,6 @@ module.exports.checkDateRange = async ({
 
   const vendorSchedule =
     firstDailyPricing?.schedule || null;
-  const inventorySlot =
-    selectedSlot || fixedScheduleSlot;
   const max_bookable_per_booking =
     getEffectiveMaxBookable({
       vendorMax:
@@ -371,6 +374,7 @@ module.exports.checkDateRange = async ({
         unit_price: day.unit_price,
       })),
       service_hours: serviceHours,
+      is_for_non_indian: isForNonIndian,
     },
   });
 

@@ -168,6 +168,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
           is_start_time_only: Boolean(slot.is_start_time_only),
 
+          is_for_non_indian: Boolean(slot.is_for_non_indian),
+
           price: Number(slot.price),
 
           available: slot.available,
@@ -200,6 +202,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         (slot) => slot.id === slot_mapping[selectedSlot.token],
       )
     : availability.slots[0];
+
+  const isForNonIndian = Boolean(selectedVendorSlot?.is_for_non_indian);
 
   /**
    * Pricing
@@ -248,6 +252,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
           slots,
           selected_slot: selectedSlot,
           service_hours: serviceHours,
+          is_for_non_indian: isForNonIndian,
         },
       }),
     };
@@ -310,6 +315,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         : null,
 
       service_hours: serviceHours,
+
+      is_for_non_indian: isForNonIndian,
     },
   });
 
