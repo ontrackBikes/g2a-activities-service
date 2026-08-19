@@ -28,7 +28,7 @@ const getEffectiveMaxBookable = ({
 };
 
 const getSlotType = (slot) =>
-  slot?.slot_type ||
+  slot?.templateSlot?.slot_type ||
   (slot?.start_time && slot?.end_time
     ? "TIME"
     : "VARIANT");
