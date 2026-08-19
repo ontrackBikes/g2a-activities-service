@@ -45,13 +45,6 @@ const buildSlotTimingPayload = ({
   const endTime = hasEndTime
     ? normalizeTimeValue(value.end_time)
     : existingSlot?.end_time ?? null;
-  const requestedStartTime = hasStartTime
-    ? normalizeTimeValue(value.start_time)
-    : null;
-  const requestedEndTime = hasEndTime
-    ? normalizeTimeValue(value.end_time)
-    : null;
-
   const slotType = inferSlotType({
     slotType:
       value.slot_type || existingSlot?.slot_type,
@@ -66,21 +59,18 @@ const buildSlotTimingPayload = ({
     };
   }
 
-  if (
-    slotType === "VARIANT" &&
-    (requestedStartTime || requestedEndTime)
-  ) {
+  if (Boolean(startTime) !== Boolean(endTime)) {
     return {
       error:
-        "start_time and end_time are not allowed for VARIANT slots",
+        "start_time and end_time must be provided together",
     };
   }
 
   return {
     payload: {
       slot_type: slotType,
-      start_time: slotType === "TIME" ? startTime : null,
-      end_time: slotType === "TIME" ? endTime : null,
+      start_time: startTime,
+      end_time: endTime,
     },
   };
 };

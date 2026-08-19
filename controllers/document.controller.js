@@ -34,9 +34,10 @@ const uploadDocument = async (req, res) => {
     });
   } catch (error) {
     console.error("[DocumentController] uploadDocument", error);
-    return res.status(500).json({
+    const status = error.status || 500;
+    return res.status(status).json({
       success: false,
-      message: error.message,
+      message: status < 500 ? error.message : "Failed to upload document.",
     });
   }
 };

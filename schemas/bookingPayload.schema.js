@@ -272,10 +272,9 @@ const kycDocument = Joi.object({
 
   document_id: Joi.alternatives()
     .try(Joi.string(), Joi.number())
-    .allow(null)
     .required(),
 
-  document_url: Joi.string().allow("", null).required(),
+  document_url: Joi.string().trim().min(1).required(),
 }).unknown(false);
 
 const kycPassenger = Joi.object({
@@ -298,7 +297,9 @@ const kycPassenger = Joi.object({
   document: kycDocument.required(),
 }).unknown(false);
 
-const kyc_per_passanger = Joi.array().items(kycPassenger).min(1);
+const kyc_per_passanger = Joi.array().items(kycPassenger).min(1).messages({
+  "array.min": "Provide KYC details for every passenger.",
+});
 
 const infant_documents = Joi.object({
   has_infant: Joi.boolean().required(),
@@ -341,6 +342,38 @@ const SECTION_SCHEMAS = {
 
   [BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP]: opt_for_pickup_and_drop,
 };
+const formatSectionValidationErrors = (section, details) => {
+  const documentMessageBySection = {
+    [BOOKING_SECTIONS.KYC_PER_PASSENGER]:
+      "Upload a valid KYC document for every passenger.",
+    [BOOKING_SECTIONS.INFANT_DOCUMENTS]:
+      "Upload a valid document for the infant.",
+  };
+  const documentMessage = documentMessageBySection[section];
+
+  if (!documentMessage) {
+    return details.map((detail) => detail.message);
+  }
+
+  const messages = new Set();
+  const isDocumentError = (detail) =>
+    detail.path.some((pathPart) =>
+      String(pathPart).toLowerCase().startsWith("document"),
+    );
+  const hasDocumentError = details.some(isDocumentError);
+
+  for (const detail of details) {
+    if (!isDocumentError(detail)) {
+      messages.add(detail.message);
+    }
+  }
+
+  if (hasDocumentError) {
+    messages.add(documentMessage);
+  }
+
+  return [...messages];
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -374,10 +407,9 @@ const validateBookingPayload = ({ bookingTemplate, payload }) => {
     }
 
     if (error) {
-      console.log(JSON.stringify(error.details, null, 2));
       errors.push({
         section: section.section,
-        errors: error.details.map((x) => x.message),
+        errors: formatSectionValidationErrors(section.section, error.details),
       });
     }
   }
