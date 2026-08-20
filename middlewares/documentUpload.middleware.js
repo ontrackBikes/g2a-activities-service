@@ -30,7 +30,8 @@ const single = (fieldName) => (req, res, next) => {
 
     return res.status(400).json({
       success: false,
-      message: "Unable to upload the document. Please upload a valid file.",
+      message:
+        "Unable to upload the document. Upload a PDF, JPG, PNG, or WEBP file.",
     });
   });
 };
