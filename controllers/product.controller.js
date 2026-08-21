@@ -1226,6 +1226,7 @@ const getProductsListForApp = async (req, res) => {
           locationIds: availableLocationIds,
           locationSlugs: selectedLocationSlugs,
           guests: requestedGuests,
+          fromDate: date,
         }),
       ];
 
@@ -1292,9 +1293,9 @@ const getProductsListForApp = async (req, res) => {
           availability,
           pricing,
           nextAvailableSlot: date
-            ? availability?.schedule?.schedule_date ||
-              locationNextAvailableSlotMap.get(key) ||
-              null
+            ? (availability
+                ? null
+                : locationNextAvailableSlotMap.get(key) || null)
             : locationNextAvailableSlotMap.get(key) || null,
         };
       });
@@ -1352,7 +1353,7 @@ const getProductsListForApp = async (req, res) => {
         price_type: pricing ? pricing.price_type : null,
 
         next_available_slot: date
-          ? availability?.schedule?.schedule_date || nextAvailableSlot
+          ? (availability ? null : nextAvailableSlot)
           : nextAvailableSlot,
 
         category: json.productType?.category
@@ -1825,6 +1826,7 @@ const getProductDetailsForApp = async (req, res) => {
           productId: product.id,
           locationSlug: location_slug,
           guests: requestedGuests,
+          fromDate: date,
         }),
         lowestPricePromise,
       ]);
@@ -1896,9 +1898,12 @@ const getProductDetailsForApp = async (req, res) => {
 
         max_bookable_per_booking,
 
-        next_available_slot:
-          availability?.schedule?.schedule_date ||
-          nextAvailableSlot,
+        // A selected date that's already available has nothing to suggest.
+        // Without a selected date there's nothing to compare against, so
+        // fall back to whatever date the availability check resolved to.
+        next_available_slot: date
+          ? (availability ? null : nextAvailableSlot)
+          : availability?.schedule?.schedule_date || nextAvailableSlot,
 
         images: (product.images || []).map((image) => ({
           image_url: image.image_url,

@@ -301,20 +301,25 @@ const checkProductAvailability = async (req, res) => {
         ? transferHandler.checkAvailability
         : handlers[product.booking_mode];
 
-    const [result, nextAvailableDate] = await Promise.all([
-      handler({
-        product,
-        location,
-        payload: availabilityPayload,
-        estimateId: availabilityPayload.estimate_id,
-        ...(transferHandler ? { locations } : {}),
-      }),
-      getNextAvailableSlotForProduct({
-        productId: product.id,
-        locationId: location.id,
-        guests: availabilityPayload.pricing_quantity,
-      }),
-    ]);
+    const result = await handler({
+      product,
+      location,
+      payload: availabilityPayload,
+      estimateId: availabilityPayload.estimate_id,
+      ...(transferHandler ? { locations } : {}),
+    });
+
+    // The selected date already has availability - no need to suggest one.
+    const nextAvailableDate = result?.available
+      ? null
+      : await getNextAvailableSlotForProduct({
+          productId: product.id,
+          locationId: location.id,
+          guests: availabilityPayload.pricing_quantity,
+          fromDate:
+            availabilityPayload.date ||
+            availabilityPayload.pickup_date,
+        });
 
     if (result?.data?.product) {
       result.data.product.next_available_date = nextAvailableDate;

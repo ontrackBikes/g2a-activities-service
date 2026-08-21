@@ -410,6 +410,7 @@ const getCollectionsWithProducts = async (req, res) => {
         productIds,
         locationSlugs: selectedLocationSlugs,
         guests: requestedGuests,
+        fromDate: date,
       }),
       productIds.length
         ? VendorProduct.findAll({
@@ -471,9 +472,11 @@ const getCollectionsWithProducts = async (req, res) => {
         const availability =
           availabilityMap.get(mapping.product.id);
         const productId = Number(mapping.product.id);
-        const nextAvailableSlot =
-          availability?.schedule?.schedule_date ||
-          nextAvailableSlotMap.get(productId) || null;
+        const nextAvailableSlot = date
+          ? (availability
+              ? null
+              : nextAvailableSlotMap.get(productId) || null)
+          : nextAvailableSlotMap.get(productId) || null;
         const locations = locationMap.has(productId)
           ? Array.from(
               locationMap.get(productId).values(),

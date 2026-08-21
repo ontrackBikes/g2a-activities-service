@@ -33,6 +33,7 @@ const getNextAvailableSlotsForProducts = async ({
   locationSlugs = [],
   guests = 1,
   groupByLocation = false,
+  fromDate,
 }) => {
   const normalizedProductIds = normalizeIds(productIds);
 
@@ -49,10 +50,18 @@ const getNextAvailableSlotsForProducts = async ({
   );
   const now = moment().tz(APP_TIMEZONE);
   const today = now.format("YYYY-MM-DD");
+  // "Next available" must never be earlier than the date the caller is
+  // actually looking at - default to today when nothing was selected, but
+  // otherwise search forward from the selected date, not from today.
+  const requestedFromDate =
+    fromDate &&
+    moment.tz(fromDate, "YYYY-MM-DD", true, APP_TIMEZONE).isValid()
+      ? fromDate
+      : today;
 
   const replacements = {
     productIds: normalizedProductIds,
-    today,
+    fromDate: requestedFromDate > today ? requestedFromDate : today,
     nowInstant: now.format("YYYY-MM-DD HH:mm:ss"),
     guests: requestedGuests,
   };
@@ -76,7 +85,7 @@ const getNextAvailableSlotsForProducts = async ({
       `${vendorProductAlias}.active = 1`,
       `${locationAlias}.active = 1`,
       `${scheduleAlias}.status = 'OPEN'`,
-      `${scheduleAlias}.schedule_date >= :today`,
+      `${scheduleAlias}.schedule_date >= :fromDate`,
       `${slotAlias}.status = 'OPEN'`,
       `${slotAlias}.available >= :guests`,
       `${slotAlias}.max_bookable_per_booking >= :guests`,
@@ -205,12 +214,14 @@ const getNextAvailableSlotsForProductLocations = async ({
   locationIds = [],
   locationSlugs = [],
   guests = 1,
+  fromDate,
 }) =>
   getNextAvailableSlotsForProducts({
     productIds,
     locationIds,
     locationSlugs,
     guests,
+    fromDate,
     groupByLocation: true,
   });
 
@@ -221,6 +232,7 @@ const getNextAvailableSlotForProduct = async ({
   locationSlug,
   locationSlugs = [],
   guests = 1,
+  fromDate,
 }) => {
   const results =
     await getNextAvailableSlotsForProducts({
@@ -234,6 +246,7 @@ const getNextAvailableSlotForProduct = async ({
         ...locationSlugs,
       ],
       guests,
+      fromDate,
     });
 
   return results.get(Number(productId)) || null;
