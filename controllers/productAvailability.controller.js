@@ -210,7 +210,6 @@ const checkProductAvailability = async (req, res) => {
         .tz(payload.pickup_date, "YYYY-MM-DD", true, APP_TIMEZONE)
         .add(1, "day")
         .format("YYYY-MM-DD");
-    payload.pickup_time = payload.pickup_time || "10:00";
 
     /**
      * Validate request
