@@ -105,7 +105,7 @@ const getPickupTimeError = ({
   const startsAt = getTimeOnDate(date, scheduleSlot.start_time);
   const endsAt = getTimeOnDate(date, scheduleSlot.end_time);
 
-  return pickupAt.isBefore(startsAt) || !pickupAt.isBefore(endsAt)
+  return pickupAt.isBefore(startsAt) || pickupAt.isAfter(endsAt)
     ? "pickup_time is outside the available service hours."
     : null;
 };

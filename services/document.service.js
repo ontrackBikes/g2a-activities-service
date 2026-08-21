@@ -20,7 +20,7 @@ const {
 
 const DOCUMENT_MAX_FILE_SIZE = DOCUMENT_MAX_FILE_SIZE_MB * 1024 * 1024;
 const INVALID_DOCUMENT_MESSAGE =
-  "Unable to upload the document. Please upload a valid file.";
+  "Unable to upload the document. Upload a PDF, JPG, PNG, or WEBP file.";
 
 const createValidationError = (message) => {
   const error = new Error(message);
