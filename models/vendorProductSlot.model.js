@@ -113,11 +113,11 @@ VendorProductSlot.init(
       comment: "Display as a start-only timing (e.g. Start @9am) instead of a range",
     },
 
-    is_for_non_indian: {
-      type: DataTypes.BOOLEAN,
+    nationality_restriction: {
+      type: DataTypes.ENUM("ALL", "INDIAN_ONLY", "NON_INDIAN_ONLY"),
       allowNull: false,
-      defaultValue: false,
-      comment: "Marks this slot as reserved for non-Indian nationals only",
+      defaultValue: "ALL",
+      comment: "Restricts this slot to a nationality group; ALL = open to everyone",
     },
 
     description: {

@@ -168,7 +168,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
           is_start_time_only: Boolean(slot.is_start_time_only),
 
-          is_for_non_indian: Boolean(slot.is_for_non_indian),
+          nationality_restriction: slot.nationality_restriction || "ALL",
 
           description: slot.description || null,
 
@@ -205,7 +205,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       )
     : availability.slots[0];
 
-  const isForNonIndian = Boolean(selectedVendorSlot?.is_for_non_indian);
+  const nationalityRestriction = selectedVendorSlot?.nationality_restriction || "ALL";
   const slotDescription = selectedVendorSlot?.description || null;
 
   /**
@@ -255,7 +255,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
           slots,
           selected_slot: selectedSlot,
           service_hours: serviceHours,
-          is_for_non_indian: isForNonIndian,
+          nationality_restriction: nationalityRestriction,
           description: slotDescription,
         },
       }),
@@ -320,7 +320,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
       service_hours: serviceHours,
 
-      is_for_non_indian: isForNonIndian,
+      nationality_restriction: nationalityRestriction,
 
       description: slotDescription,
     },

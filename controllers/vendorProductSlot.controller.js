@@ -202,8 +202,8 @@ const createVendorProductSlot = async (
         is_start_time_only:
           value.is_start_time_only ?? false,
 
-        is_for_non_indian:
-          value.is_for_non_indian ?? false,
+        nationality_restriction:
+          value.nationality_restriction ?? "ALL",
 
         description:
           value.description || null,

@@ -253,7 +253,7 @@ module.exports.checkDateRange = async ({
           priced_by: slot.priced_by,
           is_preferred: Boolean(slot.is_preferred),
           is_start_time_only: Boolean(slot.is_start_time_only),
-          is_for_non_indian: Boolean(slot.is_for_non_indian),
+          nationality_restriction: slot.nationality_restriction || "ALL",
           description: slot.description || null,
           price: Number(slot.price),
           available: slot.available,
@@ -282,7 +282,7 @@ module.exports.checkDateRange = async ({
     : null;
   const inventorySlot =
     selectedSlot || fixedScheduleSlot;
-  const isForNonIndian = Boolean(inventorySlot?.is_for_non_indian);
+  const nationalityRestriction = inventorySlot?.nationality_restriction || "ALL";
   const slotDescription = inventorySlot?.description || null;
 
   const serviceHours = isSlotPricing
@@ -317,7 +317,7 @@ module.exports.checkDateRange = async ({
           slots,
           selected_slot: selectedSlot,
           service_hours: serviceHours,
-          is_for_non_indian: isForNonIndian,
+          nationality_restriction: nationalityRestriction,
           description: slotDescription,
         },
       }),
@@ -377,7 +377,7 @@ module.exports.checkDateRange = async ({
         unit_price: day.unit_price,
       })),
       service_hours: serviceHours,
-      is_for_non_indian: isForNonIndian,
+      nationality_restriction: nationalityRestriction,
       description: slotDescription,
     },
   });

@@ -122,11 +122,11 @@ VendorScheduleSlot.init(
       comment: "Snapshot: display as a start-only timing (e.g. Start @9am) instead of a range",
     },
 
-    is_for_non_indian: {
-      type: DataTypes.BOOLEAN,
+    nationality_restriction: {
+      type: DataTypes.ENUM("ALL", "INDIAN_ONLY", "NON_INDIAN_ONLY"),
       allowNull: false,
-      defaultValue: false,
-      comment: "Snapshot: marks this slot as reserved for non-Indian nationals only",
+      defaultValue: "ALL",
+      comment: "Snapshot: restricts this slot to a nationality group; ALL = open to everyone",
     },
 
     description: {

@@ -835,37 +835,42 @@ const createOrderService = async ({ estimateId, payload }) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Non-Indian-Only Slot
+    | Nationality-Restricted Slot
     |--------------------------------------------------------------------------
     | The selected slot (SLOT-priced or the FIXED/default slot) may be
-    | restricted to non-Indian nationals. participants and
-    | kyc_per_passanger are each checked independently - same rule as
-    | the guest-count check above, they aren't assumed to line up by
-    | index.
+    | restricted to INDIAN_ONLY or NON_INDIAN_ONLY nationals (ALL = no
+    | restriction). participants and kyc_per_passanger are each checked
+    | independently - same rule as the guest-count check above, they
+    | aren't assumed to line up by index.
     */
 
-    const isNonIndianOnlySlot = Boolean(
-      estimate.quotation?.availability?.is_for_non_indian,
-    );
+    const nationalityRestriction =
+      estimate.quotation?.availability?.nationality_restriction || "ALL";
 
-    if (isNonIndianOnlySlot) {
-      const nonIndianErrors = [];
+    if (nationalityRestriction !== "ALL") {
+      const isNonIndianOnly = nationalityRestriction === "NON_INDIAN_ONLY";
+      const disallowedKycNationality = isNonIndianOnly ? "Indian" : "Foreigner";
+      const restrictionMessage = `The selected slot is reserved for ${
+        isNonIndianOnly ? "non-Indian" : "Indian"
+      } nationals only.`;
+      const restrictionErrors = [];
 
       if (
         hasParticipantsSection &&
         Array.isArray(payload.participants) &&
-        payload.participants.some(
-          (participant) =>
-            String(participant.nationality || "")
-              .trim()
-              .toLowerCase() === "indian",
-        )
+        payload.participants.some((participant) => {
+          const nationality = String(participant.nationality || "")
+            .trim()
+            .toLowerCase();
+
+          return isNonIndianOnly
+            ? nationality === "indian"
+            : nationality !== "indian" && nationality !== "";
+        })
       ) {
-        nonIndianErrors.push({
+        restrictionErrors.push({
           section: "participants",
-          errors: [
-            "The selected slot is reserved for non-Indian nationals. Indian nationality is not allowed.",
-          ],
+          errors: [restrictionMessage],
         });
       }
 
@@ -873,22 +878,20 @@ const createOrderService = async ({ estimateId, payload }) => {
         hasKycSection &&
         Array.isArray(payload.kyc_per_passanger) &&
         payload.kyc_per_passanger.some(
-          (passenger) => passenger.nationality === "Indian",
+          (passenger) => passenger.nationality === disallowedKycNationality,
         )
       ) {
-        nonIndianErrors.push({
+        restrictionErrors.push({
           section: "kyc_per_passanger",
-          errors: [
-            "The selected slot is reserved for non-Indian nationals. Indian nationality is not allowed.",
-          ],
+          errors: [restrictionMessage],
         });
       }
 
-      if (nonIndianErrors.length) {
+      if (restrictionErrors.length) {
         throw {
           status: 422,
           message: "Validation failed.",
-          errors: nonIndianErrors,
+          errors: restrictionErrors,
         };
       }
     }

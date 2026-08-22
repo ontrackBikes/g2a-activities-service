@@ -48,8 +48,9 @@ const createVendorProductSlotSchema =
     is_start_time_only: Joi.boolean()
       .default(false),
 
-    is_for_non_indian: Joi.boolean()
-      .default(false),
+    nationality_restriction: Joi.string()
+      .valid("ALL", "INDIAN_ONLY", "NON_INDIAN_ONLY")
+      .default("ALL"),
 
     description: Joi.string()
       .trim()
@@ -102,7 +103,8 @@ const updateVendorProductSlotSchema =
 
     is_start_time_only: Joi.boolean(),
 
-    is_for_non_indian: Joi.boolean(),
+    nationality_restriction: Joi.string()
+      .valid("ALL", "INDIAN_ONLY", "NON_INDIAN_ONLY"),
 
     description: Joi.string()
       .trim()

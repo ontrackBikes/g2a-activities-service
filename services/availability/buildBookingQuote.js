@@ -229,7 +229,7 @@ const buildBookingQuote = ({
 
       service_hours: availability.service_hours || null,
 
-      is_for_non_indian: Boolean(availability.is_for_non_indian),
+      nationality_restriction: availability.nationality_restriction || "ALL",
 
       description: availability.description || null,
 
