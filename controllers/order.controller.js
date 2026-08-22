@@ -197,8 +197,8 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
     }),
   };
 
-  if (bookingData.travel_date) {
-    snapshot.travel_date = bookingData.travel_date;
+  if (bookingData.date) {
+    snapshot.date = bookingData.date;
   }
 
   if (bookingData.pickup_date) {
@@ -1528,7 +1528,7 @@ const getOrder = async (req, res) => {
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,
-        travel_date: item.booking_data?.travel_date,
+        date: item.booking_data?.date ?? item.booking_data?.travel_date,
         pickup_date: item.booking_data?.pickup_date,
         pickup_time: item.booking_data?.pickup_time,
         preferred_time: item.booking_data?.preferred_time,

@@ -319,7 +319,7 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
     location_name: item.location_name,
     booking: compactObject({
       booking_mode: booking.booking_mode || item.booking_mode || "",
-      travel_date: booking.travel_date || "",
+      date: booking.date || booking.travel_date || "",
       pickup_date: booking.pickup_date || "",
       return_date: booking.return_date || "",
       rental_days: booking.rental_days ?? "",
@@ -455,8 +455,8 @@ async function sendConfirmationEmail({ payment, order, to, cc, bcc }) {
           </div>
 
           ${
-            booking.travel_date
-              ? `<div><strong>Travel Date:</strong> ${booking.travel_date}</div>`
+            booking.date
+              ? `<div><strong>Travel Date:</strong> ${booking.date}</div>`
               : ""
           }
 

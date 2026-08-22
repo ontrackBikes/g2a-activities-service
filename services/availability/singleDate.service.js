@@ -121,7 +121,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         location,
 
         booking: {
-          travel_date: payload.date,
+          date: payload.date,
           guests: payload.guests,
           quantity: payload.quantity,
           pickup_time: payload.pickup_time || null,
@@ -243,7 +243,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
         location,
 
         booking: {
-          travel_date: payload.date,
+          date: payload.date,
           guests: payload.guests,
           quantity: payload.quantity,
           pickup_time: payload.pickup_time || null,
@@ -277,7 +277,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
     location,
 
     booking: {
-      travel_date: payload.date,
+      date: payload.date,
       guests: payload.guests,
       quantity: payload.quantity,
       pickup_time: payload.pickup_time || null,

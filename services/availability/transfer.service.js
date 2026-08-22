@@ -45,7 +45,7 @@ const getLocationSnapshot = (location, locations) => {
 };
 
 const buildTransferBooking = ({ payload, includeTransferType, locations }) => ({
-  travel_date: payload.date,
+  date: payload.date,
   guests: payload.guests,
   quantity: payload.quantity,
   ...(includeTransferType ? { transfer_type: payload.transfer_type } : {}),

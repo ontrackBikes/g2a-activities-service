@@ -111,7 +111,7 @@ BookingEstimate.init(
      *
      * {
      *   location_slug,
-     *   travel_date,
+     *   date,
      *   guests
      * }
      */
@@ -125,7 +125,7 @@ BookingEstimate.init(
      * Normalized Booking
      *
      * {
-     *   travel_date,
+     *   date,
      *   pickup_date,
      *   return_date,
      *   guests,
