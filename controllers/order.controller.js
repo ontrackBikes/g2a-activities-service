@@ -130,6 +130,15 @@ const formatRentalPoint = (point) => {
   };
 };
 
+const mergeKycPassengers = (bookingPayload) => {
+  const passengers = [
+    ...(bookingPayload?.kyc_per_passanger || []),
+    ...(bookingPayload?.kyc_upto_max || []),
+  ];
+
+  return passengers.length ? passengers : null;
+};
+
 const formatRentalDetails = (rentalDetails) => {
   if (!rentalDetails) {
     return null;
@@ -1588,7 +1597,7 @@ const getOrder = async (req, res) => {
       flight_details: item.booking_payload?.flight_details || null,
       ferry_details: item.booking_payload?.ferry_details || null,
       medical_declaration: item.booking_payload?.medical_declaration,
-      kyc_per_passanger: item.booking_payload?.kyc_per_passanger || null,
+      kyc_per_passanger: mergeKycPassengers(item.booking_payload),
       infant_documents: item.booking_payload?.infant_documents || null,
       ...(item.quotation?.opt_for_pickup_and_drop !== undefined
         ? {
