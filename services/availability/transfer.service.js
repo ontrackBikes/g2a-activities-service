@@ -71,6 +71,20 @@ const getServiceHours = (scheduleSlot) =>
       ]
     : null;
 
+const hasSlotAfterLeadTime = ({ date, slots, minBookingLeadHours }) =>
+  slots.some((slot) => {
+    const endTime = slot.end_time || slot.start_time;
+
+    return (
+      !endTime ||
+      !isBeforeLeadTime({
+        date,
+        time: endTime,
+        minBookingLeadHours,
+      })
+    );
+  });
+
 const getTimeOnDate = (date, time) =>
   moment.tz(
     `${date} ${time}`,
@@ -143,6 +157,21 @@ const checkTransferAvailability = async ({
     ignoreSameDaySlotStartTime: true,
   });
 
+  const hasTransferDetails = Boolean(
+    payload.pickup_location != null &&
+      payload.drop_location != null &&
+      payload.pickup_time,
+  );
+  const hasGenericDateAvailability = Boolean(
+    availability &&
+      hasSlotAfterLeadTime({
+        date: payload.date,
+        slots: availability.slots,
+        minBookingLeadHours:
+          availability.vendorProduct.min_booking_lead_hours,
+      }),
+  );
+
   const scheduleSlot = availability?.slots[0] || null;
   const availabilityDetails = scheduleSlot
     ? {
@@ -158,11 +187,22 @@ const checkTransferAvailability = async ({
       }
     : {};
 
+  if (!availability || (!hasTransferDetails && !hasGenericDateAvailability)) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: `${serviceName} is not available for the selected date.`,
+      data: buildBookingQuote({ product, location, booking }),
+    };
+  }
+
   if (payload.pickup_location == null || payload.drop_location == null) {
     return {
       status: 200,
       success: true,
       available: false,
+      skipNextAvailableDate: hasGenericDateAvailability,
       message: "Please select a pickup and drop location to continue.",
       data: buildBookingQuote({
         product,
@@ -173,13 +213,19 @@ const checkTransferAvailability = async ({
     };
   }
 
-  if (!availability) {
+  if (!payload.pickup_time) {
     return {
       status: 200,
       success: true,
       available: false,
-      message: `${serviceName} is not available for the selected date.`,
-      data: buildBookingQuote({ product, location, booking }),
+      skipNextAvailableDate: hasGenericDateAvailability,
+      message: "Please select a pickup time to continue.",
+      data: buildBookingQuote({
+        product,
+        location,
+        booking,
+        availability: availabilityDetails,
+      }),
     };
   }
 

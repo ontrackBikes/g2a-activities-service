@@ -39,7 +39,7 @@ const createCabServiceAvailabilitySchema = ({ locations }) => {
     quantity: Joi.number().integer().min(1).default(1),
     pickup_location: transferLocationSchema,
     drop_location: transferLocationSchema,
-    pickup_time: time24Hour.default("10:00"),
+    pickup_time: time24Hour.empty("").allow(null).optional(),
     estimate_id: estimateId,
     selected_slot_token: slotToken,
   })
