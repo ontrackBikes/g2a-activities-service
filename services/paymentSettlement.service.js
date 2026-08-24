@@ -317,6 +317,9 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
   return {
     product_name: item.product_name,
     location_name: item.location_name,
+    ...(item.product_slug === "sunset-cruise-private-trip"
+      ? { show_permit_charge_message: true }
+      : {}),
     booking: compactObject({
       booking_mode: booking.booking_mode || item.booking_mode || "",
       date: booking.date || booking.travel_date || "",
