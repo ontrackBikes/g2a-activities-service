@@ -173,6 +173,14 @@ const buildBookingQuote = ({
       section.section === BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP,
   );
 
+  const hasAgreedToPermitCharge = (
+    sanitizedProduct.bookingTemplate?.booking_page_schema?.sections || []
+  ).some(
+    (section) =>
+      section.enabled &&
+      section.section === BOOKING_SECTIONS.HAS_AGREED_TO_PERMIT_CHARGE,
+  );
+
   return {
     product: sanitizedProduct,
     location: {
@@ -182,6 +190,10 @@ const buildBookingQuote = ({
 
     ...(hasOptForPickupAndDrop
       ? { opt_for_pickup_and_drop: false }
+      : {}),
+
+    ...(hasAgreedToPermitCharge
+      ? { has_agreed_to_permit_charge: false }
       : {}),
 
     booking,

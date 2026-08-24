@@ -267,6 +267,8 @@ const ferry_details = Joi.object({
 
 const opt_for_pickup_and_drop = Joi.boolean();
 
+const has_agreed_to_permit_charge = Joi.boolean();
+
 const kycDocument = Joi.object({
   file_name: Joi.string().trim().required(),
 
@@ -355,6 +357,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.FERRYDETAILS]: ferry_details,
 
   [BOOKING_SECTIONS.OPT_FOR_PICKUP_AND_DROP]: opt_for_pickup_and_drop,
+
+  [BOOKING_SECTIONS.HAS_AGREED_TO_PERMIT_CHARGE]: has_agreed_to_permit_charge,
 };
 const formatSectionValidationErrors = (section, details) => {
   const documentMessageBySection = {

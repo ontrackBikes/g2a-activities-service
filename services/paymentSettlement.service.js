@@ -365,6 +365,12 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
             ? 'Opted'
             : 'Not Opted'
           : undefined,
+      has_agreed_to_permit_charge:
+        item.quotation?.has_agreed_to_permit_charge !== undefined
+          ? item.booking_payload?.has_agreed_to_permit_charge
+            ? 'Agreed'
+            : 'Not Agreed'
+          : undefined,
     }),
     participants: (item.participants || []).map(formatEmailParticipant),
     kyc_per_passanger: [

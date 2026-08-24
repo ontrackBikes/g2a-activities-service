@@ -1596,6 +1596,12 @@ const getOrder = async (req, res) => {
               item.booking_payload?.opt_for_pickup_and_drop ?? false,
           }
         : {}),
+      ...(item.quotation?.has_agreed_to_permit_charge !== undefined
+        ? {
+            has_agreed_to_permit_charge:
+              item.booking_payload?.has_agreed_to_permit_charge ?? false,
+          }
+        : {}),
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,

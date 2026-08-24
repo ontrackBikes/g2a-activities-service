@@ -16,6 +16,7 @@ module.exports = Object.freeze({
   // Optional
   ADDONS: "addons",
   OPT_FOR_PICKUP_AND_DROP: "opt_for_pickup_and_drop",
+  HAS_AGREED_TO_PERMIT_CHARGE: "has_agreed_to_permit_charge",
 
   // Checkout
   REVIEW: "review",
