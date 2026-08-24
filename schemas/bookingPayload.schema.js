@@ -364,6 +364,7 @@ const formatSectionValidationErrors = (section, details) => {
   const documentMessageBySection = {
     [BOOKING_SECTIONS.KYC_PER_PASSENGER]:
       "Upload a valid KYC document for every passenger.",
+    [BOOKING_SECTIONS.KYC_UPTO_MAX]: "Upload a valid KYC document.",
     [BOOKING_SECTIONS.INFANT_DOCUMENTS]:
       "Upload a valid document for the infant.",
   };
