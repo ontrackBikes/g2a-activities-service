@@ -1574,6 +1574,7 @@ const getOrder = async (req, res) => {
       ferry_details: item.booking_payload?.ferry_details || null,
       medical_declaration: item.booking_payload?.medical_declaration,
       kyc_per_passanger: item.booking_payload?.kyc_per_passanger || null,
+      kyc_upto_max: item.booking_payload?.kyc_upto_max || null,
       infant_documents: item.booking_payload?.infant_documents || null,
       ...(item.quotation?.opt_for_pickup_and_drop !== undefined
         ? {
