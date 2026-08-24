@@ -12,6 +12,34 @@ const {
   isBeforeLeadTime,
 } = require("../bookingLeadTime.service");
 
+// Upper bound on how many units/guests a single booking could ever take for
+// this product+location, regardless of date - used only to give a clearer
+// "not available" reason when getAvailableVendorForProduct finds nothing.
+const getMaxBookablePerBooking = async ({
+  productId,
+  locationId,
+}) => {
+  const vendorProducts = await VendorProduct.findAll({
+    attributes: ["max_bookable_per_booking"],
+    where: {
+      product_id: productId,
+      location_id: locationId,
+      active: true,
+    },
+  });
+
+  if (!vendorProducts.length) {
+    return null;
+  }
+
+  return Math.max(
+    ...vendorProducts.map(
+      (vendorProduct) =>
+        Number(vendorProduct.max_bookable_per_booking) || 0,
+    ),
+  );
+};
+
 const getAvailableVendorForProduct = async ({
   productId,
   locationId,
@@ -211,4 +239,5 @@ const getAvailableVendorForProduct = async ({
 
 module.exports = {
   getAvailableVendorForProduct,
+  getMaxBookablePerBooking,
 };

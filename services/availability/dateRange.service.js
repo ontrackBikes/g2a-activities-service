@@ -5,6 +5,9 @@ const {
   getAvailableDateRangeVendor,
   DateRangeAvailabilityError,
 } = require("./availableVendorDateRange.service");
+const {
+  getMaxBookablePerBooking,
+} = require("./availableVendor.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
 const { isBeforeLeadTime } = require("../bookingLeadTime.service");
@@ -159,11 +162,22 @@ module.exports.checkDateRange = async ({
    */
 
   if (!availability) {
+    const maxBookablePerBooking = await getMaxBookablePerBooking({
+      productId: product.id,
+      locationId: location.id,
+    });
+
+    const message =
+      maxBookablePerBooking !== null &&
+      pricingQuantity > maxBookablePerBooking
+        ? `Requested quantity ${pricingQuantity} exceeds the maximum allowed per booking ${maxBookablePerBooking}.`
+        : "Product is not available for the selected dates.";
+
     return {
       status: 200,
       success: true,
       available: false,
-      message: "Product is not available for the selected dates.",
+      message,
 
       data: buildBookingQuote({
         product,

@@ -35,6 +35,46 @@ const parsePositiveInteger = (value, defaultValue, maxValue = null) => {
   return maxValue ? Math.min(parsed, maxValue) : parsed;
 };
 
+const verifyKycDocumentOwnership = async ({
+  passengers,
+  estimateId,
+  sectionName,
+  transaction,
+}) => {
+  const documentIds = passengers
+    .map((passenger) => passenger.document?.document_id)
+    .filter((id) => id !== null && id !== undefined);
+
+  if (!documentIds.length) {
+    return;
+  }
+
+  const documents = await Document.findAll({
+    where: {
+      id: documentIds,
+      entity_type: "estimate",
+      entity_id: estimateId,
+      status: "active",
+    },
+    transaction,
+  });
+
+  if (documents.length !== new Set(documentIds).size) {
+    throw {
+      status: 422,
+      message: "Validation failed.",
+      errors: [
+        {
+          section: sectionName,
+          errors: [
+            "One or more KYC documents are invalid or do not belong to this estimate.",
+          ],
+        },
+      ],
+    };
+  }
+};
+
 const buildDateRangeFilter = ({ dateFrom, dateTo }) => {
   if (!dateFrom && !dateTo) {
     return null;
@@ -799,38 +839,41 @@ const createOrderService = async ({ estimateId, payload }) => {
         };
       }
 
-      const documentIds = payload.kyc_per_passanger
-        .map((passenger) => passenger.document?.document_id)
-        .filter((id) => id !== null && id !== undefined);
-
-      if (documentIds.length) {
-        const documents = await Document.findAll({
-          where: {
-            id: documentIds,
-            entity_type: "estimate",
-            entity_id: estimate.id,
-            status: "active",
-          },
-          transaction,
-        });
-
-        if (documents.length !== new Set(documentIds).size) {
-          throw {
-            status: 422,
-            message: "Validation failed.",
-            errors: [
-              {
-                section: "kyc_per_passanger",
-                errors: [
-                  "One or more KYC documents are invalid or do not belong to this estimate.",
-                ],
-              },
-            ],
-          };
-        }
-      }
+      await verifyKycDocumentOwnership({
+        passengers: payload.kyc_per_passanger,
+        estimateId: estimate.id,
+        sectionName: "kyc_per_passanger",
+        transaction,
+      });
     } else {
       delete payload.kyc_per_passanger;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | KYC Up To Max
+    |--------------------------------------------------------------------------
+    | Same document-ownership integrity check as kyc_per_passanger, but no
+    | exact-guest-count requirement - array length is capped via that
+    | section's config.max_entries (enforced generically in
+    | validateBookingPayload, before this point).
+    */
+
+    const kycUptoMaxSection = product.bookingTemplate.booking_page_schema?.sections?.find(
+      (section) =>
+        section.enabled &&
+        section.section === BOOKING_SECTIONS.KYC_UPTO_MAX,
+    );
+
+    if (kycUptoMaxSection && Array.isArray(payload.kyc_upto_max)) {
+      await verifyKycDocumentOwnership({
+        passengers: payload.kyc_upto_max,
+        estimateId: estimate.id,
+        sectionName: "kyc_upto_max",
+        transaction,
+      });
+    } else {
+      delete payload.kyc_upto_max;
     }
 
     /*
@@ -883,6 +926,19 @@ const createOrderService = async ({ estimateId, payload }) => {
       ) {
         restrictionErrors.push({
           section: "kyc_per_passanger",
+          errors: [restrictionMessage],
+        });
+      }
+
+      if (
+        kycUptoMaxSection &&
+        Array.isArray(payload.kyc_upto_max) &&
+        payload.kyc_upto_max.some(
+          (passenger) => passenger.nationality === disallowedKycNationality,
+        )
+      ) {
+        restrictionErrors.push({
+          section: "kyc_upto_max",
           errors: [restrictionMessage],
         });
       }

@@ -2,7 +2,10 @@
 
 const moment = require("moment-timezone");
 
-const { getAvailableVendorForProduct } = require("./availableVendor.service");
+const {
+  getAvailableVendorForProduct,
+  getMaxBookablePerBooking,
+} = require("./availableVendor.service");
 
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
@@ -105,6 +108,17 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
    */
 
   if (!availability) {
+    const maxBookablePerBooking = await getMaxBookablePerBooking({
+      productId: product.id,
+      locationId: location.id,
+    });
+
+    const message =
+      maxBookablePerBooking !== null &&
+      pricingQuantity > maxBookablePerBooking
+        ? `Requested quantity ${pricingQuantity} exceeds the maximum allowed per booking ${maxBookablePerBooking}.`
+        : "This product is not available for the selected date and location.";
+
     return {
       status: 200,
 
@@ -112,8 +126,7 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
       available: false,
 
-      message:
-        "This product is not available for the selected date and location.",
+      message,
 
       data: buildBookingQuote({
         product,

@@ -308,6 +308,11 @@ const kyc_per_passanger = Joi.array().items(kycPassenger).min(1).messages({
   "array.min": "Provide KYC details for every passenger.",
 });
 
+// Same shape as kyc_per_passanger, but not tied to an exact guest/quantity
+// count - the section's own `config.max_entries` (see validateBookingPayload
+// below) caps how many entries are allowed instead.
+const kyc_upto_max = Joi.array().items(kycPassenger).min(0);
+
 const infant_documents = Joi.object({
   has_infant: Joi.boolean().required(),
 
@@ -340,6 +345,8 @@ const SECTION_SCHEMAS = {
   [BOOKING_SECTIONS.FERRY_SEAT_SELECTION]: ferry_seat_selection,
 
   [BOOKING_SECTIONS.KYC_PER_PASSENGER]: kyc_per_passanger,
+
+  [BOOKING_SECTIONS.KYC_UPTO_MAX]: kyc_upto_max,
 
   [BOOKING_SECTIONS.INFANT_DOCUMENTS]: infant_documents,
 
@@ -411,6 +418,24 @@ const validateBookingPayload = ({ bookingTemplate, payload }) => {
 
     if (!error) {
       payload[section.section] = value;
+
+      // Generic per-section entry cap - any section can opt in by setting
+      // config.max_entries, independent of guests/quantity.
+      const maxEntries = Number(section.config?.max_entries);
+
+      if (
+        Array.isArray(value) &&
+        Number.isInteger(maxEntries) &&
+        maxEntries > 0 &&
+        value.length > maxEntries
+      ) {
+        errors.push({
+          section: section.section,
+          errors: [
+            `${section.section} must not have more than ${maxEntries} entries.`,
+          ],
+        });
+      }
     }
 
     if (error) {
