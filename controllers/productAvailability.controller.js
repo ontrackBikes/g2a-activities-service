@@ -306,7 +306,7 @@ const checkProductAvailability = async (req, res) => {
         ? transferHandler.checkAvailability
         : handlers[product.booking_mode];
 
-    const result = await handler({
+    const { skipNextAvailableDate = false, ...result } = await handler({
       product,
       location,
       payload: availabilityPayload,
@@ -315,7 +315,7 @@ const checkProductAvailability = async (req, res) => {
     });
 
     // The selected date already has availability - no need to suggest one.
-    const nextAvailableDate = result?.available
+    const nextAvailableDate = result?.available || skipNextAvailableDate
       ? null
       : await getNextAvailableSlotForProduct({
           productId: product.id,
