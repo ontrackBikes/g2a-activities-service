@@ -16,6 +16,7 @@ const {
 const {
   checkProductAvailability,
   getProductAvailableDates,
+  getProductCalendarForApp,
   getAvailableTransferLocations,
 } = require(
   "../controllers/productAvailability.controller"
@@ -56,6 +57,11 @@ router.get(
 router.get(
   "/app/:slug/available-dates",
   getProductAvailableDates,
+);
+
+router.get(
+  "/app/:slug/calendar",
+  getProductCalendarForApp,
 );
 
 router.post(

@@ -18,6 +18,7 @@ const {
   checkDateRangeAvailabilitySchema,
   createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
+  productCalendarQuerySchema,
 } = require("../schemas/productAvailability.schema");
 const {
   createCabServiceAvailabilitySchema,
@@ -42,6 +43,11 @@ const {
   AvailableDatesError,
   getAvailableDates,
 } = require("../services/availability/availableDates.service");
+const {
+  ProductCalendarError,
+  getProductCalendar,
+  buildUnknownCalendar,
+} = require("../services/availability/productCalendar.service");
 const {
   getNextAvailableSlotForProduct,
 } = require("../services/nextAvailableSlot.service");
@@ -418,7 +424,86 @@ const getProductAvailableDates = async (req, res) => {
   }
 };
 
+const CALENDAR_MIN_PAGE = 1;
+const CALENDAR_MAX_PAGE = 8;
 
+// Bad slug shape, unknown product/location, or a garbage page number never
+// hard-fail here - the frontend calendar always gets back a calendar-shaped
+// response, just with every date marked "unknown" when we can't resolve it.
+const getProductCalendarForApp = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const { value } = productCalendarQuerySchema.validate(
+      req.query,
+      {
+        abortEarly: true,
+        stripUnknown: true,
+      },
+    );
+
+    let page = Number(value?.page);
+
+    if (
+      !Number.isInteger(page) ||
+      page < CALENDAR_MIN_PAGE ||
+      page > CALENDAR_MAX_PAGE
+    ) {
+      page = CALENDAR_MIN_PAGE;
+    }
+
+    const guests = value?.guests || 1;
+    const quantity = value?.quantity || null;
+
+    // Parse "<product>-in-<location>"
+    const match = slug.match(/^(.*)-in-(.*)$/);
+
+    if (!match) {
+      return res.status(200).json({
+        success: true,
+        ...buildUnknownCalendar({ page }),
+      });
+    }
+
+    const [, productSlug, locationSlug] = match;
+
+    let result;
+
+    try {
+      result = await getProductCalendar({
+        productSlug,
+        locationSlug,
+        page,
+        guests,
+        quantity,
+      });
+    } catch (error) {
+      if (error instanceof ProductCalendarError) {
+        return res.status(200).json({
+          success: true,
+          ...buildUnknownCalendar({ page }),
+        });
+      }
+
+      throw error;
+    }
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error(
+      "[ProductAvailabilityController] getProductCalendar",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product calendar",
+    });
+  }
+};
 
 const getAvailableTransferLocations = async (req, res) => {
   try {
@@ -510,5 +595,6 @@ const getAvailableTransferLocations = async (req, res) => {
 module.exports = {
   checkProductAvailability,
   getProductAvailableDates,
+  getProductCalendarForApp,
   getAvailableTransferLocations,
 };

@@ -190,9 +190,18 @@ const availableDatesQuerySchema = Joi.object({
   quantity: Joi.number().integer().min(1).max(100),
 });
 
+const productCalendarQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).max(8).default(1),
+
+  guests: Joi.number().integer().min(1).max(100).default(1),
+
+  quantity: Joi.number().integer().min(1).max(100),
+});
+
 module.exports = {
   checkSingleDateAvailabilitySchema,
   checkDateRangeAvailabilitySchema,
   createAirportTransferAvailabilitySchema,
   availableDatesQuerySchema,
+  productCalendarQuerySchema,
 };
