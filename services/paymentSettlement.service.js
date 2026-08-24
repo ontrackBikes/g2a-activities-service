@@ -364,9 +364,10 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
           : undefined,
     }),
     participants: (item.participants || []).map(formatEmailParticipant),
-    kyc_per_passanger: (item.booking_payload?.kyc_per_passanger || []).map(
-      formatEmailKycPassenger,
-    ),
+    kyc_per_passanger: [
+      ...(item.booking_payload?.kyc_per_passanger || []),
+      ...(item.booking_payload?.kyc_upto_max || []),
+    ].map(formatEmailKycPassenger),
     infant_documents: formatEmailInfantDocuments(
       item.booking_payload?.infant_documents,
     ),
