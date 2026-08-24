@@ -196,7 +196,12 @@ const getInventorySlotIdsForOrderItem = ({ orderItem, estimate }) => {
   return Number.isInteger(slotId) && slotId > 0 ? [slotId] : [];
 };
 
-const buildOrderItemBookingData = ({ estimate, product }) => {
+const buildOrderItemBookingData = ({
+  estimate,
+  product,
+  payload,
+  kycUptoMaxSection,
+}) => {
   const quotation = estimate.quotation || {};
   const availability = quotation.availability || {};
   const bookingData = estimate.booking_data || {};
@@ -209,9 +214,17 @@ const buildOrderItemBookingData = ({ estimate, product }) => {
       ),
     );
 
+  // If the product has kyc_upto_max enabled, the guest count is whatever
+  // the customer actually filled in that array (not capped/tied to the
+  // estimate's guests), since that section has no exact-count requirement.
+  const guests =
+    kycUptoMaxSection && Array.isArray(payload?.kyc_upto_max) && payload.kyc_upto_max.length
+      ? payload.kyc_upto_max.length
+      : bookingData.guests || 1;
+
   const snapshot = {
     booking_mode: estimate.booking_mode,
-    guests: bookingData.guests || 1,
+    guests,
     quantity: bookingData.quantity || pricing.quantity || 1,
     vendor: {
       vendor_id: estimate.vendor_id || null,
@@ -1096,6 +1109,8 @@ const createOrderService = async ({ estimateId, payload }) => {
     const orderItemBookingData = buildOrderItemBookingData({
       estimate,
       product,
+      payload,
+      kycUptoMaxSection,
     });
 
     const orderItem = await OrderItem.create(
@@ -1594,7 +1609,6 @@ const getOrder = async (req, res) => {
         transfer_type: item.booking_data?.transfer_type,
         pickup_location: item.booking_data?.pickup_location,
         drop_location: item.booking_data?.drop_location,
-        booking_mode: item.booking_data?.booking_mode,
         selected_slot: item.booking_data?.selected_slot,
       },
     }));
