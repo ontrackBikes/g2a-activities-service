@@ -1611,6 +1611,9 @@ const getOrder = async (req, res) => {
               item.booking_payload?.has_agreed_to_permit_charge ?? false,
           }
         : {}),
+      ...(item.quotation?.agree_to !== undefined
+        ? { agree_to: item.booking_payload?.agree_to ?? {} }
+        : {}),
       booking_data: {
         guests: item.booking_data?.guests,
         quantity: item.booking_data?.quantity,

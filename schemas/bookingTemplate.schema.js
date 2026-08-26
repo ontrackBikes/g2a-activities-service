@@ -1,5 +1,7 @@
 const Joi = require("joi");
 
+const BOOKING_SECTIONS = require("../constants/bookingSections");
+
 const fieldSchema = Joi.object({
   field: Joi.string().required(),
 
@@ -28,9 +30,41 @@ const sectionSchema = Joi.object({
   required: Joi.boolean().default(false),
   enabled: Joi.boolean().default(false),
 
-  config: Joi.object().default({}),
+  // "agree_to" is the one section that can be added to a template more than
+  // once (one entry per checkbox), so each instance carries its own key
+  // (used to namespace it in the booking payload/quote) and its own
+  // customer-facing agreement description.
+  config: Joi.object().when("section", {
+    is: BOOKING_SECTIONS.AGREE_TO,
+    then: Joi.object({
+      key: Joi.string().trim().lowercase().max(100).required(),
+      description: Joi.string().trim().max(1000).required(),
+    })
+      .unknown(true)
+      .required(),
+    otherwise: Joi.object().default({}),
+  }),
+
   sort_order: Joi.number(),
 });
+
+const sectionsCustomValidator = (sections, helpers) => {
+  const agreeToKeys = sections
+    .filter((section) => section.section === BOOKING_SECTIONS.AGREE_TO)
+    .map((section) => section.config?.key);
+
+  const duplicateKey = agreeToKeys.find(
+    (key, index) => agreeToKeys.indexOf(key) !== index,
+  );
+
+  if (duplicateKey) {
+    return helpers.message(
+      `"agree_to" sections must each have a unique config.key (duplicate: "${duplicateKey}").`,
+    );
+  }
+
+  return sections;
+};
 
 const createBookingTemplateSchema = Joi.object({
   name: Joi.string().max(150).required(),
@@ -48,7 +82,10 @@ const createBookingTemplateSchema = Joi.object({
   }).required(),
 
   booking_page_schema: Joi.object({
-    sections: Joi.array().items(sectionSchema).default([]),
+    sections: Joi.array()
+      .items(sectionSchema)
+      .default([])
+      .custom(sectionsCustomValidator),
   }).required(),
 
   active: Joi.boolean().default(true),
@@ -72,7 +109,9 @@ const updateBookingTemplateSchema = Joi.object({
   }),
 
   booking_page_schema: Joi.object({
-    sections: Joi.array().items(sectionSchema),
+    sections: Joi.array()
+      .items(sectionSchema)
+      .custom(sectionsCustomValidator),
   }),
 
   active: Joi.boolean(),

@@ -1,5 +1,6 @@
 const sequelize = require("../config/sequelize");
 const emailTemplates = require("../constants/emailTemplates");
+const BOOKING_SECTIONS = require("../constants/bookingSections");
 
 const { Payment, Order, OrderItem, VendorScheduleSlot } = require("../models");
 const BookingEstimate = require("../models/bookingEstimate.model");
@@ -298,6 +299,28 @@ const formatEmailInfantDocuments = (infantDocuments) => {
   };
 };
 
+// "agree_to" sections can be repeated per template, so the agreed value
+// lives at booking_payload.agree_to[key]; the label/description for each
+// key only exists on the quotation's snapshot of the booking template.
+const formatEmailAgreeTo = (item) => {
+  const sections = (
+    item.quotation?.product?.bookingTemplate?.booking_page_schema?.sections ||
+    []
+  ).filter(
+    (section) =>
+      section.enabled &&
+      section.section === BOOKING_SECTIONS.AGREE_TO &&
+      section.config?.key,
+  );
+
+  return sections.map((section) => ({
+    description: section.config?.description || section.title || "",
+    status: item.booking_payload?.agree_to?.[section.config.key]
+      ? "Agreed"
+      : "Not Agreed",
+  }));
+};
+
 const buildEmailItem = ({ item, order, slotFlagsById }) => {
   const booking = item.booking_data || item.quotation?.booking || {};
   const pricing = item.pricing || item.quotation?.pricing || {};
@@ -372,6 +395,7 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
             : 'Not Agreed'
           : undefined,
     }),
+    agree_to: formatEmailAgreeTo(item),
     participants: (item.participants || []).map(formatEmailParticipant),
     kyc_per_passanger: [
       ...(item.booking_payload?.kyc_per_passanger || []),

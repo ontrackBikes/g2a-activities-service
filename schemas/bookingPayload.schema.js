@@ -269,6 +269,13 @@ const opt_for_pickup_and_drop = Joi.boolean();
 
 const has_agreed_to_permit_charge = Joi.boolean();
 
+// Value schema for a single "agree_to" checkbox. Unlike other sections,
+// "agree_to" can appear more than once in a template's booking_page_schema
+// (one entry per checkbox, each with its own config.key) - see the dedicated
+// handling for BOOKING_SECTIONS.AGREE_TO in validateBookingPayload below,
+// rather than the SECTION_SCHEMAS registry used for every other section.
+const agree_to = Joi.boolean();
+
 const kycDocument = Joi.object({
   file_name: Joi.string().trim().required(),
 
@@ -403,8 +410,49 @@ const formatSectionValidationErrors = (section, details) => {
 const validateBookingPayload = ({ bookingTemplate, payload }) => {
   const errors = [];
 
+  // "agree_to" can be enabled multiple times on the same template (one
+  // checkbox per instance, each with its own config.key), so every instance
+  // shares payload.agree_to instead of getting its own top-level payload key.
+  // Collect all instances up front and validate/sanitize them as one group,
+  // rather than letting the generic per-section loop below overwrite each
+  // other's results.
+  let hasAgreeToSection = false;
+  const sanitizedAgreeTo = {};
+  const agreeToErrors = [];
+
   for (const section of bookingTemplate.booking_page_schema.sections || []) {
-    if (!section.enabled) {
+    if (!section.enabled || section.section !== BOOKING_SECTIONS.AGREE_TO) {
+      continue;
+    }
+
+    hasAgreeToSection = true;
+
+    const key = section.config?.key;
+    const { error, value } = agree_to.validate(payload.agree_to?.[key]);
+
+    if (error || (section.required && value !== true)) {
+      agreeToErrors.push(
+        `You must agree to "${section.config?.description || section.title || key}".`,
+      );
+      continue;
+    }
+
+    sanitizedAgreeTo[key] = value ?? false;
+  }
+
+  if (hasAgreeToSection) {
+    payload.agree_to = sanitizedAgreeTo;
+
+    if (agreeToErrors.length) {
+      errors.push({
+        section: BOOKING_SECTIONS.AGREE_TO,
+        errors: agreeToErrors,
+      });
+    }
+  }
+
+  for (const section of bookingTemplate.booking_page_schema.sections || []) {
+    if (!section.enabled || section.section === BOOKING_SECTIONS.AGREE_TO) {
       continue;
     }
 

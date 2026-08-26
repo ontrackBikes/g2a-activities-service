@@ -181,6 +181,20 @@ const buildBookingQuote = ({
       section.section === BOOKING_SECTIONS.HAS_AGREED_TO_PERMIT_CHARGE,
   );
 
+  // "agree_to" can be enabled more than once per template (one checkbox per
+  // instance) - the quote exposes a default (false) value per instance's
+  // config.key so the customer can post back { [key]: true } for each one
+  // they've agreed to. The label/description for each key lives on
+  // product.bookingTemplate.booking_page_schema.sections, not duplicated here.
+  const agreeToSections = (
+    sanitizedProduct.bookingTemplate?.booking_page_schema?.sections || []
+  ).filter(
+    (section) =>
+      section.enabled &&
+      section.section === BOOKING_SECTIONS.AGREE_TO &&
+      section.config?.key,
+  );
+
   return {
     product: sanitizedProduct,
     location: {
@@ -194,6 +208,15 @@ const buildBookingQuote = ({
 
     ...(hasAgreedToPermitCharge
       ? { has_agreed_to_permit_charge: false }
+      : {}),
+
+    ...(agreeToSections.length
+      ? {
+          agree_to: agreeToSections.reduce((acc, section) => {
+            acc[section.config.key] = false;
+            return acc;
+          }, {}),
+        }
       : {}),
 
     booking,
