@@ -7,6 +7,11 @@ const BookingEstimate = require("../models/bookingEstimate.model");
 
 const { sendTemplateEmail, sendEmail } = require("./postmark.service");
 
+const PERMIT_CHARGE_PRODUCT_SLUGS = new Set([
+  "sunset-cruise-private-trip",
+  "barren-island-day-trip-private",
+]);
+
 /**
  * Lock payment
  */
@@ -336,11 +341,14 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
     slotFlagsById.get(Number(item.vendor_schedule_slot_id)) || {};
   const isPreferredSlot = slotFlags.is_preferred === true;
   const isStartTimeOnly = slotFlags.is_start_time_only === true;
+  const showPermitChargeMessage = PERMIT_CHARGE_PRODUCT_SLUGS.has(
+    item.product_slug,
+  );
 
   return {
     product_name: item.product_name,
     location_name: item.location_name,
-    ...(item.product_slug === "sunset-cruise-private-trip"
+    ...(showPermitChargeMessage
       ? { show_permit_charge_message: true }
       : {}),
     booking: compactObject({
