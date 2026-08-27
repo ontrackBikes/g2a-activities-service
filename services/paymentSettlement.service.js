@@ -305,8 +305,10 @@ const formatEmailInfantDocuments = (infantDocuments) => {
 };
 
 // "agree_to" sections can be repeated per template, so the agreed value
-// lives at booking_payload.agree_to[key]; the label/description for each
-// key only exists on the quotation's snapshot of the booking template.
+// lives at booking_payload.agree_to[key]; the label for each key only
+// exists on the quotation's snapshot of the booking template. Emails use
+// the short agree_text label, not the (rich text/HTML) description, since
+// the description isn't safe/meaningful to drop straight into an email.
 const formatEmailAgreeTo = (item) => {
   const sections = (
     item.quotation?.product?.bookingTemplate?.booking_page_schema?.sections ||
@@ -319,7 +321,7 @@ const formatEmailAgreeTo = (item) => {
   );
 
   return sections.map((section) => ({
-    description: section.config?.description || section.title || "",
+    description: section.config?.agree_text || section.title || "",
     status: item.booking_payload?.agree_to?.[section.config.key]
       ? "Agreed"
       : "Not Agreed",

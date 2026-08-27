@@ -32,13 +32,15 @@ const sectionSchema = Joi.object({
 
   // "agree_to" is the one section that can be added to a template more than
   // once (one entry per checkbox), so each instance carries its own key
-  // (used to namespace it in the booking payload/quote) and its own
-  // customer-facing agreement description.
+  // (used to namespace it in the booking payload/quote), its own short
+  // checkbox label (agree_text), and its own full agreement copy
+  // (description - rich text/HTML, rendered as-is by the frontend).
   config: Joi.object().when("section", {
     is: BOOKING_SECTIONS.AGREE_TO,
     then: Joi.object({
       key: Joi.string().trim().lowercase().max(100).required(),
-      description: Joi.string().trim().max(1000).required(),
+      agree_text: Joi.string().trim().max(300).required(),
+      description: Joi.string().trim().max(20000).required(),
     })
       .unknown(true)
       .required(),

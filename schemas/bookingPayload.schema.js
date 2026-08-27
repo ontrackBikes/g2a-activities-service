@@ -432,7 +432,7 @@ const validateBookingPayload = ({ bookingTemplate, payload }) => {
 
     if (error || (section.required && value !== true)) {
       agreeToErrors.push(
-        `You must agree to "${section.config?.description || section.title || key}".`,
+        `You must agree to "${section.config?.agree_text || section.title || key}".`,
       );
       continue;
     }

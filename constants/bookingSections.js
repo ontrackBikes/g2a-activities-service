@@ -20,9 +20,11 @@ module.exports = Object.freeze({
 
   // Generic customer agreement checkbox. Unlike other sections, this one can
   // be added multiple times to a single booking template - each instance
-  // needs its own config.key (unique per template) and config.description
-  // (the agreement text shown to the customer). See schemas/bookingTemplate.schema.js
-  // and schemas/bookingPayload.schema.js for how repeated instances are validated.
+  // needs its own config.key (unique per template), config.agree_text (the
+  // short label shown next to the checkbox), and config.description (the
+  // full agreement copy, rich text/HTML, shown to the customer e.g. in an
+  // expandable/modal view). See schemas/bookingTemplate.schema.js and
+  // schemas/bookingPayload.schema.js for how repeated instances are validated.
   AGREE_TO: "agree_to",
 
   // Checkout
