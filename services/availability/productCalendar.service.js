@@ -153,6 +153,12 @@ const getProductCalendar = async ({
           product_id: product.id,
           location_id: location.id,
           active: true,
+          min_bookable_per_booking: {
+            [Op.lte]: pricingQuantity,
+          },
+          max_bookable_per_booking: {
+            [Op.gte]: pricingQuantity,
+          },
         },
       },
       {
@@ -167,6 +173,9 @@ const getProductCalendar = async ({
           },
           max_bookable_per_booking: {
             [Op.gte]: pricingQuantity,
+          },
+          min_bookable_per_booking: {
+            [Op.lte]: pricingQuantity,
           },
         },
       },

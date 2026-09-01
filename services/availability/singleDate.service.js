@@ -5,6 +5,7 @@ const moment = require("moment-timezone");
 const {
   getAvailableVendorForProduct,
   getMaxBookablePerBooking,
+  getMinBookablePerBooking,
 } = require("./availableVendor.service");
 
 const buildBookingQuote = require("./buildBookingQuote");
@@ -29,6 +30,9 @@ const getEffectiveMaxBookable = ({
 
   return limits.length ? Math.min(...limits) : 0;
 };
+
+const getEffectiveMinBookable = ({ vendorMin, slotMin }) =>
+  Math.max(Number(vendorMin) || 1, Number(slotMin) || 1);
 
 const getSlotType = (slot) =>
   slot?.templateSlot?.slot_type ||
@@ -112,9 +116,16 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
       productId: product.id,
       locationId: location.id,
     });
+    const minBookablePerBooking = await getMinBookablePerBooking({
+      productId: product.id,
+      locationId: location.id,
+    });
 
     const message =
-      maxBookablePerBooking !== null &&
+      minBookablePerBooking !== null &&
+      pricingQuantity < minBookablePerBooking
+        ? `Requested quantity ${pricingQuantity} is below the minimum required per booking ${minBookablePerBooking}.`
+        : maxBookablePerBooking !== null &&
       pricingQuantity > maxBookablePerBooking
         ? `Requested quantity ${pricingQuantity} exceeds the maximum allowed per booking ${maxBookablePerBooking}.`
         : "This product is not available for the selected date and location.";
@@ -195,6 +206,12 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
                 availability.vendorProduct
                   .max_bookable_per_booking,
               available: slot.available,
+            }),
+          min_bookable_per_booking:
+            getEffectiveMinBookable({
+              vendorMin:
+                availability.vendorProduct.min_bookable_per_booking,
+              slotMin: slot.min_bookable_per_booking,
             }),
         };
       })
@@ -283,6 +300,10 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
             .max_bookable_per_booking,
         available: fixedScheduleSlot?.available,
       });
+  const effectiveMinBookable = getEffectiveMinBookable({
+    vendorMin: availability.vendorProduct.min_bookable_per_booking,
+    slotMin: selectedVendorSlot?.min_bookable_per_booking,
+  });
 
   const quotation = buildBookingQuote({
     product,
@@ -316,6 +337,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
 
       max_bookable_per_booking:
         effectiveMaxBookable,
+      min_bookable_per_booking:
+        effectiveMinBookable,
     },
 
     availability: {
@@ -328,6 +351,8 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
             available: fixedScheduleSlot.available,
             max_bookable_per_booking:
               effectiveMaxBookable,
+            min_bookable_per_booking:
+              effectiveMinBookable,
           }
         : null,
 

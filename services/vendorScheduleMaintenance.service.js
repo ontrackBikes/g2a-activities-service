@@ -36,6 +36,10 @@ const buildSlotSnapshotFields = (templateSlot, vendorProduct) => ({
     templateSlot.max_bookable_per_booking ??
       vendorProduct.max_bookable_per_booking,
   ),
+  min_bookable_per_booking: Number(
+    templateSlot.min_bookable_per_booking ??
+      vendorProduct.min_bookable_per_booking,
+  ),
   duration_minutes: templateSlot.duration_minutes,
   priced_by: templateSlot.priced_by,
   is_preferred: templateSlot.is_preferred,
@@ -142,6 +146,8 @@ const maintainVendorProductSchedules = async (
             default_price: vendorProduct.base_price,
             default_capacity:
               vendorProduct.base_capacity,
+            min_bookable_per_booking:
+              vendorProduct.min_bookable_per_booking,
             max_bookable_per_booking:
               vendorProduct.max_bookable_per_booking,
             sort_order: 0,
@@ -155,6 +161,8 @@ const maintainVendorProductSchedules = async (
           default_price: vendorProduct.base_price,
           default_capacity:
             vendorProduct.base_capacity,
+          min_bookable_per_booking:
+            vendorProduct.min_bookable_per_booking,
           max_bookable_per_booking:
             vendorProduct.max_bookable_per_booking,
           slot_type: "TIME",

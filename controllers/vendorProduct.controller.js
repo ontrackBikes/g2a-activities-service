@@ -220,6 +220,8 @@ const createVendorProduct = async (req, res) => {
                     createdVendorProduct.base_price,
                   default_capacity:
                     createdVendorProduct.base_capacity,
+                  min_bookable_per_booking:
+                    createdVendorProduct.min_bookable_per_booking,
                   max_bookable_per_booking:
                     createdVendorProduct.max_bookable_per_booking,
                   sort_order: 0,
@@ -486,6 +488,17 @@ const updateVendorProduct = async (req, res) => {
             return null;
           }
 
+          const nextMinBookable =
+            vendorProductUpdates.min_bookable_per_booking ??
+            vendorProduct.min_bookable_per_booking;
+          const nextMaxBookable =
+            vendorProductUpdates.max_bookable_per_booking ??
+            vendorProduct.max_bookable_per_booking;
+
+          if (nextMinBookable > nextMaxBookable) {
+            return { invalidBookingRange: true };
+          }
+
           const effectivePricingType =
             vendorProductUpdates.pricing_type ||
             vendorProduct.pricing_type;
@@ -541,6 +554,8 @@ const updateVendorProduct = async (req, res) => {
                     vendorProduct.base_price,
                   default_capacity:
                     vendorProduct.base_capacity,
+                  min_bookable_per_booking:
+                    vendorProduct.min_bookable_per_booking,
                   max_bookable_per_booking:
                     vendorProduct.max_bookable_per_booking,
                   sort_order: 0,
@@ -554,6 +569,12 @@ const updateVendorProduct = async (req, res) => {
                 slot_type: "TIME",
                 start_time: startTime,
                 end_time: endTime,
+                default_price: vendorProduct.base_price,
+                default_capacity: vendorProduct.base_capacity,
+                min_bookable_per_booking:
+                  vendorProduct.min_bookable_per_booking,
+                max_bookable_per_booking:
+                  vendorProduct.max_bookable_per_booking,
                 active: true,
               },
               {
@@ -583,6 +604,14 @@ const updateVendorProduct = async (req, res) => {
         success: false,
         message:
           "start_time and end_time are only allowed for FIXED pricing",
+      });
+    }
+
+    if (updateResult.invalidBookingRange) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "min_bookable_per_booking cannot exceed max_bookable_per_booking",
       });
     }
 

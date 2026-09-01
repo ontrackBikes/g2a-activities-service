@@ -1,5 +1,19 @@
 const Joi = require("joi");
 
+const validateBookingRange = (value, helpers) => {
+  if (
+    value.min_bookable_per_booking !== undefined &&
+    value.max_bookable_per_booking !== undefined &&
+    value.min_bookable_per_booking > value.max_bookable_per_booking
+  ) {
+    return helpers.message(
+      "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+    );
+  }
+
+  return value;
+};
+
 const timeSchema = Joi.string()
   .pattern(
     /^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
@@ -25,6 +39,11 @@ const scheduleSlotUpdateFields = {
   available: Joi.number()
     .integer()
     .min(0),
+
+  min_bookable_per_booking:
+    Joi.number()
+      .integer()
+      .min(1),
 
   max_bookable_per_booking:
     Joi.number()
@@ -83,6 +102,11 @@ const createVendorSchedulesSchema =
             .min(0)
             .required(),
 
+          min_bookable_per_booking:
+            Joi.number()
+              .integer()
+              .min(1),
+
           max_bookable_per_booking:
             Joi.number()
               .integer()
@@ -92,7 +116,7 @@ const createVendorSchedulesSchema =
           allow_sync_updates:
             Joi.boolean()
               .default(true),
-        })
+        }).custom(validateBookingRange)
       )
       .min(1)
       .required(),
@@ -111,9 +135,9 @@ const updateVendorScheduleSchema =
   }).min(1);
 
 const updateVendorScheduleSlotSchema =
-  Joi.object(
-    scheduleSlotUpdateFields,
-  ).min(1);
+  Joi.object(scheduleSlotUpdateFields)
+    .custom(validateBookingRange)
+    .min(1);
 
 const bulkUpdateVendorScheduleSlotsSchema =
   Joi.object({
@@ -131,12 +155,14 @@ const bulkUpdateVendorScheduleSlotsSchema =
             .required(),
 
           ...scheduleSlotUpdateFields,
-        }).or(...scheduleSlotUpdateFieldNames),
+        })
+          .custom(validateBookingRange)
+          .or(...scheduleSlotUpdateFieldNames),
       )
       .min(1)
       .max(100)
       .required(),
-  });
+  }).custom(validateBookingRange);
 
 const createVendorScheduleSlotsForDatesSchema =
   Joi.object({
@@ -172,6 +198,11 @@ const createVendorScheduleSlotsForDatesSchema =
       .integer()
       .min(0),
 
+    min_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1),
+
     max_bookable_per_booking:
       Joi.number()
         .integer()
@@ -180,7 +211,7 @@ const createVendorScheduleSlotsForDatesSchema =
     status: Joi.string()
       .valid("OPEN", "CLOSED")
       .default("OPEN"),
-  });
+  }).custom(validateBookingRange);
 
 const replaceScheduleSlotDistanceTiersSchema =
   Joi.object({

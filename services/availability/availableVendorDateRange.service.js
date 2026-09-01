@@ -459,6 +459,12 @@ const getAvailableDateRangeVendor = async ({
       product_id: resolvedProductId,
       location_id: resolvedLocationId,
       active: true,
+      min_bookable_per_booking: {
+        [Op.lte]: resolvedGuests,
+      },
+      max_bookable_per_booking: {
+        [Op.gte]: resolvedGuests,
+      },
     },
     attributes: [
       "id",
@@ -468,6 +474,7 @@ const getAvailableDateRangeVendor = async ({
       "pricing_type",
       "base_price",
       "base_capacity",
+      "min_bookable_per_booking",
       "max_bookable_per_booking"
     ],
     include: [
@@ -524,6 +531,7 @@ const getAvailableDateRangeVendor = async ({
               "capacity",
               "booked",
               "available",
+              "min_bookable_per_booking",
               "max_bookable_per_booking",
               "status",
             ],
@@ -535,6 +543,9 @@ const getAvailableDateRangeVendor = async ({
               },
               max_bookable_per_booking: {
                 [Op.gte]: resolvedGuests,
+              },
+              min_bookable_per_booking: {
+                [Op.lte]: resolvedGuests,
               },
             },
             include: [

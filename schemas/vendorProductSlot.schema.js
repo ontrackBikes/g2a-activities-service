@@ -1,5 +1,19 @@
 const Joi = require("joi");
 
+const validateBookingRange = (value, helpers) => {
+  if (
+    value.min_bookable_per_booking !== undefined &&
+    value.max_bookable_per_booking !== undefined &&
+    value.min_bookable_per_booking > value.max_bookable_per_booking
+  ) {
+    return helpers.message(
+      "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+    );
+  }
+
+  return value;
+};
+
 const createVendorProductSlotSchema =
   Joi.object({
     slot_name: Joi.string()
@@ -25,6 +39,12 @@ const createVendorProductSlotSchema =
       .integer()
       .min(0)
       .required(),
+
+    min_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1)
+        .default(1),
 
     max_bookable_per_booking:
       Joi.number()
@@ -59,7 +79,7 @@ const createVendorProductSlotSchema =
 
     active: Joi.boolean()
       .default(true),
-  });
+  }).custom(validateBookingRange);
 
 const updateVendorProductSlotSchema =
   Joi.object({
@@ -83,6 +103,11 @@ const updateVendorProductSlotSchema =
     default_capacity: Joi.number()
       .integer()
       .min(0),
+
+    min_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1),
 
     max_bookable_per_booking:
       Joi.number()
@@ -112,7 +137,9 @@ const updateVendorProductSlotSchema =
       .allow(null, ""),
 
     active: Joi.boolean(),
-  }).min(1);
+  })
+    .custom(validateBookingRange)
+    .min(1);
 
 module.exports = {
   createVendorProductSlotSchema,

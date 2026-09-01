@@ -187,6 +187,9 @@ const createVendorProductSlot = async (
         default_capacity:
           value.default_capacity,
 
+        min_bookable_per_booking:
+          value.min_bookable_per_booking,
+
         max_bookable_per_booking:
           value.max_bookable_per_booking,
 
@@ -341,6 +344,21 @@ const updateVendorProductSlot =
           success: false,
           message:
             "Vendor Product Slot not found",
+        });
+      }
+
+      const nextMinBookable =
+        value.min_bookable_per_booking ??
+        slot.min_bookable_per_booking;
+      const nextMaxBookable =
+        value.max_bookable_per_booking ??
+        slot.max_bookable_per_booking;
+
+      if (nextMinBookable > nextMaxBookable) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "min_bookable_per_booking cannot exceed max_bookable_per_booking",
         });
       }
 

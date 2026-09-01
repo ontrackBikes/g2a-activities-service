@@ -124,23 +124,35 @@ const createVendorSchedules = async (req, res) => {
       schedulesCreated++;
 
       for (const slot of value.slots) {
+        const templateSlot = templateSlots.find(
+          (candidate) => candidate.id === slot.vendor_product_slot_id,
+        );
+        const minBookablePerBooking =
+          slot.min_bookable_per_booking ??
+          templateSlot.min_bookable_per_booking ??
+          vendorProduct.min_bookable_per_booking;
+
+        if (minBookablePerBooking > slot.max_bookable_per_booking) {
+          await transaction.rollback();
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+          });
+        }
+
         const createdSlot = await VendorScheduleSlot.create(
           {
             vendor_schedule_id: schedule.id,
 
             vendor_product_slot_id: slot.vendor_product_slot_id,
 
-            slot_name: templateSlots.find(
-              (s) => s.id === slot.vendor_product_slot_id,
-            ).slot_name,
+            slot_name: templateSlot.slot_name,
 
-            start_time: templateSlots.find(
-              (s) => s.id === slot.vendor_product_slot_id,
-            ).start_time,
+            start_time: templateSlot.start_time,
 
-            end_time: templateSlots.find(
-              (s) => s.id === slot.vendor_product_slot_id,
-            ).end_time,
+            end_time: templateSlot.end_time,
 
             price: slot.price,
 
@@ -149,6 +161,8 @@ const createVendorSchedules = async (req, res) => {
             booked: 0,
 
             available: slot.available,
+
+            min_bookable_per_booking: minBookablePerBooking,
 
             max_bookable_per_booking: slot.max_bookable_per_booking,
 
@@ -534,6 +548,23 @@ const createVendorScheduleSlotsForDates = async (
     const maxBookablePerBooking =
       value.max_bookable_per_booking ??
       templateMaxBookable;
+    const templateMinBookable =
+      Number(templateSlot.min_bookable_per_booking) ||
+      Number(vendorProduct.min_bookable_per_booking) ||
+      1;
+    const minBookablePerBooking =
+      value.min_bookable_per_booking ??
+      templateMinBookable;
+
+    if (minBookablePerBooking > maxBookablePerBooking) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+      });
+    }
+
     const startTime =
       value.start_time !== undefined
         ? value.start_time
@@ -559,6 +590,8 @@ const createVendorScheduleSlotsForDates = async (
           capacity,
           booked: 0,
           available,
+          min_bookable_per_booking:
+            minBookablePerBooking,
           max_bookable_per_booking:
             maxBookablePerBooking,
           status: value.status,
@@ -685,6 +718,23 @@ const updateVendorScheduleSlot = async (
         success: false,
         message:
           "available cannot exceed capacity minus booked inventory",
+      });
+    }
+
+    const nextMinBookable =
+      value.min_bookable_per_booking ??
+      Number(slot.min_bookable_per_booking);
+    const nextMaxBookable =
+      value.max_bookable_per_booking ??
+      Number(slot.max_bookable_per_booking);
+
+    if (nextMinBookable > nextMaxBookable) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "min_bookable_per_booking cannot exceed max_bookable_per_booking",
       });
     }
 
@@ -870,6 +920,23 @@ const bulkUpdateVendorScheduleSlots = async (
           success: false,
           message:
             `Slot ${slot_id}: available cannot exceed capacity minus booked inventory`,
+        });
+      }
+
+      const nextMinBookable =
+        requestedUpdates.min_bookable_per_booking ??
+        Number(slot.min_bookable_per_booking);
+      const nextMaxBookable =
+        requestedUpdates.max_bookable_per_booking ??
+        Number(slot.max_bookable_per_booking);
+
+      if (nextMinBookable > nextMaxBookable) {
+        await transaction.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            `Slot ${slot_id}: min_bookable_per_booking cannot exceed max_bookable_per_booking`,
         });
       }
 

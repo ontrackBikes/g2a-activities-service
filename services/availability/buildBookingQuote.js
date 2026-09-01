@@ -241,6 +241,8 @@ const buildBookingQuote = ({
 
       max_bookable_per_booking: pricing.max_bookable_per_booking ?? 0,
 
+      min_bookable_per_booking: pricing.min_bookable_per_booking ?? 1,
+
       distance_km: pricing.distance_km ?? null,
 
       duration_minutes: pricing.duration_minutes ?? null,
