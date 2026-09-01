@@ -7,6 +7,7 @@ const {
 } = require("./availableVendorDateRange.service");
 const {
   getMaxBookablePerBooking,
+  getMinBookablePerBooking,
 } = require("./availableVendor.service");
 const buildBookingQuote = require("./buildBookingQuote");
 const { saveBookingEstimate } = require("./createBookingEstimate.service");
@@ -34,6 +35,9 @@ const getEffectiveMaxBookable = ({
 
   return limits.length ? Math.min(...limits) : 0;
 };
+
+const getEffectiveMinBookable = ({ vendorMin, slotMin }) =>
+  Math.max(Number(vendorMin) || 1, Number(slotMin) || 1);
 
 const getSlotType = (slot) =>
   slot?.templateSlot?.slot_type ||
@@ -166,9 +170,16 @@ module.exports.checkDateRange = async ({
       productId: product.id,
       locationId: location.id,
     });
+    const minBookablePerBooking = await getMinBookablePerBooking({
+      productId: product.id,
+      locationId: location.id,
+    });
 
     const message =
-      maxBookablePerBooking !== null &&
+      minBookablePerBooking !== null &&
+      pricingQuantity < minBookablePerBooking
+        ? `Requested quantity ${pricingQuantity} is below the minimum required per booking ${minBookablePerBooking}.`
+        : maxBookablePerBooking !== null &&
       pricingQuantity > maxBookablePerBooking
         ? `Requested quantity ${pricingQuantity} exceeds the maximum allowed per booking ${maxBookablePerBooking}.`
         : "Product is not available for the selected dates.";
@@ -278,6 +289,12 @@ module.exports.checkDateRange = async ({
                   .max_bookable_per_booking,
               available: slot.available,
             }),
+          min_bookable_per_booking:
+            getEffectiveMinBookable({
+              vendorMin:
+                availability.vendorProduct.min_bookable_per_booking,
+              slotMin: slot.min_bookable_per_booking,
+            }),
         };
       })
     : [];
@@ -347,6 +364,10 @@ module.exports.checkDateRange = async ({
           .max_bookable_per_booking,
       available: inventorySlot?.available,
     });
+  const min_bookable_per_booking = getEffectiveMinBookable({
+    vendorMin: availability.vendorProduct.min_bookable_per_booking,
+    slotMin: inventorySlot?.min_bookable_per_booking,
+  });
 
   /**
    * Build quotation
@@ -380,7 +401,8 @@ module.exports.checkDateRange = async ({
       tax: 0,
       grand_total: availability.rental_total,
 
-      max_bookable_per_booking
+      max_bookable_per_booking,
+      min_bookable_per_booking,
     },
 
     availability: {
@@ -393,6 +415,13 @@ module.exports.checkDateRange = async ({
       service_hours: serviceHours,
       nationality_restriction: nationalityRestriction,
       description: slotDescription,
+      inventory: inventorySlot
+        ? {
+            available: inventorySlot.available,
+            min_bookable_per_booking,
+            max_bookable_per_booking,
+          }
+        : null,
     },
   });
 

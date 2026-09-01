@@ -27,6 +27,20 @@ const validateTimeRange = (value, helpers) => {
   return value;
 };
 
+const validateBookingRange = (value, helpers) => {
+  if (
+    value.min_bookable_per_booking !== undefined &&
+    value.max_bookable_per_booking !== undefined &&
+    value.min_bookable_per_booking > value.max_bookable_per_booking
+  ) {
+    return helpers.message(
+      "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+    );
+  }
+
+  return value;
+};
+
 const createVendorProductSchema = Joi.object({
   vendor_id: Joi.number()
     .integer()
@@ -55,6 +69,11 @@ const createVendorProductSchema = Joi.object({
     .integer()
     .min(0)
     .default(0),
+
+  min_bookable_per_booking: Joi.number()
+    .integer()
+    .min(1)
+    .default(1),
 
   max_bookable_per_booking: Joi.number()
     .integer()
@@ -88,6 +107,7 @@ const createVendorProductSchema = Joi.object({
 })
   .and("start_time", "end_time")
   .custom(validateTimeRange)
+  .custom(validateBookingRange)
   .messages({
     "object.and":
       "start_time and end_time must be provided together",
@@ -105,6 +125,11 @@ const updateVendorProductSchema =
     base_capacity: Joi.number()
       .integer()
       .min(0),
+
+    min_bookable_per_booking:
+      Joi.number()
+        .integer()
+        .min(1),
 
     max_bookable_per_booking:
       Joi.number()
@@ -129,6 +154,7 @@ const updateVendorProductSchema =
   })
     .and("start_time", "end_time")
     .custom(validateTimeRange)
+    .custom(validateBookingRange)
     .min(1)
     .messages({
       "object.and":

@@ -145,6 +145,9 @@ const buildSlotWhere = ({ guests }) => ({
   max_bookable_per_booking: {
     [Op.gte]: guests,
   },
+  min_bookable_per_booking: {
+    [Op.lte]: guests,
+  },
 });
 
 const getAvailableDates = async ({
@@ -223,6 +226,12 @@ const getAvailableDates = async ({
   const vendorProductWhere = {
     product_id: product.id,
     active: true,
+    min_bookable_per_booking: {
+      [Op.lte]: pricingQuantity,
+    },
+    max_bookable_per_booking: {
+      [Op.gte]: pricingQuantity,
+    },
   };
 
   const locationWhere = {
@@ -266,6 +275,7 @@ const getAvailableDates = async ({
           "start_time",
           "end_time",
           "max_bookable_per_booking",
+          "min_bookable_per_booking",
         ],
         required: true,
         where: buildSlotWhere({ guests: pricingQuantity }),

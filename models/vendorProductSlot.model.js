@@ -74,6 +74,16 @@ VendorProductSlot.init(
       },
     },
 
+    min_bookable_per_booking: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      comment: "Minimum units required per booking",
+      validate: {
+        min: 1,
+      },
+    },
+
     max_bookable_per_booking: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -157,6 +167,20 @@ VendorProductSlot.init(
     createdAt: "created_at",
 
     updatedAt: "updated_at",
+
+    validate: {
+      bookingLimits() {
+        if (
+          this.max_bookable_per_booking >= 1 &&
+          this.min_bookable_per_booking >
+            this.max_bookable_per_booking
+        ) {
+          throw new Error(
+            "min_bookable_per_booking cannot exceed max_bookable_per_booking",
+          );
+        }
+      },
+    },
 
     indexes: [
       {

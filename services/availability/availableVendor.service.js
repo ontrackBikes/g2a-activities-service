@@ -40,6 +40,31 @@ const getMaxBookablePerBooking = async ({
   );
 };
 
+const getMinBookablePerBooking = async ({
+  productId,
+  locationId,
+}) => {
+  const vendorProducts = await VendorProduct.findAll({
+    attributes: ["min_bookable_per_booking"],
+    where: {
+      product_id: productId,
+      location_id: locationId,
+      active: true,
+    },
+  });
+
+  if (!vendorProducts.length) {
+    return null;
+  }
+
+  return Math.min(
+    ...vendorProducts.map(
+      (vendorProduct) =>
+        Number(vendorProduct.min_bookable_per_booking) || 1,
+    ),
+  );
+};
+
 const getAvailableVendorForProduct = async ({
   productId,
   locationId,
@@ -54,6 +79,9 @@ const getAvailableVendorForProduct = async ({
     },
     max_bookable_per_booking: {
       [Op.gte]: guests,
+    },
+    min_bookable_per_booking: {
+      [Op.lte]: guests,
     },
   };
 
@@ -76,6 +104,9 @@ const getAvailableVendorForProduct = async ({
           active: true,
           max_bookable_per_booking: {
             [Op.gte]: guests,
+          },
+          min_bookable_per_booking: {
+            [Op.lte]: guests,
           },
         },
       },
@@ -240,4 +271,5 @@ const getAvailableVendorForProduct = async ({
 module.exports = {
   getAvailableVendorForProduct,
   getMaxBookablePerBooking,
+  getMinBookablePerBooking,
 };

@@ -60,6 +60,9 @@ const getAvailableSchedule = async ({
     max_bookable_per_booking: {
       [Op.gte]: guests,
     },
+    min_bookable_per_booking: {
+      [Op.lte]: guests,
+    },
   };
 
   let schedule = await VendorSchedule.findOne({
@@ -95,6 +98,9 @@ const getAvailableSchedule = async ({
       },
       max_bookable_per_booking: {
         [Op.gte]: guests,
+      },
+      min_bookable_per_booking: {
+        [Op.lte]: guests,
       },
     };
 
@@ -149,6 +155,12 @@ const getAvailableVendorForProduct = async ({
   const vendorWhere = {
     product_id: productId,
     active: true,
+    min_bookable_per_booking: {
+      [Op.lte]: guests,
+    },
+    max_bookable_per_booking: {
+      [Op.gte]: guests,
+    },
   };
 
   const resolvedLocationIds = [
@@ -428,6 +440,8 @@ const getLowestUpcomingPricesForProductLocations = async ({
       WHERE vp.product_id IN (:productIds)
         AND vp.location_id IN (:locationIds)
         AND vp.active = 1
+        AND vp.min_bookable_per_booking <= :guests
+        AND vp.max_bookable_per_booking >= :guests
         AND v.active = 1
         AND l.active = 1
         AND vs.status = 'OPEN'
@@ -435,6 +449,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
         AND vss.status = 'OPEN'
         AND vss.available >= :guests
         AND vss.max_bookable_per_booking >= :guests
+        AND vss.min_bookable_per_booking <= :guests
         AND TIMESTAMP(vs.schedule_date, COALESCE(vss.end_time, vss.start_time, '00:00:00'))
           > DATE_ADD(:nowInstant, INTERVAL vp.min_booking_lead_hours HOUR)
       ORDER BY effective_price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC

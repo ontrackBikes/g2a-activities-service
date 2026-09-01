@@ -61,6 +61,12 @@ const getEffectiveMaxBookable = ({ vendorProduct, scheduleSlot }) =>
     Number(scheduleSlot.available),
   );
 
+const getEffectiveMinBookable = ({ vendorProduct, scheduleSlot }) =>
+  Math.max(
+    Number(vendorProduct.min_bookable_per_booking) || 1,
+    Number(scheduleSlot.min_bookable_per_booking) || 1,
+  );
+
 const getServiceHours = (scheduleSlot) =>
   scheduleSlot.start_time && scheduleSlot.end_time
     ? [
@@ -181,6 +187,10 @@ const checkTransferAvailability = async ({
             vendorProduct: availability.vendorProduct,
             scheduleSlot,
           }),
+          min_bookable_per_booking: getEffectiveMinBookable({
+            vendorProduct: availability.vendorProduct,
+            scheduleSlot,
+          }),
         },
         service_hours: getServiceHours(scheduleSlot),
         min_booking_lead_hours: availability.vendorProduct.min_booking_lead_hours,
@@ -231,6 +241,8 @@ const checkTransferAvailability = async ({
 
   const maxBookablePerBooking =
     availabilityDetails.inventory.max_bookable_per_booking;
+  const minBookablePerBooking =
+    availabilityDetails.inventory.min_bookable_per_booking;
   const pickupTimeError = getPickupTimeError({
     date: payload.date,
     pickupTime: payload.pickup_time,
@@ -260,6 +272,21 @@ const checkTransferAvailability = async ({
       success: true,
       available: false,
       message: `${serviceName} is not available for the selected quantity.`,
+      data: buildBookingQuote({
+        product,
+        location,
+        booking,
+        availability: availabilityDetails,
+      }),
+    };
+  }
+
+  if (payload.quantity < minBookablePerBooking) {
+    return {
+      status: 200,
+      success: true,
+      available: false,
+      message: `${serviceName} requires at least ${minBookablePerBooking} per booking.`,
       data: buildBookingQuote({
         product,
         location,
@@ -362,6 +389,7 @@ const checkTransferAvailability = async ({
       tax: 0,
       grand_total: subtotal,
       max_bookable_per_booking: maxBookablePerBooking,
+      min_bookable_per_booking: minBookablePerBooking,
       distance_km: distanceKm,
       duration_minutes: durationMinutes,
     },

@@ -365,6 +365,16 @@ const reserveInventoryForConfirmedOrder = async ({ order, transaction }) => {
 
       const booked = Number(scheduleSlot.booked) || 0;
       const available = Number(scheduleSlot.available) || 0;
+      const minBookablePerBooking =
+        Number(scheduleSlot.min_bookable_per_booking) || 1;
+
+      if (quantity < minBookablePerBooking) {
+        const error = new Error(
+          `A minimum of ${minBookablePerBooking} is required for this booking.`,
+        );
+        error.status = 409;
+        throw error;
+      }
 
       if (available < quantity) {
         const error = new Error("Insufficient inventory for this order.");
