@@ -31,7 +31,7 @@ const getNextAvailableSlotsForProducts = async ({
   productIds,
   locationIds = [],
   locationSlugs = [],
-  guests = 1,
+  guests,
   groupByLocation = false,
   fromDate,
 }) => {
@@ -44,10 +44,10 @@ const getNextAvailableSlotsForProducts = async ({
   const normalizedLocationIds = normalizeIds(locationIds);
   const normalizedLocationSlugs =
     normalizeSlugs(locationSlugs);
-  const requestedGuests = Math.max(
-    Number.parseInt(guests, 10) || 1,
-    1,
-  );
+  const requestedGuests =
+    guests === undefined || guests === null || guests === ""
+      ? null
+      : Math.max(Number.parseInt(guests, 10) || 1, 1);
   const now = moment().tz(APP_TIMEZONE);
   const today = now.format("YYYY-MM-DD");
   // "Next available" must never be earlier than the date the caller is
@@ -63,7 +63,7 @@ const getNextAvailableSlotsForProducts = async ({
     productIds: normalizedProductIds,
     fromDate: requestedFromDate > today ? requestedFromDate : today,
     nowInstant: now.format("YYYY-MM-DD HH:mm:ss"),
-    guests: requestedGuests,
+    ...(requestedGuests ? { guests: requestedGuests } : {}),
   };
 
   if (normalizedLocationIds.length) {
@@ -83,18 +83,31 @@ const getNextAvailableSlotsForProducts = async ({
     const conditions = [
       `${vendorProductAlias}.product_id IN (:productIds)`,
       `${vendorProductAlias}.active = 1`,
-      `${vendorProductAlias}.min_bookable_per_booking <= :guests`,
-      `${vendorProductAlias}.max_bookable_per_booking >= :guests`,
       `${locationAlias}.active = 1`,
       `${scheduleAlias}.status = 'OPEN'`,
       `${scheduleAlias}.schedule_date >= :fromDate`,
       `${slotAlias}.status = 'OPEN'`,
-      `${slotAlias}.available >= :guests`,
-      `${slotAlias}.max_bookable_per_booking >= :guests`,
-      `${slotAlias}.min_bookable_per_booking <= :guests`,
       `TIMESTAMP(${scheduleAlias}.schedule_date, COALESCE(${slotAlias}.end_time, ${slotAlias}.start_time, '00:00:00'))
         > DATE_ADD(:nowInstant, INTERVAL ${vendorProductAlias}.min_booking_lead_hours HOUR)`,
     ];
+
+    if (requestedGuests) {
+      conditions.push(
+        `${vendorProductAlias}.min_bookable_per_booking <= :guests`,
+        `${vendorProductAlias}.max_bookable_per_booking >= :guests`,
+        `${slotAlias}.available >= :guests`,
+        `${slotAlias}.max_bookable_per_booking >= :guests`,
+        `${slotAlias}.min_bookable_per_booking <= :guests`,
+      );
+    } else {
+      const requiredQuantity = `GREATEST(${vendorProductAlias}.min_bookable_per_booking, ${slotAlias}.min_bookable_per_booking)`;
+
+      conditions.push(
+        `${vendorProductAlias}.max_bookable_per_booking >= ${requiredQuantity}`,
+        `${slotAlias}.available >= ${requiredQuantity}`,
+        `${slotAlias}.max_bookable_per_booking >= ${requiredQuantity}`,
+      );
+    }
 
     if (normalizedLocationIds.length) {
       conditions.push(
@@ -216,7 +229,7 @@ const getNextAvailableSlotsForProductLocations = async ({
   productIds,
   locationIds = [],
   locationSlugs = [],
-  guests = 1,
+  guests,
   fromDate,
 }) =>
   getNextAvailableSlotsForProducts({
@@ -234,7 +247,7 @@ const getNextAvailableSlotForProduct = async ({
   locationIds = [],
   locationSlug,
   locationSlugs = [],
-  guests = 1,
+  guests,
   fromDate,
 }) => {
   const results =

@@ -885,7 +885,7 @@ const getProductsListForApp = async (req, res) => {
       location_slugs,
       location_ids,
       date,
-      guests = 1,
+      guests,
       min_price,
       max_price,
       sort = "recommended",
@@ -1153,7 +1153,10 @@ const getProductsListForApp = async (req, res) => {
     });
 
     const productIds = products.map((product) => product.id);
-    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
+    const requestedGuests =
+      guests === undefined || guests === null || guests === ""
+        ? undefined
+        : Math.max(Number.parseInt(guests, 10) || 1, 1);
 
     let locationMap = {};
 
@@ -1413,10 +1416,10 @@ const getRecommendedProductsForApp = async (req, res) => {
     }
 
     const [, productSlug, locationSlug] = match;
-    const guests = Math.max(
-      Number.parseInt(req.query.guests, 10) || 1,
-      1,
-    );
+    const guests =
+      req.query.guests === undefined || req.query.guests === ""
+        ? undefined
+        : Math.max(Number.parseInt(req.query.guests, 10) || 1, 1);
     const limit = Math.min(
       Math.max(Number.parseInt(req.query.limit, 10) || 8, 1),
       20,
@@ -1622,7 +1625,7 @@ const getProductDetailsForApp = async (req, res) => {
     }
      let selectedLocation = null
 
-    const { date, guests = 1 } = req.query;
+    const { date, guests } = req.query;
     if(location_slug) {
       selectedLocation = await Location.findOne({
         where:{
@@ -1794,7 +1797,10 @@ const getProductDetailsForApp = async (req, res) => {
       }
     }
 
-    const requestedGuests = Math.max(Number.parseInt(guests, 10) || 1, 1);
+    const requestedGuests =
+      guests === undefined || guests === null || guests === ""
+        ? undefined
+        : Math.max(Number.parseInt(guests, 10) || 1, 1);
 
     const selectedVendorLocation = product.vendorProducts.find(
       (vendorProduct) => vendorProduct.location?.slug === location_slug,

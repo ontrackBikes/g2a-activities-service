@@ -201,7 +201,7 @@ const getCollectionsWithProducts = async (req, res) => {
       entity_slug,
       location_slug,
       date,
-      guests = 1,
+      guests,
     } = req.query;
 
     const where = {
@@ -387,10 +387,10 @@ const getCollectionsWithProducts = async (req, res) => {
       ),
     ];
 
-    const requestedGuests = Math.max(
-      Number.parseInt(guests, 10) || 1,
-      1,
-    );
+    const requestedGuests =
+      guests === undefined || guests === null || guests === ""
+        ? undefined
+        : Math.max(Number.parseInt(guests, 10) || 1, 1);
     const selectedLocationSlugs = location_slug
       ? [location_slug]
       : [];
