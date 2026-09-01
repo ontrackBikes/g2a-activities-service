@@ -24,18 +24,45 @@ const APP_TIMEZONE =
 const getToday = () =>
   moment().tz(APP_TIMEZONE).format("YYYY-MM-DD");
 
-const filterEligibleSlots = ({ schedule, vendorProduct }) => {
+const normalizeRequestedGuests = (guests) => {
+  if (guests === undefined || guests === null || guests === "") {
+    return null;
+  }
+
+  return Math.max(Number.parseInt(guests, 10) || 1, 1);
+};
+
+const getRequiredBookingQuantity = ({ vendorProduct, slot, guests }) =>
+  normalizeRequestedGuests(guests) ||
+  Math.max(
+    Number(vendorProduct.min_bookable_per_booking) || 1,
+    Number(slot.min_bookable_per_booking) || 1,
+  );
+
+const filterEligibleSlots = ({ schedule, vendorProduct, guests }) => {
   if (!schedule) {
     return schedule;
   }
 
   schedule.slots = (schedule.slots || []).filter(
-    (slot) =>
-      !isBeforeLeadTime({
-        date: schedule.schedule_date,
-        time: slot.end_time || slot.start_time || "00:00:00",
-        minBookingLeadHours: vendorProduct.min_booking_lead_hours,
-      }),
+    (slot) => {
+      const requiredQuantity = getRequiredBookingQuantity({
+        vendorProduct,
+        slot,
+        guests,
+      });
+
+      return (
+        Number(vendorProduct.max_bookable_per_booking) >= requiredQuantity &&
+        Number(slot.available) >= requiredQuantity &&
+        Number(slot.max_bookable_per_booking) >= requiredQuantity &&
+        !isBeforeLeadTime({
+          date: schedule.schedule_date,
+          time: slot.end_time || slot.start_time || "00:00:00",
+          minBookingLeadHours: vendorProduct.min_booking_lead_hours,
+        })
+      );
+    },
   );
 
   return schedule.slots.length ? schedule : null;
@@ -46,6 +73,7 @@ const getAvailableSchedule = async ({
   date,
   guests,
 }) => {
+  const requestedGuests = normalizeRequestedGuests(guests);
   const today = getToday();
   const scheduleWhere = {
     vendor_product_id: vendorProduct.id,
@@ -54,15 +82,13 @@ const getAvailableSchedule = async ({
   };
   const slotWhere = {
     status: "OPEN",
-    available: {
-      [Op.gte]: guests,
-    },
-    max_bookable_per_booking: {
-      [Op.gte]: guests,
-    },
-    min_bookable_per_booking: {
-      [Op.lte]: guests,
-    },
+    ...(requestedGuests
+      ? {
+          available: { [Op.gte]: requestedGuests },
+          max_bookable_per_booking: { [Op.gte]: requestedGuests },
+          min_bookable_per_booking: { [Op.lte]: requestedGuests },
+        }
+      : {}),
   };
 
   let schedule = await VendorSchedule.findOne({
@@ -88,21 +114,14 @@ const getAvailableSchedule = async ({
     ],
   });
 
-  schedule = filterEligibleSlots({ schedule, vendorProduct });
+  schedule = filterEligibleSlots({
+    schedule,
+    vendorProduct,
+    guests: requestedGuests,
+  });
 
   if (!schedule && !date) {
-    const futureSlotWhere = {
-      status: "OPEN",
-      available: {
-        [Op.gte]: guests,
-      },
-      max_bookable_per_booking: {
-        [Op.gte]: guests,
-      },
-      min_bookable_per_booking: {
-        [Op.lte]: guests,
-      },
-    };
+    const futureSlotWhere = slotWhere;
 
     schedule = await VendorSchedule.findOne({
       where: {
@@ -133,7 +152,11 @@ const getAvailableSchedule = async ({
       ],
     });
 
-    schedule = filterEligibleSlots({ schedule, vendorProduct });
+    schedule = filterEligibleSlots({
+      schedule,
+      vendorProduct,
+      guests: requestedGuests,
+    });
   }
 
   if (!schedule) {
@@ -150,17 +173,18 @@ const getAvailableVendorForProduct = async ({
   locationSlug,
   locationSlugs = [],
   date,
-  guests = 1,
+  guests,
 }) => {
+  const requestedGuests = normalizeRequestedGuests(guests);
   const vendorWhere = {
     product_id: productId,
     active: true,
-    min_bookable_per_booking: {
-      [Op.lte]: guests,
-    },
-    max_bookable_per_booking: {
-      [Op.gte]: guests,
-    },
+    ...(requestedGuests
+      ? {
+          min_bookable_per_booking: { [Op.lte]: requestedGuests },
+          max_bookable_per_booking: { [Op.gte]: requestedGuests },
+        }
+      : {}),
   };
 
   const resolvedLocationIds = [
@@ -222,7 +246,7 @@ const getAvailableVendorForProduct = async ({
         const schedule = await getAvailableSchedule({
           vendorProduct,
           date,
-          guests,
+          guests: requestedGuests,
         });
 
         if (!schedule) {
@@ -291,7 +315,7 @@ const getAvailableVendorsForProducts = async ({
   locationIds = [],
   locationSlugs = [],
   date,
-  guests = 1,
+  guests,
   concurrency = 5,
 }) => {
   const results = new Map();
@@ -332,7 +356,7 @@ const getAvailableVendorsForProducts = async ({
 const getAvailableVendorsForProductLocations = async ({
   productLocations,
   date,
-  guests = 1,
+  guests,
   concurrency = 8,
 }) => {
   const results = new Map();
@@ -388,7 +412,7 @@ const getAvailableVendorsForProductLocations = async ({
 
 const getLowestUpcomingPricesForProductLocations = async ({
   productLocations,
-  guests = 1,
+  guests,
 }) => {
   const pairs = [
     ...new Map(
@@ -413,6 +437,18 @@ const getLowestUpcomingPricesForProductLocations = async ({
   }
 
   const now = moment().tz(APP_TIMEZONE);
+  const requestedGuests = normalizeRequestedGuests(guests);
+  const bookingQuantityConditions = requestedGuests
+    ? `
+        AND vp.min_bookable_per_booking <= :guests
+        AND vp.max_bookable_per_booking >= :guests
+        AND vss.available >= :guests
+        AND vss.max_bookable_per_booking >= :guests
+        AND vss.min_bookable_per_booking <= :guests`
+    : `
+        AND vp.max_bookable_per_booking >= GREATEST(vp.min_bookable_per_booking, vss.min_bookable_per_booking)
+        AND vss.available >= GREATEST(vp.min_bookable_per_booking, vss.min_bookable_per_booking)
+        AND vss.max_bookable_per_booking >= GREATEST(vp.min_bookable_per_booking, vss.min_bookable_per_booking)`;
   const rows = await sequelize.query(
     `
       SELECT
@@ -440,16 +476,12 @@ const getLowestUpcomingPricesForProductLocations = async ({
       WHERE vp.product_id IN (:productIds)
         AND vp.location_id IN (:locationIds)
         AND vp.active = 1
-        AND vp.min_bookable_per_booking <= :guests
-        AND vp.max_bookable_per_booking >= :guests
         AND v.active = 1
         AND l.active = 1
         AND vs.status = 'OPEN'
         AND vs.schedule_date >= :today
         AND vss.status = 'OPEN'
-        AND vss.available >= :guests
-        AND vss.max_bookable_per_booking >= :guests
-        AND vss.min_bookable_per_booking <= :guests
+        ${bookingQuantityConditions}
         AND TIMESTAMP(vs.schedule_date, COALESCE(vss.end_time, vss.start_time, '00:00:00'))
           > DATE_ADD(:nowInstant, INTERVAL vp.min_booking_lead_hours HOUR)
       ORDER BY effective_price ASC, vs.schedule_date ASC, vp.id ASC, vss.id ASC
@@ -460,7 +492,7 @@ const getLowestUpcomingPricesForProductLocations = async ({
         locationIds: [...new Set(pairs.map(({ locationId }) => locationId))],
         today: now.format("YYYY-MM-DD"),
         nowInstant: now.format("YYYY-MM-DD HH:mm:ss"),
-        guests: Math.max(Number.parseInt(guests, 10) || 1, 1),
+        ...(requestedGuests ? { guests: requestedGuests } : {}),
       },
       type: QueryTypes.SELECT,
     },
