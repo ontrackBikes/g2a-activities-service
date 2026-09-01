@@ -3,6 +3,7 @@ module.exports = {
   SLOT: "slot",
   GUESTS: "guests",
   QUANTITY: "quantity",
+  DERIVE_QUANTITY: "derive_quantity",
   PICKUP_LOCATION: "pickup_location",
   DROP_LOCATION: "drop_location",
   PICKUP_TIME: "pickup_time",

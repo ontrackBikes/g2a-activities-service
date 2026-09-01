@@ -1,6 +1,7 @@
 const Joi = require("joi");
 
 const BOOKING_SECTIONS = require("../constants/bookingSections");
+const BOOKING_FIELDS = require("../constants/bookingFields");
 
 const fieldSchema = Joi.object({
   field: Joi.string().required(),
@@ -17,7 +18,20 @@ const fieldSchema = Joi.object({
 
   default_value: Joi.any(),
 
-  config: Joi.object().default({}),
+  // "derive_quantity" replaces separate guests/quantity fields on the
+  // product page with a single guest-count control - the frontend derives
+  // quantity = ceil(guests / per_qty_guests), and the backend independently
+  // recomputes/overrides it the same way at availability-check time rather
+  // than trusting the client-sent quantity (see deriveQuantity.service.js).
+  config: Joi.object().when("field", {
+    is: BOOKING_FIELDS.DERIVE_QUANTITY,
+    then: Joi.object({
+      per_qty_guests: Joi.number().integer().min(1).required(),
+    })
+      .unknown(true)
+      .required(),
+    otherwise: Joi.object().default({}),
+  }),
 
   visible: Joi.boolean().default(true),
 });

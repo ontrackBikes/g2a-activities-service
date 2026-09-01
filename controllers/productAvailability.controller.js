@@ -51,6 +51,9 @@ const {
 const {
   getNextAvailableSlotForProduct,
 } = require("../services/nextAvailableSlot.service");
+const {
+  resolveDerivedQuantity,
+} = require("../services/availability/deriveQuantity.service");
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
@@ -281,6 +284,25 @@ const checkProductAvailability = async (req, res) => {
         success: false,
         message: error.details[0].message,
       });
+    }
+
+    // Products whose template declares a "derive_quantity" field only take
+    // guests as customer input - quantity is server-derived from it, never
+    // trusted from the client, since quantity is what drives pricing.
+    const derivedQuantity = resolveDerivedQuantity({
+      bookingTemplate: product.bookingTemplate,
+      guests: value.guests,
+    });
+
+    if (derivedQuantity !== null) {
+      if (!value.guests) {
+        return res.status(400).json({
+          success: false,
+          message: `"guests" is required for this product.`,
+        });
+      }
+
+      value.quantity = derivedQuantity;
     }
 
     const pricingField =
