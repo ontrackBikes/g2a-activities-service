@@ -304,6 +304,22 @@ const formatEmailInfantDocuments = (infantDocuments) => {
   };
 };
 
+const formatEmailFlightDetails = (flightDetails) => {
+  if (!flightDetails) {
+    return { airline: "", flight_number: "" };
+  }
+
+  const airline =
+    flightDetails.airline?.toLowerCase() === "other"
+      ? flightDetails.custom_airline || flightDetails.airline
+      : flightDetails.airline;
+
+  return {
+    airline: airline || "",
+    flight_number: flightDetails.flight_number || "",
+  };
+};
+
 // "agree_to" sections can be repeated per template, so the agreed value
 // lives at booking_payload.agree_to[key]; the label for each key only
 // exists on the quotation's snapshot of the booking template. Emails use
@@ -406,6 +422,7 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
           : undefined,
     }),
     agree_to: formatEmailAgreeTo(item),
+    ...formatEmailFlightDetails(item.booking_payload?.flight_details),
     participants: (item.participants || []).map(formatEmailParticipant),
     kyc_per_passanger: [
       ...(item.booking_payload?.kyc_per_passanger || []),
@@ -531,6 +548,12 @@ async function sendConfirmationEmail({ payment, order, to, cc, bcc }) {
           ${
             booking.quantity
               ? `<div><strong>Quantity:</strong> ${booking.quantity}</div>`
+              : ""
+          }
+
+          ${
+            item.airline || item.flight_number
+              ? `<div><strong>Flight:</strong> ${item.airline} ${item.flight_number}</div>`
               : ""
           }
 
