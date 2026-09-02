@@ -23,10 +23,15 @@ const fieldSchema = Joi.object({
   // quantity = ceil(guests / per_qty_guests), and the backend independently
   // recomputes/overrides it the same way at availability-check time rather
   // than trusting the client-sent quantity (see deriveQuantity.service.js).
+  // unit_label (e.g. "car", "ferry") and per_qty_description are display-only
+  // copy describing what one derived unit is - the backend never reads them,
+  // it just stores/echoes them for the frontend to render.
   config: Joi.object().when("field", {
     is: BOOKING_FIELDS.DERIVE_QUANTITY,
     then: Joi.object({
       per_qty_guests: Joi.number().integer().min(1).required(),
+      unit_label: Joi.string().trim().max(50).allow("", null),
+      per_qty_description: Joi.string().trim().max(500).allow("", null),
     })
       .unknown(true)
       .required(),
