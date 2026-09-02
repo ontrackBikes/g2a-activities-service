@@ -1218,63 +1218,45 @@ const getProductsListForApp = async (req, res) => {
         productLocationPairs.map(({ locationId }) => locationId),
       ),
     ];
-    const priceRequests = [
-        getAvailableVendorsForProductLocations({
-          productLocations: productLocationPairs,
-          date,
-          guests: requestedGuests,
-        }),
-        getNextAvailableSlotsForProductLocations({
-          productIds,
-          locationIds: availableLocationIds,
-          locationSlugs: selectedLocationSlugs,
-          guests: requestedGuests,
-          fromDate: date,
-        }),
-      ];
-
-    if (!date) {
-      priceRequests.push(
-        getLowestUpcomingPricesForProductLocations({
-          productLocations: productLocationPairs,
-          guests: requestedGuests,
-        }),
-      );
-    }
-
     const [
-      locationAvailabilityMap,
+      locationAvailabilityMap = new Map(),
       locationNextAvailableSlotMap,
       locationStartingPriceMap = new Map(),
-    ] = await Promise.all(priceRequests);
-
-    // Same single-shot lead-time fallback gap as getProductDetailsForApp:
-    // getAvailableVendorsForProductLocations only checks the nearest future
-    // schedule_date and gives up if its slots fall inside min_booking_lead_hours.
-    // locationNextAvailableSlotMap already searched forward correctly, so retry
-    // the pairs it flagged as available but the availability lookup missed.
-    if (!date) {
-      const retryPairs = productLocationPairs.filter(({ productId, locationId }) => {
-        const key = `${Number(productId)}:${Number(locationId)}`;
-        return !locationAvailabilityMap.get(key) && locationNextAvailableSlotMap.get(key);
-      });
-
-      if (retryPairs.length) {
-        await Promise.all(
-          retryPairs.map(async ({ productId, locationId }) => {
-            const key = `${Number(productId)}:${Number(locationId)}`;
-            const retryAvailability = await getAvailableVendorForProduct({
-              productId,
-              locationId,
-              date: locationNextAvailableSlotMap.get(key),
-              guests: requestedGuests,
-            });
-
-            if (retryAvailability) {
-              locationAvailabilityMap.set(key, retryAvailability);
-            }
+    ] = await Promise.all([
+      date
+        ? getAvailableVendorsForProductLocations({
+            productLocations: productLocationPairs,
+            date,
+            guests: requestedGuests,
+          })
+        : Promise.resolve(new Map()),
+      getNextAvailableSlotsForProductLocations({
+        productIds,
+        locationIds: availableLocationIds,
+        locationSlugs: selectedLocationSlugs,
+        guests: requestedGuests,
+        fromDate: date,
+      }),
+      date
+        ? Promise.resolve(new Map())
+        : getLowestUpcomingPricesForProductLocations({
+            productLocations: productLocationPairs,
+            guests: requestedGuests,
           }),
-        );
+    ]);
+
+    if (!date) {
+      for (const { productId, locationId } of productLocationPairs) {
+        const key = `${productId}:${locationId}`;
+        const scheduleDate = locationNextAvailableSlotMap.get(key);
+        const pricing = locationStartingPriceMap.get(key);
+
+        if (scheduleDate && pricing) {
+          locationAvailabilityMap.set(key, {
+            pricing,
+            schedule: { schedule_date: scheduleDate },
+          });
+        }
       }
     }
 
@@ -1865,7 +1847,14 @@ const getProductDetailsForApp = async (req, res) => {
       selected: location.slug === location_slug,
     }));
 
-    const max_bookable_per_booking = availability?.vendorProduct?.max_bookable_per_booking || 10
+    const min_bookable_per_booking =
+      availability?.vendorProduct?.min_bookable_per_booking ||
+      selectedVendorLocation?.min_bookable_per_booking ||
+      1;
+    const max_bookable_per_booking =
+      availability?.vendorProduct?.max_bookable_per_booking ||
+      selectedVendorLocation?.max_bookable_per_booking ||
+      10;
     
     const formatContentItems = (items = []) =>
       items.map((item) => ({
@@ -1901,6 +1890,8 @@ const getProductDetailsForApp = async (req, res) => {
         starting_price: pricing ? pricing.display_price : null,
 
         price_type: pricing ? pricing.price_type : null,
+
+        min_bookable_per_booking,
 
         max_bookable_per_booking,
 

@@ -203,6 +203,10 @@ module.exports.checkDateRange = async ({
           guests: payload.guests,
           quantity: payload.quantity,
         },
+        pricing: {
+          min_bookable_per_booking: minBookablePerBooking ?? 1,
+          max_bookable_per_booking: maxBookablePerBooking ?? 0,
+        },
       }),
     };
   }
