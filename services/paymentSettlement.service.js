@@ -378,6 +378,7 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
       guests: booking.guests ?? "",
       quantity: booking.quantity ?? "",
       pickup_time: booking.pickup_time || rentalDetails?.pickup_time || "",
+      preferred_time: booking.preferred_time || "",
       drop_time: booking.drop_time || "",
       return_time: booking.drop_time || "",
       transfer_type: booking.transfer_type || "",
@@ -548,6 +549,12 @@ async function sendConfirmationEmail({ payment, order, to, cc, bcc }) {
           ${
             booking.quantity
               ? `<div><strong>Quantity:</strong> ${booking.quantity}</div>`
+              : ""
+          }
+
+          ${
+            booking.preferred_time
+              ? `<div><strong>Preferred Time:</strong> ${booking.preferred_time}</div>`
               : ""
           }
 
