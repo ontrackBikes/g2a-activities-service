@@ -237,6 +237,10 @@ module.exports.checkDateRange = async ({
           guests: payload.guests,
           quantity: payload.quantity,
         },
+        availability: {
+          min_booking_lead_hours:
+            availability.vendorProduct.min_booking_lead_hours,
+        },
       }),
     };
   }
@@ -354,6 +358,8 @@ module.exports.checkDateRange = async ({
           service_hours: serviceHours,
           nationality_restriction: nationalityRestriction,
           description: slotDescription,
+          min_booking_lead_hours:
+            availability.vendorProduct.min_booking_lead_hours,
         },
       }),
     };
@@ -419,6 +425,8 @@ module.exports.checkDateRange = async ({
       service_hours: serviceHours,
       nationality_restriction: nationalityRestriction,
       description: slotDescription,
+      min_booking_lead_hours:
+        availability.vendorProduct.min_booking_lead_hours,
       inventory: inventorySlot
         ? {
             available: inventorySlot.available,
