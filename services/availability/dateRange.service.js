@@ -115,27 +115,27 @@ module.exports.checkDateRange = async ({
     };
   }
 
-  if (isBikeRentalProduct(product) && payload.pickup_date === today) {
-    return {
-      status: 200,
-      success: true,
-      available: false,
-      message: "Bike rentals can be booked from tomorrow onwards.",
-      data: buildBookingQuote({
-        product,
-        location,
-        booking: {
-          pickup_date: payload.pickup_date,
-          pickup_time: payload.pickup_time,
-          preferred_time: payload.preferred_time || null,
-          return_date: payload.return_date,
-          drop_time: payload.pickup_time,
-          guests: payload.guests,
-          quantity: pricingQuantity,
-        },
-      }),
-    };
-  }
+  // if (isBikeRentalProduct(product) && payload.pickup_date === today) {
+  //   return {
+  //     status: 200,
+  //     success: true,
+  //     available: false,
+  //     message: "Bike rentals can be booked from tomorrow onwards.",
+  //     data: buildBookingQuote({
+  //       product,
+  //       location,
+  //       booking: {
+  //         pickup_date: payload.pickup_date,
+  //         pickup_time: payload.pickup_time,
+  //         preferred_time: payload.preferred_time || null,
+  //         return_date: payload.return_date,
+  //         drop_time: payload.pickup_time,
+  //         guests: payload.guests,
+  //         quantity: pricingQuantity,
+  //       },
+  //     }),
+  //   };
+  // }
 
   if (payload.return_date < payload.pickup_date) {
     return {
