@@ -235,6 +235,22 @@ const formatEmailAmount = (value) => {
   return Number.isFinite(amount) ? amount.toFixed(2) : "";
 };
 
+const formatEmailTime = (value) => {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+
+  if (!match) {
+    return value || "";
+  }
+
+  const hour = Number(match[1]);
+
+  if (hour > 23) {
+    return value;
+  }
+
+  return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? "PM" : "AM"}`;
+};
+
 const formatEmailLocation = (location) => {
   if (!location) {
     return null;
@@ -377,21 +393,25 @@ const buildEmailItem = ({ item, order, slotFlagsById }) => {
       rental_days: booking.rental_days ?? "",
       guests: booking.guests ?? "",
       quantity: booking.quantity ?? "",
-      pickup_time: booking.pickup_time || rentalDetails?.pickup_time || "",
-      preferred_time: booking.preferred_time || "",
-      drop_time: booking.drop_time || "",
-      return_time: booking.drop_time || "",
+      pickup_time: formatEmailTime(
+        booking.pickup_time || rentalDetails?.pickup_time,
+      ),
+      preferred_time: formatEmailTime(booking.preferred_time),
+      drop_time: formatEmailTime(booking.drop_time),
+      return_time: formatEmailTime(booking.drop_time),
       transfer_type: booking.transfer_type || "",
       selected_slot: selectedSlot
         ? {
             name: selectedSlot.name || "",
             slot_type: selectedSlot.slot_type || "",
             start_time: selectedSlot.start_time
-              ? `${isStartTimeOnly ? "starts " : ""}${selectedSlot.start_time}${
+              ? `${isStartTimeOnly ? "starts " : ""}${formatEmailTime(selectedSlot.start_time)}${
                   isPreferredSlot ? " (preferred)" : ""
                 }`
               : "",
-            end_time: isStartTimeOnly ? "" : selectedSlot.end_time || "",
+            end_time: isStartTimeOnly
+              ? ""
+              : formatEmailTime(selectedSlot.end_time),
             price: formatEmailAmount(selectedSlot.price),
           }
         : null,
