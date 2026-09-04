@@ -151,6 +151,10 @@ const checkSingleDate = async ({ product, location, payload, estimateId }) => {
           pickup_time: payload.pickup_time || null,
           preferred_time: payload.preferred_time || null,
         },
+        pricing: {
+          min_bookable_per_booking: minBookablePerBooking ?? 1,
+          max_bookable_per_booking: maxBookablePerBooking ?? 0,
+        },
       }),
     };
   }

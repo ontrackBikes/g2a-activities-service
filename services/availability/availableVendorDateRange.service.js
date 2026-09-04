@@ -474,6 +474,7 @@ const getAvailableDateRangeVendor = async ({
       "pricing_type",
       "base_price",
       "base_capacity",
+      "min_booking_lead_hours",
       "min_bookable_per_booking",
       "max_bookable_per_booking"
     ],
